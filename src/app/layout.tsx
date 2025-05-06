@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Roboto } from "next/font/google";
 import "./globals.css";
-import Sidebar from "./components/sidebar";
+import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const roboto = Roboto({
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
   subsets: ["latin"],
 });
 
@@ -21,8 +20,7 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${roboto.className} antialiased`}>
         <div className="flex h-screen overflow-hidden">
           <Sidebar
             isOpen={isSidebarOpen}

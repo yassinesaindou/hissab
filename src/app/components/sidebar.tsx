@@ -1,3 +1,4 @@
+"use client";
 import {
   Banknote,
   ChartBar,
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import React from "react";
+import { usePathname } from "next/navigation"; // Import usePathname to get the current route
 
 const NavItem = ({
   icon,
@@ -24,17 +26,25 @@ const NavItem = ({
   href: string;
   textColor?: string;
   onClick?: () => void;
-}) => (
-  <li>
-    <Link
-      href={href}
-      onClick={onClick} // Close sidebar on mobile when a link is clicked
-      className={`flex items-center gap-3 py-2 px-4 hover:bg-green-400 rounded ${textColor}`}>
-      {icon}
-      {label}
-    </Link>
-  </li>
-);
+}) => {
+  const pathname = usePathname(); // Get the current pathname
+  const isActive = pathname === href; // Check if the current link is active
+
+  return (
+    <li>
+      <Link
+        href={href}
+        onClick={onClick}
+        className={`flex items-center gap-3 py-2 px-4 rounded ${textColor} ${
+          isActive ? "bg-blue-800" : "hover:bg-blue-800"
+        }`} // Apply bg-blue-900 if active, otherwise apply on hover
+      >
+        {icon}
+        {label}
+      </Link>
+    </li>
+  );
+};
 
 export default function Sidebar({
   isOpen,
@@ -54,11 +64,12 @@ export default function Sidebar({
       )}
 
       <aside
-        className={`fixed md:relative z-50 h-full w-64 bg-green-800 text-white transform transition-transform duration-300 ease-in-out ${
+        className={`fixed md:relative z-50 h-full w-64 bg-blue-700 text-white transform transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        }`}>
+        }`}
+      >
         {/* Logo */}
-        <div className="flex items-center justify-between text-3xl font-bold text-center py-5 px-4 border-b border-green-700">
+        <div className="flex items-center justify-between text-3xl font-bold text-center py-5 px-4 border-b border-blue-600">
           <h1>Hissab</h1>
           {/* Close button for mobile */}
           <button onClick={closeSidebar} className="md:hidden text-white">
@@ -107,7 +118,7 @@ export default function Sidebar({
             />
           </ul>
 
-          <div className="list-none px-2 py-4 border-t border-green-700 space-y-1">
+          <div className="list-none px-2 py-4 border-t border-blue-600 space-y-1">
             <NavItem
               icon={<Settings size={20} />}
               label="Settings"
