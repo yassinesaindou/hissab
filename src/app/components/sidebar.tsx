@@ -13,6 +13,7 @@ import {
 import Link from "next/link";
 import React from "react";
 import { usePathname } from "next/navigation"; // Import usePathname to get the current route
+import { Button } from "@/components/ui/button";
 
 const NavItem = ({
   icon,
@@ -66,8 +67,7 @@ export default function Sidebar({
       <aside
         className={`fixed md:relative z-50 h-full w-64 bg-blue-700 text-white transform transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        }`}
-      >
+        }`}>
         {/* Logo */}
         <div className="flex items-center justify-between text-3xl font-bold text-center py-5 px-4 border-b border-blue-600">
           <h1>Hissab</h1>
@@ -125,13 +125,7 @@ export default function Sidebar({
               href="/settings"
               onClick={closeSidebar}
             />
-            <NavItem
-              icon={<LogOut size={20} />}
-              label="Logout"
-              href="/logout"
-              textColor="text-red-200"
-              onClick={closeSidebar}
-            />
+            <Button className="w-full text-gray-200 bg-red-700" onClick={() => console.log("Logout")}>Logout</Button>
           </div>
         </div>
       </aside>
