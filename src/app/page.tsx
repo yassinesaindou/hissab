@@ -1,10 +1,9 @@
 import React from "react";
-import Sidebar from "./components/sidebar";
 
 export default function HomePage() {
   return (
-    <div>
-      <Sidebar />
+    <div className="h-screen bg-gray-100 p-4 text-gray-700 font-normal text-lg ">
+      <p>Welcome to the dashboard</p>
     </div>
   );
 }
