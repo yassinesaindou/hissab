@@ -87,6 +87,12 @@ export default function Sidebar({
               onClick={closeSidebar}
             />
             <NavItem
+              icon={<ChartBar size={20} />}
+              label="Analytics"
+              href="/analytics"
+              onClick={closeSidebar}
+            />
+            <NavItem
               icon={<Banknote size={20} />}
               label="Transactions"
               href="/transactions"
@@ -104,12 +110,7 @@ export default function Sidebar({
               href="/products"
               onClick={closeSidebar}
             />
-            <NavItem
-              icon={<ChartBar size={20} />}
-              label="Analytics"
-              href="/analytics"
-              onClick={closeSidebar}
-            />
+
             <NavItem
               icon={<FileText size={20} />}
               label="Invoices"
@@ -125,7 +126,11 @@ export default function Sidebar({
               href="/settings"
               onClick={closeSidebar}
             />
-            <Button className="w-full text-gray-200 bg-red-700" onClick={() => console.log("Logout")}>Logout</Button>
+            <Button
+              className="w-full text-gray-200 bg-red-700"
+              onClick={() => console.log("Logout")}>
+              Logout
+            </Button>
           </div>
         </div>
       </aside>
