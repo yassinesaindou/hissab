@@ -1,5 +1,7 @@
 import React from "react";
+import { DataTable } from "./CreditTable";
+import { columns, creditData } from "./CreditColumns";
 
 export default function Page() {
-  return <>Credits</>;
+  return <DataTable columns={columns} data={creditData} />
 }
