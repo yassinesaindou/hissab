@@ -18,7 +18,9 @@ export default function Navbar({
       <button onClick={toggleSidebar} className="md:hidden text-green-800">
         <Menu size={24} />
       </button>
-      <span className="text-lg font-semibold">{!path?'DASHBOARD': path.toUpperCase()}</span>
+      <span className="text-lg font-semibold">
+        {!path ? "DASHBOARD" : path.toUpperCase()}
+      </span>
     </nav>
   );
 }

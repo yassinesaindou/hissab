@@ -4,7 +4,6 @@ import {
   ChartBar,
   FileText,
   Home,
-  LogOut,
   Package,
   Settings,
   UserRoundMinus,
@@ -14,6 +13,8 @@ import Link from "next/link";
 import React from "react";
 import { usePathname } from "next/navigation"; // Import usePathname to get the current route
 import { Button } from "@/components/ui/button";
+
+import { useRouter } from "next/navigation";
 
 const NavItem = ({
   icon,
@@ -54,6 +55,7 @@ export default function Sidebar({
   isOpen: boolean;
   closeSidebar: () => void;
 }) {
+  const router = useRouter();
   return (
     <>
       {/* Overlay for mobile when sidebar is open */}
@@ -127,8 +129,12 @@ export default function Sidebar({
               onClick={closeSidebar}
             />
             <Button
-              className="w-full text-gray-200 bg-red-700"
-              onClick={() => console.log("Logout")}>
+              className="w-full text-gray-200 cursor-pointer bg-red-700"
+              onClick={
+                () => {
+                  router.push("/login");
+                } // Redirect to login page after sign out
+              }>
               Logout
             </Button>
           </div>

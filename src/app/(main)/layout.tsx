@@ -2,6 +2,8 @@
 import { useState } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
+ 
+ 
 
 export default function RootLayout({
   children,
@@ -9,6 +11,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+   
 
   return (
     <div className="flex h-screen overflow-hidden">

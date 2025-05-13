@@ -1,5 +1,4 @@
-"use client";
-
+ 'use client'
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -14,6 +13,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
+import { useState } from "react";
+ 
 
 const formSchema = z.object({
   email: z
@@ -28,6 +29,10 @@ const formSchema = z.object({
 });
 
 export default function LoginPage() {
+  const [message, setMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+ 
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -36,14 +41,26 @@ export default function LoginPage() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    console.log("Form submitted:", values);
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h1 className="text-2xl font-bold text-center text-blue-600 mb-6">Login</h1>
+        <h1 className="text-2xl font-bold text-center text-blue-600 mb-6">
+          Login
+        </h1>
+        {message && (
+          <div
+            className={`mb-4 p-3 rounded text-sm ${
+              message.includes("successful")
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
+            }`}>
+            {message}
+          </div>
+        )}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
@@ -56,6 +73,7 @@ export default function LoginPage() {
                     <Input
                       placeholder="joeharry@gmail.com"
                       className="border-gray-300 focus:ring-blue-600 focus:border-blue-600"
+                      disabled={isLoading}
                       {...field}
                     />
                   </FormControl>
@@ -74,6 +92,7 @@ export default function LoginPage() {
                       type="password"
                       placeholder="Enter your password"
                       className="border-gray-300 focus:ring-blue-600 focus:border-blue-600"
+                      disabled={isLoading}
                       {...field}
                     />
                   </FormControl>
@@ -84,8 +103,8 @@ export default function LoginPage() {
             <Button
               type="submit"
               className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              Login
+              disabled={isLoading}>
+              {isLoading ? "Logging In..." : "Login"}
             </Button>
           </form>
         </Form>
