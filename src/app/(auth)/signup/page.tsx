@@ -1,9 +1,8 @@
- 'use client'
-
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { Button } from "@/components/ui/button";
+'use client';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
@@ -11,77 +10,82 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import Link from "next/link";
-import { useState } from "react";
- 
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import Link from 'next/link';
+import { useState } from 'react';
+import { signupAction } from '@/app/actions';
 
 const formSchema = z
   .object({
     name: z
       .string()
-      .min(2, { message: "Name must be at least 2 characters." })
-      .max(50, { message: "Name must be at most 50 characters." }),
+      .min(2, { message: 'Name must be at least 2 characters.' })
+      .max(50, { message: 'Name must be at most 50 characters.' }),
     email: z
       .string()
-      .min(7, { message: "Email must be at least 7 characters." })
+      .min(7, { message: 'Email must be at least 7 characters.' })
       .max(50)
-      .email({ message: "Please enter a valid email." }),
+      .email({ message: 'Please enter a valid email.' }),
     phone: z
       .string()
-      .min(10, { message: "Phone number must be at least 10 digits." })
-      .max(15, { message: "Phone number must be at most 15 digits." })
+      .min(10, { message: 'Phone number must be at least 10 digits.' })
+      .max(15, { message: 'Phone number must be at most 15 digits.' })
       .regex(/^\+?\d+$/, {
-        message:
-          "Phone number must contain only digits and an optional leading +.",
+        message: 'Phone number must contain only digits and an optional leading +.',
       }),
     password: z
       .string()
-      .min(8, { message: "Password must be at least 8 characters." })
+      .min(8, { message: 'Password must be at least 8 characters.' })
       .max(50),
     confirmPassword: z
       .string()
-      .min(8, { message: "Password must be at least 8 characters." })
+      .min(8, { message: 'Password must be at least 8 characters.' })
       .max(50),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match.",
-    path: ["confirmPassword"],
+    message: 'Passwords do not match.',
+    path: ['confirmPassword'],
   });
 
 export default function SignupPage() {
   const [message, setMessage] = useState<string | null>(null);
-   
+  const [isPending, setIsPending] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
-      email: "",
-      phone: "",
-      password: "",
-      confirmPassword: "",
+      name: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirmPassword: '',
     },
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log("Form submitted:", values);
+    setIsPending(true);
+    setMessage(null);
+    const result = await signupAction(values);
+    setMessage(result.message);
+    setIsPending(false);
+    if (result.success) {
+      form.reset();
+    }
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h1 className="text-2xl font-bold text-center text-blue-600 mb-6">
-          Sign Up
-        </h1>
+        <h1 className="text-2xl font-bold text-center text-blue-600 mb-6">Sign Up</h1>
         {message && (
           <div
             className={`mb-4 p-3 rounded text-sm ${
-              message.includes("successful")
-                ? "bg-green-100 text-green-700"
-                : "bg-red-100 text-red-700"
-            }`}>
+              message.includes('successful')
+                ? 'bg-green-100 text-green-700'
+                : 'bg-red-100 text-red-700'
+            }`}
+          >
             {message}
           </div>
         )}
@@ -97,7 +101,6 @@ export default function SignupPage() {
                     <Input
                       placeholder="John Doe"
                       className="border-gray-300 focus:ring-blue-600 focus:border-blue-600"
-                      
                       {...field}
                     />
                   </FormControl>
@@ -115,7 +118,6 @@ export default function SignupPage() {
                     <Input
                       placeholder="joeharry@gmail.com"
                       className="border-gray-300 focus:ring-blue-600 focus:border-blue-600"
-                      
                       {...field}
                     />
                   </FormControl>
@@ -133,7 +135,6 @@ export default function SignupPage() {
                     <Input
                       placeholder="+1234567890"
                       className="border-gray-300 focus:ring-blue-600 focus:border-blue-600"
-                       
                       {...field}
                     />
                   </FormControl>
@@ -152,7 +153,6 @@ export default function SignupPage() {
                       type="password"
                       placeholder="Enter your password"
                       className="border-gray-300 focus:ring-blue-600 focus:border-blue-600"
-                       
                       {...field}
                     />
                   </FormControl>
@@ -171,7 +171,6 @@ export default function SignupPage() {
                       type="password"
                       placeholder="Confirm your password"
                       className="border-gray-300 focus:ring-blue-600 focus:border-blue-600"
-                      
                       {...field}
                     />
                   </FormControl>
@@ -182,13 +181,14 @@ export default function SignupPage() {
             <Button
               type="submit"
               className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-               >
-              Sign Up
+              disabled={isPending}
+            >
+              {isPending ? 'Signing Up...' : 'Sign Up'}
             </Button>
           </form>
         </Form>
         <p className="mt-4 text-center text-sm text-gray-600">
-          Already have an account?{" "}
+          Already have an account?{' '}
           <Link href="/login" className="text-blue-600 hover:underline">
             Login
           </Link>

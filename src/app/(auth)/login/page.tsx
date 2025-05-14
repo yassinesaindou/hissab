@@ -1,4 +1,4 @@
- 'use client'
+"use client";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -14,7 +14,8 @@ import {
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { useState } from "react";
- 
+import { loginAction } from "@/app/actions";
+import { useRouter } from "next/navigation";
 
 const formSchema = z.object({
   email: z
@@ -30,8 +31,8 @@ const formSchema = z.object({
 
 export default function LoginPage() {
   const [message, setMessage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
- 
+  const [isPending, setIsPending] = useState(false);
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -42,7 +43,15 @@ export default function LoginPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log("Form submitted:", values);
+    setIsPending(true);
+    setMessage(null);
+    const result = await loginAction(values);
+    setMessage(result.message);
+    setIsPending(false);
+    if (result.success) {
+      form.reset();
+      router.push("/"); // Redirect to dashboard
+    }
   }
 
   return (
@@ -73,7 +82,6 @@ export default function LoginPage() {
                     <Input
                       placeholder="joeharry@gmail.com"
                       className="border-gray-300 focus:ring-blue-600 focus:border-blue-600"
-                      disabled={isLoading}
                       {...field}
                     />
                   </FormControl>
@@ -92,7 +100,6 @@ export default function LoginPage() {
                       type="password"
                       placeholder="Enter your password"
                       className="border-gray-300 focus:ring-blue-600 focus:border-blue-600"
-                      disabled={isLoading}
                       {...field}
                     />
                   </FormControl>
@@ -103,8 +110,8 @@ export default function LoginPage() {
             <Button
               type="submit"
               className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-              disabled={isLoading}>
-              {isLoading ? "Logging In..." : "Login"}
+              disabled={isPending}>
+              {isPending ? "Logging In..." : "Login"}
             </Button>
           </form>
         </Form>
