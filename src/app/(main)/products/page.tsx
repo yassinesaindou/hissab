@@ -1,18 +1,26 @@
-import React from "react";
-import { ProductsTable } from "./ProductsTable";
-import { productColumns, products } from "./ProductsColumns.tsx";
-
+// app/products/page.tsx
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import ClientProductsPage from "./ClientProductsPage";
 
-export default async function Page() {
-  // I ant to getMyProducts here
+export default async function ProductsPage() {
   const supabase = createSupabaseServerClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  console.log("User from getMyProducts:", user); // Debug log
-  // Debug log
-  return <ProductsTable columns={productColumns} data={products} />;
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: products, error } = await supabase
+    .from("products")
+    .select("productId, name, stock, unitPrice, category, description, created_at")
+    .eq("userId", user.id);
+
+  if (error) {
+    console.error("Error fetching products:", error.message);
+  }
+
+ 
+
+  return <ClientProductsPage products={products || []} />;
 }

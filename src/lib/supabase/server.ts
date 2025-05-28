@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { createClient } from '@supabase/supabase-js';
+ 
 import { CookieOptions } from '@supabase/ssr';
 
 // Environment variables
@@ -8,7 +8,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 // Client-side Supabase instance
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+ 
 
 // Server-side Supabase client
 export const createSupabaseServerClient = () => {
@@ -33,7 +33,7 @@ export const createSupabaseServerClient = () => {
 };
 
 // Create subscription
-export async function createSubscription(userId: string, planType: string = 'free') {
+export async function createSubscription(userId: string, planType: string = 'pro') {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from('subscriptions')

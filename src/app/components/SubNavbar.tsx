@@ -1,12 +1,15 @@
 // components/SubNavbar.tsx
-import { Button } from "@/components/ui/button";
+ 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { logoutAction } from "@/app/actions";
+
+import { ClientAddTransactionForm } from "../(main)/transactions/ClientTransactionsPage";
 
 export default async function SubNavbar() {
   const supabase = createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     redirect("/login");
@@ -20,40 +23,24 @@ export default async function SubNavbar() {
 
   const userName = profile?.name || "User";
 
+  const { data: products, error: productsError } = await supabase
+    .from("products")
+    .select("productId, name, unitPrice, stock")
+    .eq("userId", user.id);
+
+  if (productsError) {
+    console.error("Products error:", productsError.message);
+  }
+
+  // Map product names to transactions
+
   return (
     <div className="w-full pb-3 border-b space-x-2 flex flex-col md:flex-row justify-between">
       <div className="min-w-fit">
         <h2>Welcome Back, {userName}</h2>
       </div>
-      <div className="flex justify-end w-full mt-3 md:mt-0 space-x-2">
-        <Button
-          className="bg-blue-700 hover:text-gray-50 hover:bg-blue-800 text-gray-50"
-          variant={"outline"}
-        >
-          New Sale
-        </Button>
-        <Button
-          className="bg-red-700 hover:text-gray-50 hover:bg-red-800 text-gray-50"
-          variant={"outline"}
-        >
-          New Expense
-        </Button>
-        <Button
-          className="bg-gray-900 hover:text-gray-50 hover:bg-gray-950 text-gray-50"
-          variant={"outline"}
-        >
-          Import Data
-        </Button>
-        <form action={logoutAction}>
-          <Button
-            type="submit"
-            className="bg-gray-700 hover:text-gray-50 hover:bg-gray-800 text-gray-50 cursor-pointer"
-            variant={"outline"}
-            data-testid="logout-button" // For debugging
-          >
-            Logout
-          </Button>
-        </form>
+      <div className="flex justify-end items-center w-full mt-3 md:mt-0 space-x-2">
+        <ClientAddTransactionForm products={products ?? []} />
       </div>
     </div>
   );

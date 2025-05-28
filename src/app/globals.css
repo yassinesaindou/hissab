@@ -119,3 +119,20 @@
   }
 }
 
+@media print {
+  .print-hidden {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  body {
+    margin: 0;
+    padding: 0;
+    background: white;
+  }
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+}

@@ -1,183 +1,99 @@
+ 
 "use client";
+import { ColumnDef } from "@tanstack/react-table";
+import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenu,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal } from "lucide-react";
-
-interface TransactionsColumnProps {
-  item: string;
-  date: string;
+export type Transaction = {
+  transactionId: string;
+  created_at: string;
+  userId: string;
+  productName: string | null;
+  productId: string | null;
   unitPrice: number;
+  totalPrice: number;
   quantity: number;
+  type: "sale" | "credit" | "expense";
+};
 
-  category: string;
-    description: string;
-    
-}
-
-export const transactions: TransactionsColumnProps[] = [
-    {
-      item: "Cement Bag",
-      date: "2025-05-01",
-      unitPrice: 450,
-      quantity: 10,
-      category: "Building Materials",
-      description: "Used for foundation work",
-    },
-    {
-      item: "Steel Rod",
-      date: "2025-05-02",
-      unitPrice: 1200,
-      quantity: 5,
-      category: "Construction",
-      description: "12mm rods for beams",
-    },
-    {
-      item: "Bricks",
-      date: "2025-05-03",
-      unitPrice: 7,
-      quantity: 1000,
-      category: "Building Materials",
-      description: "For wall construction",
-    },
-    {
-      item: "Paint (White)",
-      date: "2025-05-04",
-      unitPrice: 850,
-      quantity: 3,
-      category: "Finishing",
-      description: "Interior wall paint",
-    },
-    {
-      item: "PVC Pipes",
-      date: "2025-05-05",
-      unitPrice: 250,
-      quantity: 8,
-      category: "Plumbing",
-      description: "For drainage system",
-    },
-    {
-      item: "Tiles (Floor)",
-      date: "2025-05-06",
-      unitPrice: 600,
-      quantity: 20,
-      category: "Flooring",
-      description: "Ceramic tiles for flooring",
-    },
-    {
-      item: "Sand (Truckload)",
-      date: "2025-05-07",
-      unitPrice: 1500,
-      quantity: 2,
-      category: "Raw Material",
-      description: "For mixing with cement",
-    },
-    {
-      item: "Door Frame",
-      date: "2025-05-08",
-      unitPrice: 1800,
-      quantity: 4,
-      category: "Woodwork",
-      description: "Wooden frames for doors",
-    },
-    {
-      item: "Electrical Wire",
-      date: "2025-05-09",
-      unitPrice: 900,
-      quantity: 5,
-      category: "Electrical",
-      description: "Used for interior wiring",
-    },
-    {
-      item: "Glass Window",
-      date: "2025-05-10",
-      unitPrice: 2500,
-      quantity: 3,
-      category: "Fittings",
-      description: "Windows for main hall",
-    },
-    {
-      item: "Roof Sheets",
-      date: "2025-05-11",
-      unitPrice: 2000,
-      quantity: 6,
-      category: "Roofing",
-      description: "Galvanized iron sheets",
-    },
-  ];
-  
-export const transactionsColumns: ColumnDef<TransactionsColumnProps>[] = [
+export const columns: ColumnDef<Transaction>[] = [
   {
-    id: "sn",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Sr. No
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => row.index + 1,
+    accessorKey: "created_at",
+    id: "created_at",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Date
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => new Date(row.original.created_at).toLocaleDateString(),
   },
   {
-    accessorKey: "item",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Item Name
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-  },
-  {
-    accessorKey: "date",
-    header: "Date",
+    accessorKey: "productName",
+    id: "productName",
+    header: "Product",
+    cell: ({ row }) => row.original.productName || "N/A",
   },
   {
     accessorKey: "unitPrice",
+    id: "unitPrice",
     header: "Unit Price",
+    cell: ({ row }) => `$${Number(row.original.unitPrice).toFixed(2)}`,
   },
   {
     accessorKey: "quantity",
+    id: "quantity",
     header: "Quantity",
   },
   {
+    accessorKey: "totalPrice",
     id: "totalPrice",
     header: "Total Price",
+    cell: ({ row }) => `$${Number(row.original.totalPrice).toFixed(2)}`,
+  },
+  {
+    accessorKey: "type",
+    id: "type",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Type
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
     cell: ({ row }) => {
-      const unitPrice = row.original.unitPrice;
-      const quantity = row.original.quantity;
-      const total = unitPrice * quantity;
-      return `₹${total.toFixed(2)}`;
+      const type = row.getValue("type") as string;
+      return (
+        <div
+          className={`text-center py-1 px-3 rounded-full text-xs font-medium ${
+            type === "sale"
+              ? "bg-green-100 text-green-600"
+              : type === "credit"
+              ? "bg-yellow-100 text-yellow-600"
+              : "bg-red-100 text-red-600"
+          }`}
+        >
+          {type.charAt(0).toUpperCase() + type.slice(1)}
+        </div>
+      );
     },
   },
   {
-    accessorKey: "category",
-    header: "Category",
-  },
-  {
-    accessorKey: "description",
-    header: "Description",
-  },
-
-  {
     id: "actions",
-    cell: ({ row }) => {
-      const credit = row.original;
-
+    cell: ({ row, table }) => {
+      const transaction = row.original;
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -189,15 +105,23 @@ export const transactionsColumns: ColumnDef<TransactionsColumnProps>[] = [
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(credit.item)}>
-              Copy Item Name
+              className="cursor-pointer"
+              onClick={() =>
+                navigator.clipboard.writeText(transaction.transactionId)
+              }
+            >
+              Copy Transaction ID
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>View customer</DropdownMenuItem>
-            <DropdownMenuItem>View credit details</DropdownMenuItem>
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onClick={() => table.options.meta?.onEditTransaction?.(transaction)}
+            >
+              Edit Transaction
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       );
     },
   },
 ];
+ 

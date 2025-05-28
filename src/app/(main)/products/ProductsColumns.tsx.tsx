@@ -1,97 +1,50 @@
-'use client';
+// app/products/ProductsColumns.tsx
+"use client";
+import { ColumnDef } from "@tanstack/react-table";
+import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenu,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal } from "lucide-react";
-
-interface ProductColumnProps {
+export type Product = {
+  productId: string;
   name: string;
   stock: number;
   unitPrice: number;
-  category: string;
-}
+  category: string | null;
+  description: string | null;
+  created_at: string;
+};
 
-export const products: ProductColumnProps[] = [
-    {
-      name: "Wireless Mouse",
-      stock: 25,
-      unitPrice: 19.99,
-      category: "Electronics",
-    },
-    {
-      name: "Notebook (A5)",
-      stock: 100,
-      unitPrice: 2.5,
-      category: "Stationery",
-    },
-    {
-      name: "Bluetooth Speaker",
-      stock: 15,
-      unitPrice: 45.0,
-      category: "Electronics",
-    },
-    {
-      name: "Ceramic Mug",
-      stock: 50,
-      unitPrice: 6.75,
-      category: "Kitchenware",
-    },
-    {
-      name: "Desk Lamp",
-      stock: 30,
-      unitPrice: 22.99,
-      category: "Home Decor",
-    },
-    {
-      name: "Ballpoint Pen (Pack of 10)",
-      stock: 200,
-      unitPrice: 4.99,
-      category: "Stationery",
-    },
-    {
-      name: "USB-C Charger",
-      stock: 40,
-      unitPrice: 15.49,
-      category: "Accessories",
-    },
-  ];
-  
-
-export const productColumns: ColumnDef<ProductColumnProps>[] = [
+export const productColumns: ColumnDef<Product>[] = [
   {
     id: "sn",
-    header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-            Sr. No
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+        Sr. No
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
     cell: ({ row }) => row.index + 1,
   },
   {
     accessorKey: "name",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Name
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+        Name
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
   },
   {
     accessorKey: "stock",
@@ -100,16 +53,27 @@ export const productColumns: ColumnDef<ProductColumnProps>[] = [
   {
     accessorKey: "unitPrice",
     header: "Unit Price",
+    cell: ({ row }) => `$${row.original.unitPrice.toFixed(2)}`,
   },
   {
     accessorKey: "category",
     header: "Category",
+    cell: ({ row }) => row.original.category || "N/A",
   },
-
+  {
+    accessorKey: "description",
+    header: "Description",
+    cell: ({ row }) => row.original.description || "N/A",
+  },
+  {
+    accessorKey: "created_at",
+    header: "Created At",
+    cell: ({ row }) => new Date(row.original.created_at).toLocaleDateString(),
+  },
   {
     id: "actions",
-    cell: ({ row }) => {
-      const credit = row.original;
+    cell: ({ row, table }) => {
+      const product = row.original;
 
       return (
         <DropdownMenu>
@@ -122,12 +86,19 @@ export const productColumns: ColumnDef<ProductColumnProps>[] = [
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(credit.name)}>
-              Copy Cutomer Name
+              className="cursor-pointer"
+              onClick={() => navigator.clipboard.writeText(product.name)}>
+              Copy Product Name
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>View customer</DropdownMenuItem>
-            <DropdownMenuItem>View credit details</DropdownMenuItem>
+            <DropdownMenuItem
+              className="cursor-pointer"
+              onClick={() => {
+                // Trigger edit modal via table meta
+                table.options.meta?.onEditProduct?.(product);
+              }}>
+              Edit product
+            </DropdownMenuItem>
+             
           </DropdownMenuContent>
         </DropdownMenu>
       );
