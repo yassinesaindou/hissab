@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/credits/ClientCreditsPage.tsx
 "use client";
 import { useState } from "react";

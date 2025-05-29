@@ -258,10 +258,10 @@ export default function UpdateTransactionForm({
         />
         {error && <p className="text-red-600 text-sm">{error}</p>}
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={closeDialog}>
+          <Button disabled={form.formState.isSubmitting} type="button" variant="outline" onClick={closeDialog}>
             Cancel
           </Button>
-          <Button type="submit">Update Transaction</Button>
+          <Button disabled={form.formState.isSubmitting} className="bg-blue-600" type="submit">Update Transaction</Button>
         </div>
       </form>
     </Form>

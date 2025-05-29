@@ -1,6 +1,6 @@
-// components/AddCreditForm.tsx
 "use client";
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,23 +17,28 @@ import { addCreditAction } from "@/app/actions";
 
 interface AddCreditFormProps {
   closeDialog: () => void;
-  products: { productId: string; name: string; unitPrice: number; stock: number }[];
+  products: {
+    productId: string;
+    name: string;
+    unitPrice: number;
+    stock: number;
+  }[];
 }
 
 export default function AddCreditForm({ closeDialog, products }: AddCreditFormProps) {
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [numberOfProductsTaken, setNumberOfProductsTaken] = useState<number>(1);
   const [amount, setAmount] = useState<number>(0);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
   useEffect(() => {
     if (selectedProductId && selectedProductId !== "none") {
       const product = products.find((p) => p.productId === selectedProductId);
       if (product) {
-        const calculatedAmount = product.unitPrice * numberOfProductsTaken;
-        setAmount(calculatedAmount);
+        setAmount(product.unitPrice * numberOfProductsTaken);
       } else {
         setAmount(0);
       }
@@ -46,29 +51,31 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
     setError(null);
     setSuccess(null);
 
-    // Only set numberOfProductsTaken if a product is selected
     if (selectedProductId && selectedProductId !== "none") {
-      formData.set('numberOfProductsTaken', numberOfProductsTaken.toString());
+      formData.set("numberOfProductsTaken", numberOfProductsTaken.toString());
 
       const product = products.find((p) => p.productId === selectedProductId);
       if (product && numberOfProductsTaken > product.stock) {
-        setError(`Number of products taken (${numberOfProductsTaken}) exceeds available stock (${product.stock})`);
+        setError(`Only ${product.stock} units of ${product.name} are in stock.`);
         return;
       }
     } else {
-      // Clear productId if "none" is selected
-      formData.delete('productId');
+      formData.delete("productId");
     }
 
-    const result = await addCreditAction(formData);
-    console.log('Add credit action result:', result);
-    if (result.success) {
-      setSuccess(result.message);
-      closeDialog();
-      router.refresh();
-    } else {
-      setError(result.message);
-    }
+    formData.set("amount", amount.toFixed(2));
+
+    startTransition(async () => {
+      const result = await addCreditAction(formData);
+
+      if (result.success) {
+        setSuccess(result.message);
+        closeDialog();
+        router.refresh();
+      } else {
+        setError(result.message);
+      }
+    });
   };
 
   return (
@@ -83,6 +90,7 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
           required
         />
       </div>
+
       <div>
         <Label htmlFor="customerPhone">Customer Phone</Label>
         <Input
@@ -93,11 +101,14 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
           required
         />
       </div>
+
       <div>
         <Label htmlFor="productId">Product (Optional)</Label>
         <Select
           name="productId"
-          onValueChange={(value) => setSelectedProductId(value === "none" ? null : value)}
+          onValueChange={(value) =>
+            setSelectedProductId(value === "none" ? null : value)
+          }
         >
           <SelectTrigger>
             <SelectValue placeholder="Select a product" />
@@ -112,6 +123,7 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
           </SelectContent>
         </Select>
       </div>
+
       <div>
         <Label htmlFor="numberOfProductsTaken">Number of Products Taken</Label>
         <Input
@@ -121,16 +133,14 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
           min="1"
           value={numberOfProductsTaken}
           onChange={(e) => {
-            const value = Number(e.target.value);
-            if (value >= 1) {
-              setNumberOfProductsTaken(value);
-            }
+            const val = Number(e.target.value);
+            if (val >= 1) setNumberOfProductsTaken(val);
           }}
-          placeholder="Enter number of products taken"
-          disabled={!selectedProductId || selectedProductId === "none"}
-          required={!!selectedProductId && selectedProductId !== "none"}
+          disabled={!selectedProductId}
+          required={!!selectedProductId}
         />
       </div>
+
       <div>
         <Label htmlFor="amount">Amount</Label>
         <Input
@@ -145,6 +155,7 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
           required
         />
       </div>
+
       <div>
         <Label htmlFor="status">Status</Label>
         <Select name="status" defaultValue="pending">
@@ -158,6 +169,7 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
           </SelectContent>
         </Select>
       </div>
+
       <div>
         <Label htmlFor="description">Description</Label>
         <Textarea
@@ -167,10 +179,12 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
           rows={4}
         />
       </div>
+
       {error && <p className="text-red-500">{error}</p>}
       {success && <p className="text-green-500">{success}</p>}
-      <Button type="submit" className="bg-blue-700 text-gray-50">
-        Add Credit
+
+      <Button type="submit" disabled={isPending} className="bg-blue-700 text-gray-50">
+        {isPending ? "Processing..." : "Add Credit"}
       </Button>
     </form>
   );

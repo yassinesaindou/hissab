@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,16 +40,16 @@ export default function UpdateCreditForm({
 }: UpdateCreditFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string | null>(
     credit.productId
   );
-  const [numberOfProductsTaken, setNumberOfProductsTaken] = useState<number>(Number(credit.amount) / (products.find((p) => p.productId === credit.productId)?.unitPrice || 1));
-  console.log(credit.amount)
+  const [numberOfProductsTaken, setNumberOfProductsTaken] = useState<number>(
+    Number(credit.amount) /
+      (products.find((p) => p.productId === credit.productId)?.unitPrice || 1)
+  );
   const [amount, setAmount] = useState<number>(credit.amount || 0);
+  const [isPending, startTransition] = useTransition();
   const router = useRouter();
-
-
 
   useEffect(() => {
     if (selectedProductId && selectedProductId !== "none") {
@@ -73,46 +73,47 @@ export default function UpdateCreditForm({
     return phoneRegex.test(phone);
   };
 
-  const handleSubmit = async (formData: FormData) => {
+  const handleSubmit = (formData: FormData) => {
     setError(null);
     setSuccess(null);
-    setIsLoading(true);
 
-    // Validate inputs
-    const amountValue = Number(formData.get("amount"));
-    const phone = formData.get("customerPhone") as string;
-    if (amountValue <= 0) {
-      setError("Amount must be greater than 0.");
-      setIsLoading(false);
-      return;
-    }
-    if (!validatePhone(phone)) {
-      setError("Please enter a valid phone number (e.g., +1234567890).");
-      setIsLoading(false);
-      return;
-    }
+    startTransition(async () => {
+      const amountValue = Number(formData.get("amount"));
+      const phone = formData.get("customerPhone") as string;
 
-    if (!selectedProductId || selectedProductId === "none") {
-      formData.delete("productId");
-    }
+      if (amountValue <= 0) {
+        setError("Amount must be greater than 0.");
+        return;
+      }
 
-    const result = await updateCreditAction(formData);
-    setIsLoading(false);
-    console.log("Update credit action result:", result);
-    if (result.success) {
-      setSuccess(result.message);
-      setError(null);
-      closeDialog();
-      router.refresh();
-    } else {
-      setError(result.message);
-      setSuccess(null);
-    }
+      if (!validatePhone(phone)) {
+        setError("Please enter a valid phone number (e.g., +1234567890).");
+        return;
+      }
+
+      if (!selectedProductId || selectedProductId === "none") {
+        formData.delete("productId");
+      }
+
+      const result = await updateCreditAction(formData);
+      console.log("Update credit action result:", result);
+
+      if (result.success) {
+        setSuccess(result.message);
+        setError(null);
+        closeDialog();
+        router.refresh();
+      } else {
+        setError(result.message);
+        setSuccess(null);
+      }
+    });
   };
 
   return (
     <form action={handleSubmit} className="space-y-4">
       <input type="hidden" name="creditId" value={credit.creditId} />
+
       <div>
         <Label htmlFor="customerName">Customer Name</Label>
         <Input
@@ -124,6 +125,7 @@ export default function UpdateCreditForm({
           required
         />
       </div>
+
       <div>
         <Label htmlFor="customerPhone">Customer Phone</Label>
         <Input
@@ -135,6 +137,7 @@ export default function UpdateCreditForm({
           required
         />
       </div>
+
       <div>
         <Label htmlFor="productId">Product (Optional)</Label>
         <Select
@@ -142,7 +145,8 @@ export default function UpdateCreditForm({
           defaultValue={credit.productId || "none"}
           onValueChange={(value) =>
             setSelectedProductId(value === "none" ? null : value)
-          }>
+          }
+        >
           <SelectTrigger>
             <SelectValue placeholder="Select a product" />
           </SelectTrigger>
@@ -156,8 +160,11 @@ export default function UpdateCreditForm({
           </SelectContent>
         </Select>
       </div>
+
       <div>
-        <Label htmlFor="numberOfProductsTaken">Number of Products Taken</Label>
+        <Label htmlFor="numberOfProductsTaken">
+          Number of Products Taken
+        </Label>
         <Input
           id="numberOfProductsTaken"
           name="numberOfProductsTaken"
@@ -178,13 +185,13 @@ export default function UpdateCreditForm({
           required={!!selectedProductId && selectedProductId !== "none"}
         />
       </div>
+
       <div>
         <Label htmlFor="amount">Amount</Label>
         <Input
           id="amount"
           name="amount"
           type="number"
-         
           min="0"
           value={amount || 1}
           onChange={(e) => setAmount(Number(e.target.value))}
@@ -193,6 +200,7 @@ export default function UpdateCreditForm({
           required
         />
       </div>
+
       <div>
         <Label htmlFor="status">Status</Label>
         <Select name="status" defaultValue={credit.status || "pending"}>
@@ -206,6 +214,7 @@ export default function UpdateCreditForm({
           </SelectContent>
         </Select>
       </div>
+
       <div>
         <Label htmlFor="description">Description</Label>
         <Textarea
@@ -216,13 +225,16 @@ export default function UpdateCreditForm({
           rows={4}
         />
       </div>
+
       {error && <p className="text-red-500">{error}</p>}
       {success && <p className="text-green-500">{success}</p>}
+
       <Button
         type="submit"
         className="bg-blue-700 text-gray-50"
-        disabled={isLoading}>
-        {isLoading ? "Updating..." : "Update Credit"}
+        disabled={isPending}
+      >
+        {isPending ? "Updating..." : "Update Credit"}
       </Button>
     </form>
   );

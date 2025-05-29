@@ -25,14 +25,19 @@ export default function UpdateProductForm({
 }: UpdateProductFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const router = useRouter();
 
-  const handleSubmit = async (formData: FormData) => {
+   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setError(null);
     setSuccess(null);
+    setIsLoading(true);
 
+    const formData = new FormData(e.currentTarget);
     const result = await updateProductAction(formData);
     console.log("Update action result:", result);
+
     if (result.success) {
       setSuccess(result.message);
       closeDialog();
@@ -40,10 +45,12 @@ export default function UpdateProductForm({
     } else {
       setError(result.message);
     }
+
+    setIsLoading(false);
   };
 
   return (
-    <form action={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <input type="hidden" name="productId" value={product.productId} />
       <div>
         <Label htmlFor="name">Product Name</Label>
@@ -104,7 +111,7 @@ export default function UpdateProductForm({
       </div>
       {error && <p className="text-red-500">{error}</p>}
       {success && <p className="text-green-500">{success}</p>}
-      <Button type="submit" className="bg-blue-700 text-gray-50">
+      <Button disabled={isLoading} type="submit" className="bg-blue-700 text-gray-50">
         Update Product
       </Button>
     </form>

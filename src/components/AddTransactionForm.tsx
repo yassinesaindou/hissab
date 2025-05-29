@@ -241,10 +241,10 @@ export default function AddTransactionForm({
         />
         {error && <p className="text-red-600 text-sm">{error}</p>}
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={closeDialog}>
+          <Button disabled={form.formState.isSubmitting} type="button" variant="outline" onClick={closeDialog}>
             Cancel
           </Button>
-          <Button type="submit">Add Transaction</Button>
+          <Button disabled={form.formState.isSubmitting} className="bg-blue-600" type="submit">Add Transaction</Button>
         </div>
       </form>
     </Form>

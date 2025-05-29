@@ -14,25 +14,35 @@ interface AddProductFormProps {
 export default function AddProductForm({ closeDialog }: AddProductFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const router = useRouter();
 
   const handleSubmit = async (formData: FormData) => {
-    setError(null);
-    setSuccess(null);
+  setIsLoading(true);
+  setError(null);
+  setSuccess(null);
 
-    const result = await newProductAction(formData);
-    console.log('Action result:', result); // Debug log
-    if (result.success) {
-      setSuccess(result.message);
-      closeDialog(); // Close modal
-      router.refresh(); // Refresh to update table
-    } else {
-      setError(result.message);
-    }
-  };
+  const result = await newProductAction(formData);
+
+  if (result.success) {
+    setSuccess(result.message);
+    closeDialog();
+    router.refresh();
+  } else {
+    setError(result.message);
+  }
+
+  setIsLoading(false);
+};
 
   return (
-    <form action={handleSubmit} className="space-y-4">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault(); // prevent page reload
+        const formData = new FormData(e.currentTarget);
+        handleSubmit(formData);
+      }}
+      className="space-y-4">
       <div>
         <Label htmlFor="name">Product Name</Label>
         <Input
@@ -87,7 +97,10 @@ export default function AddProductForm({ closeDialog }: AddProductFormProps) {
       </div>
       {error && <p className="text-red-500">{error}</p>}
       {success && <p className="text-green-500">{success}</p>}
-      <Button type="submit" className="bg-blue-700 text-gray-50">
+      <Button
+        disabled={isLoading}
+        type="submit"
+        className="bg-blue-700 text-gray-50">
         Add Product
       </Button>
     </form>

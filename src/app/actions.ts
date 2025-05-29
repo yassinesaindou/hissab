@@ -7,6 +7,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { cookies } from "next/headers";
 
+import { isUserSubscriptionActive } from "@/lib/utils/utils";
+
 const SignupFormSchema = z
   .object({
     name: z
@@ -220,6 +222,17 @@ export async function newProductAction(formData: ProductFormData) {
       redirect("/login"); // Redirect for auth errors
     }
 
+    // Check if the user has an active subscription
+
+    const isSubscriptionActive = await isUserSubscriptionActive(user.id);
+
+    if (!isSubscriptionActive) {
+      return {
+        success: false,
+        message: "Your subscription has expired, please renew it.",
+      };
+    }
+
     const { error } = await supabase.from("products").insert({
       userId: user.id,
       name: validatedData.name,
@@ -269,6 +282,16 @@ export async function updateProductAction(formData: UpdateProductFormData) {
 
     if (!user) {
       redirect("/login");
+    }
+
+    // Check if the user has an active subscription
+    const isSubscriptionActive = await isUserSubscriptionActive(user.id);
+
+    if (!isSubscriptionActive) {
+      return {
+        success: false,
+        message: "Your subscription has expired, please renew it.",
+      };
     }
 
     // Verify the product exists and belongs to the user
@@ -364,6 +387,16 @@ export async function addCreditAction(formData: FormData) {
 
     if (!user) {
       redirect("/login");
+    }
+
+    // Check if the user has an active subscription
+    const isSubscriptionActive = await isUserSubscriptionActive(user.id);
+
+    if (!isSubscriptionActive) {
+      return {
+        success: false,
+        message: "Your subscription has expired, please renew it.",
+      };
     }
 
     // If productId is provided, verify it exists, belongs to the user, and check stock
@@ -469,6 +502,16 @@ export async function updateCreditAction(formData: FormData) {
 
     if (!user) {
       redirect("/login");
+    }
+
+    // Check if the user has an active subscription
+    const isSubscriptionActive = await isUserSubscriptionActive(user.id);
+
+    if (!isSubscriptionActive) {
+      return {
+        success: false,
+        message: "Your subscription has expired, please renew it.",
+      };
     }
 
     // Verify the credit exists and belongs to the user
@@ -580,6 +623,16 @@ export async function addTransactionAction(formData: TransactionFormData) {
       redirect("/login");
     }
 
+    // Check if the user has an active subscription
+    const isSubscriptionActive = await isUserSubscriptionActive(user.id);
+
+    if (!isSubscriptionActive) {
+      return {
+        success: false,
+        message: "Your subscription has expired, please renew it.",
+      };
+    }
+
     let unitPrice = validatedData.unitPrice;
     let totalPrice = validatedData.unitPrice * validatedData.quantity;
 
@@ -682,6 +735,16 @@ export async function updateTransactionAction(
 
     if (!user) {
       redirect("/login");
+    }
+
+    // Check if the user has an active subscription
+    const isSubscriptionActive = await isUserSubscriptionActive(user.id);
+
+    if (!isSubscriptionActive) {
+      return {
+        success: false,
+        message: "Your subscription has expired, please renew it.",
+      };
     }
 
     const { data: transaction, error: fetchError } = await supabase
@@ -956,9 +1019,8 @@ export async function getDashboardData() {
     const totalExpenses = transactions
       .filter((t) => t.type === "expense")
       .reduce((sum, t) => sum + t.totalPrice, 0);
-    const totalCredits = credits.reduce(
-      (sum, c) => sum + c.amount, 0);
-    
+    const totalCredits = credits.reduce((sum, c) => sum + c.amount, 0);
+
     const totalRevenue = totalSales - totalExpenses;
 
     // Generate daily data for 14 days
@@ -1122,7 +1184,11 @@ export async function getYearlyOverview() {
 
 // New action for Analytics cards
 // Updated action for Analytics cards
-export async function getAnalyticsData(period: string, customStart?: string, customEnd?: string) {
+export async function getAnalyticsData(
+  period: string,
+  customStart?: string,
+  customEnd?: string
+) {
   try {
     const supabase = createSupabaseServerClient();
     const {
@@ -1166,12 +1232,24 @@ export async function getAnalyticsData(period: string, customStart?: string, cus
         break;
       case "custom":
         if (!customStart || !customEnd) {
-          return { success: false, message: "Custom range requires start and end dates", data: {} };
+          return {
+            success: false,
+            message: "Custom range requires start and end dates",
+            data: {},
+          };
         }
         startDate = new Date(customStart);
         endDate = new Date(customEnd);
-        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || startDate > endDate) {
-          return { success: false, message: "Invalid custom date range", data: {} };
+        if (
+          isNaN(startDate.getTime()) ||
+          isNaN(endDate.getTime()) ||
+          startDate > endDate
+        ) {
+          return {
+            success: false,
+            message: "Invalid custom date range",
+            data: {},
+          };
         }
         break;
       default:
@@ -1189,7 +1267,11 @@ export async function getAnalyticsData(period: string, customStart?: string, cus
 
     if (txError) {
       console.error("Error fetching transactions:", txError.message);
-      return { success: false, message: "Failed to fetch transactions", data: {} };
+      return {
+        success: false,
+        message: "Failed to fetch transactions",
+        data: {},
+      };
     }
 
     // Fetch credits
@@ -1223,7 +1305,10 @@ export async function getAnalyticsData(period: string, customStart?: string, cus
     const totalExpenses = transactions
       .filter((t) => t.type === "expense")
       .reduce((sum, t) => sum + Number(t.totalPrice || 0), 0);
-    const totalCredits = credits.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+    const totalCredits = credits.reduce(
+      (sum, c) => sum + Number(c.amount || 0),
+      0
+    );
     const totalRevenue = totalSales - totalExpenses;
 
     // Validate serialization
@@ -1239,7 +1324,11 @@ export async function getAnalyticsData(period: string, customStart?: string, cus
       JSON.stringify(analyticsData);
     } catch (e) {
       console.error("Analytics data serialization failed:", e);
-      return { success: false, message: "Invalid analytics data format", data: {} };
+      return {
+        success: false,
+        message: "Invalid analytics data format",
+        data: {},
+      };
     }
 
     console.log("Analytics data:", analyticsData);
@@ -1251,11 +1340,19 @@ export async function getAnalyticsData(period: string, customStart?: string, cus
     };
   } catch (error) {
     console.error("Unexpected error fetching analytics data:", error);
-    return { success: false, message: "An unexpected error occurred", data: {} };
+    return {
+      success: false,
+      message: "An unexpected error occurred",
+      data: {},
+    };
   }
 }
 
-export async function getGraphData(period: string, customStart?: string, customEnd?: string) {
+export async function getGraphData(
+  period: string,
+  customStart?: string,
+  customEnd?: string
+) {
   try {
     const supabase = createSupabaseServerClient();
     const {
@@ -1268,7 +1365,10 @@ export async function getGraphData(period: string, customStart?: string, customE
       return { success: false, message: "Unauthorized", data: [] };
     }
 
-    console.log("User ID:", user.id, "Period:", period, "Custom:", { customStart, customEnd });
+    console.log("User ID:", user.id, "Period:", period, "Custom:", {
+      customStart,
+      customEnd,
+    });
 
     // Calculate date range
     let startDate: Date;
@@ -1302,13 +1402,25 @@ export async function getGraphData(period: string, customStart?: string, customE
         break;
       case "custom":
         if (!customStart || !customEnd) {
-          return { success: false, message: "Custom range requires start and end dates", data: [] };
+          return {
+            success: false,
+            message: "Custom range requires start and end dates",
+            data: [],
+          };
         }
         startDate = new Date(customStart);
         endDate = new Date(customEnd);
-        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || startDate > endDate) {
+        if (
+          isNaN(startDate.getTime()) ||
+          isNaN(endDate.getTime()) ||
+          startDate > endDate
+        ) {
           console.error("Invalid custom dates:", { customStart, customEnd });
-          return { success: false, message: "Invalid custom date range", data: [] };
+          return {
+            success: false,
+            message: "Invalid custom date range",
+            data: [],
+          };
         }
         break;
       default:
@@ -1336,10 +1448,12 @@ export async function getGraphData(period: string, customStart?: string, customE
 
     if (txError) {
       console.error("Transaction fetch error:", txError.message);
-      return { success: false, message: "Failed to fetch transactions", data: [] };
+      return {
+        success: false,
+        message: "Failed to fetch transactions",
+        data: [],
+      };
     }
-
- 
 
     // Fetch credits
     const { data: credits, error: creditsError } = await supabase
@@ -1354,24 +1468,31 @@ export async function getGraphData(period: string, customStart?: string, customE
       return { success: false, message: "Failed to fetch credits", data: [] };
     }
 
-     
-
     // Calculate granularity
-    const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const daysDiff = Math.ceil(
+      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+    );
     let granularity: "daily" | "weekly" | "monthly";
     if (daysDiff <= 90) granularity = "daily";
     else if (daysDiff <= 120) granularity = "weekly";
     else granularity = "monthly";
 
-     
-
-    const chartData: { day: string; sales: number; expenses: number; credits: number; revenue: number }[] = [];
+    const chartData: {
+      day: string;
+      sales: number;
+      expenses: number;
+      credits: number;
+      revenue: number;
+    }[] = [];
 
     if (granularity === "daily") {
       for (let i = 0; i <= daysDiff; i++) {
         const date = new Date(startDate);
         date.setDate(startDate.getDate() + i);
-        const day = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        const day = date.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
         const dailyTransactions = transactions.filter(
           (t) => new Date(t.created_at).toDateString() === date.toDateString()
         );
@@ -1426,7 +1547,13 @@ export async function getGraphData(period: string, customStart?: string, customE
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekStart.getDate() + 6);
         weekEnd.setHours(23, 59, 59, 999);
-        const day = `${weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${weekEnd.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+        const day = `${weekStart.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        })} - ${weekEnd.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        })}`;
         const weeklySales = transactions
           .filter(
             (t) =>
@@ -1459,7 +1586,9 @@ export async function getGraphData(period: string, customStart?: string, customE
           }, 0);
         const weeklyCredits = credits
           .filter(
-            (c) => new Date(c.created_at) >= weekStart && new Date(c.created_at) <= weekEnd
+            (c) =>
+              new Date(c.created_at) >= weekStart &&
+              new Date(c.created_at) <= weekEnd
           )
           .reduce((sum, c) => {
             const amount = Number(c.amount);
@@ -1479,8 +1608,16 @@ export async function getGraphData(period: string, customStart?: string, customE
         });
       }
     } else {
-      const startMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-      const endMonth = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0);
+      const startMonth = new Date(
+        startDate.getFullYear(),
+        startDate.getMonth(),
+        1
+      );
+      const endMonth = new Date(
+        endDate.getFullYear(),
+        endDate.getMonth() + 1,
+        0
+      );
       for (
         let month = new Date(startMonth);
         month <= endMonth;
@@ -1489,7 +1626,10 @@ export async function getGraphData(period: string, customStart?: string, customE
         const monthStart = new Date(month.getFullYear(), month.getMonth(), 1);
         const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
         monthEnd.setHours(23, 59, 59, 999);
-        const day = month.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+        const day = month.toLocaleDateString("en-US", {
+          month: "short",
+          year: "numeric",
+        });
         const monthlySales = transactions
           .filter(
             (t) =>
@@ -1522,7 +1662,9 @@ export async function getGraphData(period: string, customStart?: string, customE
           }, 0);
         const monthlyCredits = credits
           .filter(
-            (c) => new Date(c.created_at) >= monthStart && new Date(c.created_at) <= monthEnd
+            (c) =>
+              new Date(c.created_at) >= monthStart &&
+              new Date(c.created_at) <= monthEnd
           )
           .reduce((sum, c) => {
             const amount = Number(c.amount);
@@ -1552,7 +1694,11 @@ export async function getGraphData(period: string, customStart?: string, customE
         isNaN(item.revenue)
       ) {
         console.warn("Invalid chart data item:", item);
-        return { success: false, message: "Invalid chart data values", data: [] };
+        return {
+          success: false,
+          message: "Invalid chart data values",
+          data: [],
+        };
       }
     }
 
@@ -1563,29 +1709,22 @@ export async function getGraphData(period: string, customStart?: string, customE
       return { success: false, message: "Invalid graph data format", data: [] };
     }
 
-     
-
-    return { success: true, message: "Graph data fetched successfully", data: chartData };
+    return {
+      success: true,
+      message: "Graph data fetched successfully",
+      data: chartData,
+    };
   } catch (error) {
     console.error("Unexpected error fetching graph data:", error);
-    return { success: false, message: "An unexpected error occurred", data: [] };
+    return {
+      success: false,
+      message: "An unexpected error occurred",
+      data: [],
+    };
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Invoice Page 
+// Invoice Page
 
 export async function getProducts() {
   try {
@@ -1611,14 +1750,20 @@ export async function getProducts() {
       return { success: false, message: "Failed to fetch products", data: [] };
     }
 
-   
-    return { success: true, message: "Products fetched successfully", data: products };
+    return {
+      success: true,
+      message: "Products fetched successfully",
+      data: products,
+    };
   } catch (error) {
     console.error("Unexpected error fetching products:", error);
-    return { success: false, message: "An unexpected error occurred", data: [] };
+    return {
+      success: false,
+      message: "An unexpected error occurred",
+      data: [],
+    };
   }
 }
-
 
 interface ProductInput {
   productId?: string;
@@ -1646,10 +1791,27 @@ export async function createInvoice(formData: {
       return { success: false, message: "Unauthorized" };
     }
 
-    const { clientName, clientPhone, storeName, storeAddress, products } = formData;
+    // Check if the user has an active subscription
+    const isSubscriptionActive = await isUserSubscriptionActive(user.id);
+
+    if (!isSubscriptionActive) {
+      return {
+        success: false,
+        message: "Your subscription has expired, please renew it.",
+      };
+    }
+
+    const { clientName, clientPhone, storeName, storeAddress, products } =
+      formData;
 
     // Validate inputs
-    if (!clientName || !clientPhone || !storeName || !storeAddress || products.length === 0) {
+    if (
+      !clientName ||
+      !clientPhone ||
+      !storeName ||
+      !storeAddress ||
+      products.length === 0
+    ) {
       return { success: false, message: "All fields are required" };
     }
 
@@ -1665,18 +1827,24 @@ export async function createInvoice(formData: {
 
         if (fetchError || !productData) {
           console.error("Error fetching product stock:", fetchError?.message);
-          return { success: false, message: `Product ${product.name} not found` };
+          return {
+            success: false,
+            message: `Product ${product.name} not found`,
+          };
         }
 
         const currentStock = productData.stock ?? 0;
         if (currentStock < product.quantity) {
-          return { success: false, message: `Insufficient stock for ${productData.name} (Available: ${currentStock})` };
+          return {
+            success: false,
+            message: `Insufficient stock for ${productData.name} (Available: ${currentStock})`,
+          };
         }
       }
     }
 
     // Prepare transactions
-    const transactions = products.map(product => ({
+    const transactions = products.map((product) => ({
       userId: user.id,
       productName: product.name,
       unitPrice: product.unitPrice,
@@ -1687,7 +1855,9 @@ export async function createInvoice(formData: {
     }));
 
     // Perform transaction: insert transactions and update stock
-    const { error: txError } = await supabase.from("transactions").insert(transactions);
+    const { error: txError } = await supabase
+      .from("transactions")
+      .insert(transactions);
     if (txError) {
       console.error("Error inserting transactions:", txError.message);
       return { success: false, message: "Failed to create invoice" };
@@ -1705,8 +1875,14 @@ export async function createInvoice(formData: {
           .single();
 
         if (stockFetchError || !stockData) {
-          console.error("Error fetching current stock:", stockFetchError?.message);
-          return { success: false, message: `Failed to fetch current stock for ${product.name}` };
+          console.error(
+            "Error fetching current stock:",
+            stockFetchError?.message
+          );
+          return {
+            success: false,
+            message: `Failed to fetch current stock for ${product.name}`,
+          };
         }
 
         const newStock = (stockData.stock ?? 0) - product.quantity;
@@ -1719,7 +1895,10 @@ export async function createInvoice(formData: {
 
         if (updateError) {
           console.error("Error updating stock:", updateError.message);
-          return { success: false, message: `Failed to update stock for ${product.name}` };
+          return {
+            success: false,
+            message: `Failed to update stock for ${product.name}`,
+          };
         }
       }
     }
@@ -1731,33 +1910,45 @@ export async function createInvoice(formData: {
   }
 }
 
-
-
-
-
-
 // Settings
-
-
 
 const userProfileSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  phoneNumber: z.string().min(1, "Phone number is required").regex(/^\+?\d{10,15}$/, "Invalid phone number"),
+  phoneNumber: z
+    .string()
+    .min(1, "Phone number is required")
+    .regex(/^\+?\d{10,15}$/, "Invalid phone number"),
 });
 
 // Schema for store details
 const storeDetailsSchema = z.object({
   storeName: z.string().min(1, "Store name is required"),
   storeAddress: z.string().min(1, "Store address is required"),
-  storePhoneNumber: z.string().min(1, "Store phone is required").regex(/^\+?\d{10,15}$/, "Invalid store phone number"),
+  storePhoneNumber: z
+    .string()
+    .min(1, "Store phone is required")
+    .regex(/^\+?\d{10,15}$/, "Invalid store phone number"),
 });
 
 export async function updateUserProfile(formData: FormData) {
   const supabase = createSupabaseServerClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
 
   if (authError || !user) {
     return { success: false, message: "Unauthorized User" };
+  }
+
+  // Check if the user has an active subscription
+  const isSubscriptionActive = await isUserSubscriptionActive(user.id);
+
+  if (!isSubscriptionActive) {
+    return {
+      success: false,
+      message: "Your subscription has expired, please renew it.",
+    };
   }
 
   const validated = userProfileSchema.safeParse({
@@ -1786,12 +1977,24 @@ export async function updateUserProfile(formData: FormData) {
 
 export async function updateStoreDetails(formData: FormData) {
   const supabase = createSupabaseServerClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
 
   if (authError || !user) {
     return { success: false, message: "Unauthorized  Stores" };
   }
 
+  // Check if the user has an active subscription
+  const isSubscriptionActive = await isUserSubscriptionActive(user.id);
+
+  if (!isSubscriptionActive) {
+    return {
+      success: false,
+      message: "Your subscription has expired, please renew it.",
+    };
+  }
   const validated = storeDetailsSchema.safeParse({
     storeName: formData.get("storeName"),
     storeAddress: formData.get("storeAddress"),
@@ -1816,17 +2019,15 @@ export async function updateStoreDetails(formData: FormData) {
   if (!storeId) {
     // Create new store
     storeId = crypto.randomUUID();
-    const { error: insertError } = await supabase
-      .from("stores")
-      .insert({
-        storeId,
-        userId: user.id,
-        storeName,
-        storeAddress,
-        storePhoneNumber,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      });
+    const { error: insertError } = await supabase.from("stores").insert({
+      storeId,
+      userId: user.id,
+      storeName,
+      storeAddress,
+      storePhoneNumber,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
 
     if (insertError) {
       console.error("Insert store error:", insertError);
@@ -1864,7 +2065,6 @@ export async function updateStoreDetails(formData: FormData) {
   return { success: true, message: "Store details updated successfully" };
 }
 
-
 export async function getStore() {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase.auth.getUser();
@@ -1886,108 +2086,106 @@ export async function getStore() {
   return { success: true, store: storeData };
 }
 
-
-
-
-
-
-
-
-
 // Managing Subscriptions by the admin
 
 const updateSubscriptionSchema = z.object({
   subscriptionId: z.string().min(1, "Subscription ID is required"),
-  months: z.number().min(1, "At least 1 month is required").max(12, "Maximum 12 months"),
+  months: z
+    .number()
+    .min(1, "At least 1 month is required")
+    .max(12, "Maximum 12 months"),
 });
 
 export async function updateSubscription(formData: FormData) {
-      console.log("Starting updateSubscription:", new Date().toISOString());
+  console.log("Starting updateSubscription:", new Date().toISOString());
 
-      const supabase = createSupabaseServerClient();
-      try {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) {
-          console.error("Auth error:", authError);
-          return { success: false, message: "Unauthorized" };
-        }
-
-        console.log("User authenticated:", user.id);
-
-        // Verify admin role
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("userId", user.id)
-          .single();
-
-        if (profileError || profile?.role !== "admin") {
-          console.error("Profile error or not admin:", profileError);
-          return { success: false, message: "Admin access required" };
-        }
-
-        console.log("Admin role verified");
-
-        const validated = updateSubscriptionSchema.safeParse({
-          subscriptionId: formData.get("subscriptionId"),
-          months: Number(formData.get("months")),
-        });
-
-        if (!validated.success) {
-          console.error("Validation error:", validated.error.errors);
-          return { success: false, message: validated.error.errors[0].message };
-        }
-
-        const { subscriptionId, months } = validated.data;
-        console.log("Validated data:", { subscriptionId, months });
-
-        // Fetch current endAt with timeout
-        const subscriptionPromise = supabase
-          .from("subscriptions")
-          .select("endAt")
-          .eq("subscriptionId", subscriptionId)
-          .single();
-
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Subscription fetch timeout")), 5000)
-        );
-
-        const { data: subscription } = await Promise.race([
-          subscriptionPromise,
-          timeoutPromise,
-        ]);
-
-        if (!subscription) {
-          console.error("Subscription not found for ID:", subscriptionId);
-          return { success: false, message: "Subscription not found" };
-        }
-
-        console.log("Current endAt:", subscription.endAt);
-
-        // Calculate new endAt
-        const currentEndAt = new Date(subscription.endAt || new Date());
-        const newEndAt = new Date(currentEndAt);
-        newEndAt.setDate(currentEndAt.getDate() + months * 30);
-
-        console.log("New endAt:", newEndAt.toISOString());
-
-        const { error: updateError } = await supabase
-          .from("subscriptions")
-          .update({
-            endAt: newEndAt.toISOString(),
-            updatedAt: new Date().toISOString(),
-          })
-          .eq("subscriptionId", subscriptionId);
-
-        if (updateError) {
-          console.error("Update subscription error:", updateError);
-          return { success: false, message: "Failed to update subscription" };
-        }
-
-        console.log("Subscription updated successfully");
-        return { success: true, message: "Subscription updated successfully" };
-      } catch (error) {
-        console.error("Update subscription exception:", error);
-        return { success: false, message: "An unexpected error occurred" };
-      }
+  const supabase = createSupabaseServerClient();
+  try {
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error("Auth error:", authError);
+      return { success: false, message: "Unauthorized" };
     }
+
+    console.log("User authenticated:", user.id);
+
+    // Verify admin role
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("userId", user.id)
+      .single();
+
+    if (profileError || profile?.role !== "admin") {
+      console.error("Profile error or not admin:", profileError);
+      return { success: false, message: "Admin access required" };
+    }
+
+    console.log("Admin role verified");
+
+    const validated = updateSubscriptionSchema.safeParse({
+      subscriptionId: formData.get("subscriptionId"),
+      months: Number(formData.get("months")),
+    });
+
+    if (!validated.success) {
+      console.error("Validation error:", validated.error.errors);
+      return { success: false, message: validated.error.errors[0].message };
+    }
+
+    const { subscriptionId, months } = validated.data;
+    console.log("Validated data:", { subscriptionId, months });
+
+    // Fetch current endAt with timeout
+    const subscriptionPromise = supabase
+      .from("subscriptions")
+      .select("endAt")
+      .eq("subscriptionId", subscriptionId)
+      .single();
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Subscription fetch timeout")), 5000)
+    );
+
+    const { data: subscription } = await Promise.race([
+      subscriptionPromise,
+      timeoutPromise,
+    ]);
+
+    if (!subscription) {
+      console.error("Subscription not found for ID:", subscriptionId);
+      return { success: false, message: "Subscription not found" };
+    }
+
+    console.log("Current endAt:", subscription.endAt);
+
+    // Calculate new endAt
+    const currentEndAt = new Date(subscription.endAt || new Date());
+    const newEndAt = new Date(currentEndAt);
+    newEndAt.setDate(currentEndAt.getDate() + months * 30);
+
+    console.log("New endAt:", newEndAt.toISOString());
+
+    const { error: updateError } = await supabase
+      .from("subscriptions")
+      .update({
+        endAt: newEndAt.toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+      .eq("subscriptionId", subscriptionId);
+
+    if (updateError) {
+      console.error("Update subscription error:", updateError);
+      return { success: false, message: "Failed to update subscription" };
+    }
+
+    console.log("Subscription updated successfully");
+    return { success: true, message: "Subscription updated successfully" };
+  } catch (error) {
+    console.error("Update subscription exception:", error);
+    return { success: false, message: "An unexpected error occurred" };
+  }
+}
