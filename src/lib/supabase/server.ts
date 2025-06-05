@@ -41,7 +41,7 @@ export async function createSubscription(userId: string, planType: string = 'pro
       userId,
       planType,
       created_at: new Date().toISOString(),
-      endAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
+      endAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
       updatedAt: new Date().toISOString(),
     })
     .select()
