@@ -32,17 +32,17 @@ import {
 const productSchema = z.object({
   productId: z.string().optional(),
   isManual: z.boolean(),
-  name: z.string().min(1, "Product name is required"),
-  unitPrice: z.number().min(0, "Unit price must be non-negative"),
-  quantity: z.number().min(1, "Quantity must be at least 1"),
+  name: z.string().min(1, "Le nom du produit est obligatoire"),
+  unitPrice: z.number().min(0, "Le prix unitaire doit être positif ou nul"),
+  quantity: z.number().min(1, "La quantité doit être au moins de 1"),
 });
 
 const formSchema = z.object({
-  clientName: z.string().min(1, "Client name is required"),
-  clientPhone: z.string().min(1, "Client phone is required"),
-  storeName: z.string().min(1, "Store name is required"),
-  storeAddress: z.string().min(1, "Store address is required"),
-  products: z.array(productSchema).min(1, "At least one product is required"),
+  clientName: z.string().min(1, "Le nom du client est obligatoire"),
+  clientPhone: z.string().min(1, "Le téléphone du client est obligatoire"),
+  storeName: z.string().min(1, "Le nom du magasin est obligatoire"),
+  storeAddress: z.string().min(1, "L'adresse du magasin est obligatoire"),
+  products: z.array(productSchema).min(1, "Au moins un produit est requis"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -153,32 +153,32 @@ const PDFDocument = ({ data , storePhoneNumber }: { data: FormValues ,  storePho
       <Page size="A4" style={styles.page}>
         <View style={styles.container}>
           <View style={styles.header}>
-            <Text style={styles.title}>Invoice</Text>
+            <Text style={styles.title}>Facture</Text>
             <Text style={styles.date}>Date: {formatDateIST()}</Text>
           </View>
           <View style={styles.sections}>
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Store Details</Text>
+              <Text style={styles.sectionTitle}>Informations du magasin</Text>
               <Text style={styles.text}>{data.storeName}</Text>
               <Text style={styles.text}>{data.storeAddress}</Text>
               {storePhoneNumber && <Text style={styles.text}>{storePhoneNumber}</Text>}
             </View>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Client Details</Text>
+              <Text style={styles.sectionTitle}>Informations du client</Text>
               <Text style={styles.text}>{data.clientName}</Text>
               <Text style={styles.text}>{data.clientPhone}</Text>
             </View>
           </View>
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Products</Text>
+            <Text style={styles.sectionTitle}>Articles</Text>
             <View style={styles.table}>
               <View style={styles.tableHeader}>
-                <Text style={[styles.tableCell, { flex: 2 }]}>Product</Text>
-                <Text style={styles.tableCell}>Unit Price</Text>
-                <Text style={styles.tableCell}>Quantity</Text>
+                <Text style={[styles.tableCell, { flex: 2 }]}>Article</Text>
+                <Text style={styles.tableCell}>Prix Unitaire</Text>
+                <Text style={styles.tableCell}>Quantité</Text>
                 <Text style={[styles.tableCell, styles.tableCellLast]}>
-                  Subtotal
+                  Sous total
                 </Text>
               </View>
               {data.products.map((product, index) => (
@@ -285,7 +285,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
             {/* Store/Client Details */}
             <div className="space-y-4">
               <h2 className="text-lg font-semibold text-gray-700">
-                Store & Client Details
+                Informations du magasin et du client
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
@@ -293,7 +293,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                   name="clientName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Client Name</FormLabel>
+                      <FormLabel>Nom du client</FormLabel>
                       <FormControl>
                         <Input placeholder="John Doe" {...field} />
                       </FormControl>
@@ -306,9 +306,9 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                   name="clientPhone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Client Phone</FormLabel>
+                      <FormLabel>Numéro de téléphone</FormLabel>
                       <FormControl>
-                        <Input placeholder="+91 123 456 7890" {...field} />
+                        <Input placeholder="+269 485 78 96" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -319,9 +319,9 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                   name="storeName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Store Name</FormLabel>
+                      <FormLabel>Nom du magasin du magasin</FormLabel>
                       <FormControl>
-                        <Input placeholder="My Store" defaultValue={storeName} {...field} />
+                        <Input placeholder="Magasin John" defaultValue={storeName} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -332,9 +332,9 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                   name="storeAddress"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Store Address</FormLabel>
+                      <FormLabel>Adresse du magasin</FormLabel>
                       <FormControl>
-                        <Input placeholder="123 Main St, City" defaultValue={storeAddress} {...field} />
+                        <Input placeholder="Mutsamudu, M'roni" defaultValue={storeAddress} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -345,7 +345,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
 
             {/* Products */}
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-gray-700">Products</h2>
+              <h2 className="text-lg font-semibold text-gray-700">Articles</h2>
               {fields.map((field, index) => (
                 <div
                   key={field.id}
@@ -356,7 +356,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                       name={`products.${index}.isManual`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Entry Type</FormLabel>
+                          <FormLabel>Type</FormLabel>
                           <Select
                             onValueChange={(value) => {
                               const isManual = value === "manual";
@@ -378,10 +378,10 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="select">
-                                Select Product
+                                Choisir un article
                               </SelectItem>
                               <SelectItem value="manual">
-                                Manual Entry
+                                Saisir manuellement
                               </SelectItem>
                             </SelectContent>
                           </Select>
@@ -395,10 +395,10 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                           name={`products.${index}.name`}
                           render={({ field }) => (
                             <FormItem className="flex-1">
-                              <FormLabel>Product Name</FormLabel>
+                              <FormLabel>Nom de l&apos;article</FormLabel>
                               <FormControl>
                                 <Input
-                                  placeholder="Enter product name"
+                                  placeholder="Saisir le nom de l'article"
                                   {...field}
                                 />
                               </FormControl>
@@ -411,11 +411,11 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                           name={`products.${index}.unitPrice`}
                           render={({ field }) => (
                             <FormItem className="w-32">
-                              <FormLabel>Unit Price</FormLabel>
+                              <FormLabel>Prix Unitaire</FormLabel>
                               <FormControl>
                                 <Input
                                   type="number"
-                                  step="0.01"
+                                  
                                   placeholder="0"
                                   value={field.value}
                                   onChange={(e) =>
@@ -437,7 +437,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                           name={`products.${index}.productId`}
                           render={({ field }) => (
                             <FormItem className="flex-1">
-                              <FormLabel>Product</FormLabel>
+                              <FormLabel>Article</FormLabel>
                               <Select
                                 onValueChange={(value) => {
                                   console.log(
@@ -471,7 +471,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                                 }}
                                 value={field.value || ""}>
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Select a product" />
+                                  <SelectValue placeholder="Choisir un article" />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {products.map((product) => (
@@ -492,11 +492,11 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                           name={`products.${index}.unitPrice`}
                           render={({ field }) => (
                             <FormItem className="w-32">
-                              <FormLabel>Unit Price</FormLabel>
+                              <FormLabel>Prix Unitaire</FormLabel>
                               <FormControl>
                                 <Input
                                   type="number"
-                                  step="0.01"
+                                   
                                   value={field.value}
                                   readOnly
                                   className="bg-gray-100"
@@ -513,7 +513,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                       name={`products.${index}.quantity`}
                       render={({ field }) => (
                         <FormItem className="w-24">
-                          <FormLabel>Quantity</FormLabel>
+                          <FormLabel>Quantité</FormLabel>
                           <FormControl>
                             <Input
                               type="number"
@@ -534,7 +534,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                       size="sm"
                       onClick={() => remove(index)}
                       disabled={fields.length === 1}>
-                      Remove
+                      Rétirer
                     </Button>
                   </div>
                 </div>
@@ -551,14 +551,14 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                     productId: "",
                   })
                 }>
-                Add Product
+                Ajouter un article
               </Button>
             </div>
 
             {/* Total Price */}
             <div className="flex justify-between items-center">
               <Button type="button" onClick={calculateTotal}>
-                Calculate Total
+                Calculer le total
               </Button>
               {totalPrice !== null && (
                 <p className="text-lg font-semibold text-gray-600">
@@ -576,7 +576,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                 className="bg-blue-600 hover:bg-blue-700 text-gray-100"
                 type="submit"
                 disabled={isSubmitting}>
-                {isSubmitting ? "Creating..." : "Create Invoice"}
+                {isSubmitting ? "En cours..." : "Créer la facture"}
               </Button>
               {submitMessage.includes("success") && invoiceData && (
                 <>
@@ -585,7 +585,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                     fileName={`invoice ${invoiceData.clientName}.pdf`}
                     className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-gray-100 rounded-md text-sm font-medium">
                     {({ loading }) =>
-                      loading ? "Generating PDF..." : "Download PDF"
+                      loading ? "Téléchargement..." : "Télécharger le PDF"
                     }
                   </PDFDownloadLink>
                 </>
@@ -598,7 +598,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                     ? "text-green-600"
                     : "text-red-600"
                 }`}>
-                {submitMessage}
+                La facture a été créée avec succès!
               </p>
             )}
           </form>
@@ -616,7 +616,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
               <h2 className="text-lg font-semibold text-gray-700">
-                Store Details
+                Informations du magasin
               </h2>
               <p className="text-sm text-gray-600">{invoiceData.storeName}</p>
               <p className="text-sm text-gray-600">
@@ -625,7 +625,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-700">
-                Client Details
+                Informations du client
               </h2>
               <p className="text-sm text-gray-600">{invoiceData.clientName}</p>
               <p className="text-sm text-gray-600">{invoiceData.clientPhone}</p>
@@ -633,21 +633,21 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
           </div>
 
           <div className="mb-6">
-            <h2 className="text-lg font-semibold text-gray-700">Products</h2>
+            <h2 className="text-lg font-semibold text-gray-700">Articles</h2>
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-gray-100">
                   <th className="border border-gray-300 p-2 text-left text-sm font-semibold text-gray-700">
-                    Product
+                    Article
                   </th>
                   <th className="border border-gray-300 p-2 text-left text-sm font-semibold text-gray-700">
-                    Unit Price
+                    Prix Unitaire
                   </th>
                   <th className="border border-gray-300 p-2 text-left text-sm font-semibold text-gray-700">
-                    Quantity
+                    Quatité
                   </th>
                   <th className="border border-gray-300 p-2 text-left text-sm font-semibold text-gray-700">
-                    Subtotal
+                    Sous total
                   </th>
                 </tr>
               </thead>

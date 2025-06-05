@@ -20,13 +20,13 @@ interface PeriodSelectorProps {
 }
 
 const periodOptions = [
-  { label: "Today", value: "today" },
-  { label: "This Week", value: "this_week" },
-  { label: "Last 30 Days", value: "last_30_days" },
-  { label: "Last 90 Days", value: "last_90_days" },
-  { label: "Last 120 Days", value: "last_120_days" },
-  { label: "Last 365 Days", value: "last_365_days" },
-  { label: "Custom Range", value: "custom" },
+  { label: "Aujourd'hui", value: "today" },
+  { label: "Cette semaine", value: "this_week" },
+  { label: "Derniers 30 Jours", value: "last_30_days" },
+  { label: "Derniers 90 Jours", value: "last_90_days" },
+  { label: "Derniers 120 Jours", value: "last_120_days" },
+  { label: "Derniers 365 Jours", value: "last_365_days" },
+  { label: "Durée Personalisée", value: "custom" },
 ];
 
 export default function PeriodSelector({ period, customStart, customEnd }: PeriodSelectorProps) {
@@ -70,7 +70,7 @@ export default function PeriodSelector({ period, customStart, customEnd }: Perio
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" className="w-48">
-            {periodOptions.find((opt) => opt.value === period)?.label || "Select Period"}
+            {periodOptions.find((opt) => opt.value === period)?.label || "Choisir une période"}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
@@ -116,7 +116,7 @@ export default function PeriodSelector({ period, customStart, customEnd }: Perio
             </PopoverContent>
           </Popover>
           <Button onClick={handleCustomRangeApply} disabled={!startDate || !endDate}>
-            Apply
+           Appliquer
           </Button>
         </div>
       )}

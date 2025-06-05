@@ -35,10 +35,10 @@ const COLORS = {
 };
 
 const METRICS = [
-  { key: "sales", label: "Sales", color: COLORS.sales },
-  { key: "expenses", label: "Expenses", color: COLORS.expenses },
+  { key: "sales", label: "Ventes", color: COLORS.sales },
+  { key: "expenses", label: "Dépenses", color: COLORS.expenses },
   { key: "credits", label: "Credits", color: COLORS.credits },
-  { key: "revenue", label: "Revenue", color: COLORS.revenue },
+  { key: "revenue", label: "Revenus", color: COLORS.revenue },
 ];
 
 export default function AnalyticsGraph({ data }: AnalyticsGraphProps) {
@@ -61,7 +61,7 @@ export default function AnalyticsGraph({ data }: AnalyticsGraphProps) {
   if (!data || data.length === 0) {
     return (
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100">
-        <p className="text-gray-500 text-center">No data available</p>
+        <p className="text-gray-500 text-center">Pas de données disponibles</p>
       </div>
     );
   }
@@ -82,7 +82,7 @@ export default function AnalyticsGraph({ data }: AnalyticsGraphProps) {
   return (
     <div className="bg-white p-10 rounded-2xl shadow-sm border border-green-100">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-gray-700">Analytics Overview</h2>
+        <h2 className="text-lg font-semibold text-gray-700">Aperçu analytique</h2>
         <select
           value={chartType}
           onChange={handleChartTypeChange}
@@ -125,7 +125,7 @@ export default function AnalyticsGraph({ data }: AnalyticsGraphProps) {
             />
             <YAxis
               tick={{ fill: "#4b5563", fontSize: 12 }}
-              tickFormatter={(value) => `$${value.toLocaleString()}`}
+              tickFormatter={(value) => `${value.toLocaleString()} fcs`}
               domain={['auto', 'auto']}
               allowDecimals={false}
             />
@@ -139,7 +139,7 @@ export default function AnalyticsGraph({ data }: AnalyticsGraphProps) {
               }}
               labelStyle={{ fontWeight: "bold", color: "#333" }}
               itemStyle={{ color: "#333" }}
-              formatter={(value: number) => `$${value.toLocaleString()}`}
+              formatter={(value: number) => `${value.toLocaleString()} fcs`}
             />
             <Legend
               verticalAlign="top"

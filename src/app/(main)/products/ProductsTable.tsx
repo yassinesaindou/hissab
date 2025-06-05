@@ -58,7 +58,7 @@ export function ProductsTable<TData, TValue>({
     <div>
       <div className="flex items-center py-4">
         <Input
-          placeholder="Filter products..."
+          placeholder="Chercher par nom ..."
           value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
           onChange={(event) =>
             table.getColumn("name")?.setFilterValue(event.target.value)
@@ -104,7 +104,7 @@ export function ProductsTable<TData, TValue>({
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center">
-                  No results.
+                  Pas d&apos;articles trouvés.
                 </TableCell>
               </TableRow>
             )}
@@ -118,7 +118,7 @@ export function ProductsTable<TData, TValue>({
           onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}
         >
-          Previous
+          Précédente
         </Button>
         <Button
           variant="outline"
@@ -126,7 +126,7 @@ export function ProductsTable<TData, TValue>({
           onClick={() => table.nextPage()}
           disabled={!table.getCanNextPage()}
         >
-          Next
+         Suivante
         </Button>
       </div>
     </div>

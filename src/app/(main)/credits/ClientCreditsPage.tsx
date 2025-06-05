@@ -57,7 +57,7 @@ export default function ClientCreditsPage({ credits, products }: ClientCreditsPa
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add A New Credit</DialogTitle>
+            <DialogTitle>Ajouter un Crédit</DialogTitle>
           </DialogHeader>
           <AddCreditForm closeDialog={closeAddDialog} products={products} />
         </DialogContent>
@@ -65,7 +65,7 @@ export default function ClientCreditsPage({ credits, products }: ClientCreditsPa
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Credit</DialogTitle>
+            <DialogTitle>Modifier le Crédit</DialogTitle>
           </DialogHeader>
           {console.log("Selected Credit:", selectedCredit)}
           {selectedCredit && (

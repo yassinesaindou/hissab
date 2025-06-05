@@ -81,7 +81,7 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
   return (
     <form action={handleSubmit} className="space-y-4">
       <div>
-        <Label htmlFor="customerName">Customer Name</Label>
+        <Label htmlFor="customerName">Nom du client</Label>
         <Input
           id="customerName"
           name="customerName"
@@ -92,7 +92,7 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
       </div>
 
       <div>
-        <Label htmlFor="customerPhone">Customer Phone</Label>
+        <Label htmlFor="customerPhone">No de tel du client</Label>
         <Input
           id="customerPhone"
           name="customerPhone"
@@ -103,7 +103,7 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
       </div>
 
       <div>
-        <Label htmlFor="productId">Product (Optional)</Label>
+        <Label htmlFor="productId">Article (Optionnel)</Label>
         <Select
           name="productId"
           onValueChange={(value) =>
@@ -111,7 +111,7 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
           }
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select a product" />
+            <SelectValue placeholder="Choisir un article" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">None</SelectItem>
@@ -125,7 +125,7 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
       </div>
 
       <div>
-        <Label htmlFor="numberOfProductsTaken">Number of Products Taken</Label>
+        <Label htmlFor="numberOfProductsTaken">No d&apos;articles pris</Label>
         <Input
           id="numberOfProductsTaken"
           name="numberOfProductsTaken"
@@ -142,7 +142,7 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
       </div>
 
       <div>
-        <Label htmlFor="amount">Amount</Label>
+        <Label htmlFor="amount">Montant</Label>
         <Input
           id="amount"
           name="amount"
@@ -163,9 +163,9 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
             <SelectValue placeholder="Select status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
-            <SelectItem value="overdue">Overdue</SelectItem>
+            <SelectItem value="pending">En attente</SelectItem>
+            <SelectItem value="paid">Paye</SelectItem>
+            <SelectItem value="overdue">En retard</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -175,7 +175,7 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
         <Textarea
           id="description"
           name="description"
-          placeholder="Enter description (optional)"
+          placeholder="Entrer une description (optional)"
           rows={4}
         />
       </div>
@@ -184,7 +184,7 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
       {success && <p className="text-green-500">{success}</p>}
 
       <Button type="submit" disabled={isPending} className="bg-blue-700 text-gray-50">
-        {isPending ? "Processing..." : "Add Credit"}
+        {isPending ? "En cours..." : "Ajouter le crédit"}
       </Button>
     </form>
   );

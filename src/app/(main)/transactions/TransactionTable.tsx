@@ -66,7 +66,7 @@ export function DataTable<TData, TValue>({
     <div className="space-y-4">
       <div className="flex items-center">
         <Input
-          placeholder="Search by product name or type..."
+          placeholder="Rechercher par nom ou type de produit..."
           value={globalFilter}
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="max-w-sm"
@@ -111,7 +111,7 @@ export function DataTable<TData, TValue>({
                 <TableCell
                   colSpan={columns.length}
                   className="h-24 text-center">
-                  No results.
+                  Aucune donnée trouvée.
                 </TableCell>
               </TableRow>
             )}
@@ -124,14 +124,14 @@ export function DataTable<TData, TValue>({
           size="sm"
           onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}>
-          Previous
+          Précédente
         </Button>
         <Button
           variant="outline"
           size="sm"
           onClick={() => table.nextPage()}
           disabled={!table.getCanNextPage()}>
-          Next
+          Suivante
         </Button>
       </div>
     </div>

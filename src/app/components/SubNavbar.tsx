@@ -37,7 +37,7 @@ export default async function SubNavbar() {
   return (
     <div className="w-full pb-3 border-b space-x-2 flex flex-col md:flex-row justify-between">
       <div className="min-w-fit">
-        <h2>Welcome Back, {userName}</h2>
+        <h2>Mes Salutations, {userName}</h2>
       </div>
       <div className="flex justify-end items-center w-full mt-3 md:mt-0 space-x-2">
         <ClientAddTransactionForm products={products ?? []} />

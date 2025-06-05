@@ -41,24 +41,24 @@ export const columns: ColumnDef<Transaction>[] = [
   {
     accessorKey: "productName",
     id: "productName",
-    header: "Product",
+    header: "Article",
     cell: ({ row }) => row.original.productName || "N/A",
   },
   {
     accessorKey: "unitPrice",
     id: "unitPrice",
-    header: "Unit Price",
+    header: "Prix Unitaire",
     cell: ({ row }) => `$${Number(row.original.unitPrice).toFixed(2)}`,
   },
   {
     accessorKey: "quantity",
     id: "quantity",
-    header: "Quantity",
+    header: "Quantite",
   },
   {
     accessorKey: "totalPrice",
     id: "totalPrice",
-    header: "Total Price",
+    header: "Prix Total",
     cell: ({ row }) => `$${Number(row.original.totalPrice).toFixed(2)}`,
   },
   {
@@ -107,16 +107,16 @@ export const columns: ColumnDef<Transaction>[] = [
             <DropdownMenuItem
               className="cursor-pointer"
               onClick={() =>
-                navigator.clipboard.writeText(transaction.transactionId)
+                navigator.clipboard.writeText(transaction.productName || '')
               }
             >
-              Copy Transaction ID
+              Copier le nom de l&apos;article
             </DropdownMenuItem>
             <DropdownMenuItem
               className="cursor-pointer"
               onClick={() => table.options.meta?.onEditTransaction?.(transaction)}
             >
-              Edit Transaction
+              Modifier la transaction
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

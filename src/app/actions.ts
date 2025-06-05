@@ -13,32 +13,32 @@ const SignupFormSchema = z
   .object({
     name: z
       .string()
-      .min(2, { message: "Name must be at least 2 characters." })
-      .max(50, { message: "Name must be at most 50 characters." }),
+      .min(2, { message: "Le nom doit avoir au moins 2 caractères." })
+      .max(50, { message: "Le nom doit comporter au maximum 50 caractères." }),
     email: z
       .string()
-      .min(7, { message: "Email must be at least 7 characters." })
+      .min(7, { message: "L'email doit avoir au moins 7 caractères." })
       .max(50)
-      .email({ message: "Please enter a valid email." }),
+      .email({ message: "Veuillez entrer une adresse email valide." }),
     phone: z
       .string()
-      .min(10, { message: "Phone number must be at least 10 digits." })
-      .max(15, { message: "Phone number must be at most 15 digits." })
+      .min(10, { message: "Le numero de telephone doit avoir au moins 10 chiffres." })
+      .max(15, { message: "Le numero de telephone doit avoir au maximum 15 chiffres." })
       .regex(/^\+?\d+$/, {
         message:
-          "Phone number must contain only digits and an optional leading +.",
+          "Le numero de telephone doit contenir uniquement des chiffres et un signe plus (+) au debut.",
       }),
     password: z
       .string()
-      .min(8, { message: "Password must be at least 8 characters." })
+      .min(8, { message: "Le mot de passe doit avoir au moins 8 caractères." })
       .max(50),
     confirmPassword: z
       .string()
-      .min(8, { message: "Password must be at least 8 characters." })
+      .min(8, { message: "Le mot de passe doit avoir au moins 8 caractères." })
       .max(50),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match.",
+    message: "Les mots de passe ne correspondent pas.",
     path: ["confirmPassword"],
   });
 const loginFormSchema = z.object({
@@ -80,8 +80,8 @@ export async function signupAction(formData: SignupFormData) {
       return {
         success: false,
         message: authError?.message.includes("already registered")
-          ? "Email already in use"
-          : authError?.message || "Signup failed",
+          ? "L'email est déjà enregistré"
+          : authError?.message || "Echec de l'inscription",
       };
     }
 
@@ -102,7 +102,7 @@ export async function signupAction(formData: SignupFormData) {
     // Create subscription
     const subscription = await createSubscription(authData.user.id, "pro");
     if (!subscription) {
-      return { success: false, message: "Failed to create subscription" };
+      return { success: false, message: "Echec durant la souscription" };
     }
 
     // Update profile with subscriptionId
@@ -121,14 +121,14 @@ export async function signupAction(formData: SignupFormData) {
 
     return {
       success: true,
-      message: "Signup successful! Please check your email to confirm.",
+      message: "Inscription réussie, veuilller verifier votre email pour confirmer votre compte.",
     };
   } catch (error) {
-    console.error("Unexpected error during signup:", error);
+    console.error("Une erreur s'est produite lors de l'inscription:", error);
     if (error instanceof z.ZodError) {
       return { success: false, message: error.errors[0].message };
     }
-    return { success: false, message: "An unexpected error occurred" };
+    return { success: false, message: "Une erreur s'est produite" };
   }
 }
 
@@ -150,8 +150,8 @@ export async function loginAction(formData: LoginFormData) {
       return {
         success: false,
         message: error?.message.includes("Invalid login credentials")
-          ? "Invalid email or password"
-          : error?.message || "Login failed",
+          ? "Mot de passe ou email incorrect"
+          : error?.message || "Echec durant la connexion",
       };
     }
 
@@ -162,7 +162,7 @@ export async function loginAction(formData: LoginFormData) {
     if (error instanceof z.ZodError) {
       return { success: false, message: error.errors[0].message };
     }
-    return { success: false, message: "An unexpected error occurred" };
+    return { success: false, message: "Une erreur s'est produite" };
   }
 }
 
@@ -181,23 +181,23 @@ export async function logoutAction() {
 const productFormSchema = z.object({
   name: z
     .string()
-    .min(2, { message: "Product name must be at least 2 characters." })
-    .max(100, { message: "Product name must be at most 100 characters." }),
+    .min(2, { message: "Le nom du produit doit avoir au moins 2 caractères." })
+    .max(100, { message: "Le nom du produit doit avoir moins de 100 caractères." }),
   stock: z
     .number()
-    .int({ message: "Stock must be an integer." })
-    .min(0, { message: "Stock must be non-negative." }),
+    .int({ message: "Le stock doit etre un nombre entier." })
+    .min(0, { message: "Le stock doit etre non-negative." }),
   unitPrice: z
     .number()
-    .min(0, { message: "Unit price must be non-negative." })
-    .max(1000000, { message: "Unit price must be less than 1,000,000." }),
+    .min(0, { message: "Le prix unitaire doit etre non-negative." })
+    .max(1000000, { message: "Le prix unitaire doit avoir moins de 1 000 000." }),
   category: z
     .string()
-    .max(50, { message: "Category must be at most 50 characters." })
+    .max(50, { message: "La categorie doit avoir moins de 50 caractères." })
     .optional(),
   description: z
     .string()
-    .max(500, { message: "Description must be at most 500 characters." })
+    .max(500, { message: "La description doit avoir moins de 500 caractères." })
     .optional(),
 });
 
@@ -229,7 +229,7 @@ export async function newProductAction(formData: ProductFormData) {
     if (!isSubscriptionActive) {
       return {
         success: false,
-        message: "Your subscription has expired, please renew it.",
+        message: "Ta souscription a expiré, veuillez la renouveler.",
       };
     }
 
@@ -245,21 +245,21 @@ export async function newProductAction(formData: ProductFormData) {
 
     if (error) {
       console.error("Error creating product:", error.message);
-      return { success: false, message: "Failed to create product" };
+      return { success: false, message: "Echec durant la creation du produit" };
     }
 
-    return { success: true, message: "Product added successfully" };
+    return { success: true, message: "Produit ajouté avec succès." };
   } catch (error) {
     console.error("Unexpected error during product creation:", error);
     if (error instanceof z.ZodError) {
       return { success: false, message: error.errors[0].message };
     }
-    return { success: false, message: "An unexpected error occurred" };
+    return { success: false, message: "Une erreur s'est produite" };
   }
 }
 
 const updateProductFormSchema = productFormSchema.extend({
-  productId: z.string().uuid({ message: "Invalid product ID." }),
+  productId: z.string().uuid({ message: "L' identifiant du produit est incorrect." }),
 });
 
 type UpdateProductFormData = z.infer<typeof updateProductFormSchema>;
@@ -290,7 +290,7 @@ export async function updateProductAction(formData: UpdateProductFormData) {
     if (!isSubscriptionActive) {
       return {
         success: false,
-        message: "Your subscription has expired, please renew it.",
+        message: "Ta souscription a expiré, veuillez la renouveler.",
       };
     }
 
@@ -302,12 +302,12 @@ export async function updateProductAction(formData: UpdateProductFormData) {
       .single();
 
     if (fetchError || !product) {
-      console.error("Error fetching product:", fetchError?.message);
-      return { success: false, message: "Product not found" };
+      console.error("Echec durant la recherche du produit", fetchError?.message);
+      return { success: false, message: "Produit introuvable" };
     }
 
     if (product.userId !== user.id) {
-      return { success: false, message: "Unauthorized to update this product" };
+      return { success: false, message: "Vous n'êtes pas autorisé de modifier ce produit" };
     }
 
     // Update the product
@@ -324,16 +324,16 @@ export async function updateProductAction(formData: UpdateProductFormData) {
 
     if (error) {
       console.error("Error updating product:", error.message);
-      return { success: false, message: "Failed to update product" };
+      return { success: false, message: "Echec durant la mise à jour du produit" };
     }
 
-    return { success: true, message: "Product updated successfully" };
+    return { success: true, message: "Produit mis à jour avec succès." };
   } catch (error) {
     console.error("Unexpected error during product update:", error);
     if (error instanceof z.ZodError) {
       return { success: false, message: error.errors[0].message };
     }
-    return { success: false, message: "An unexpected error occurred" };
+    return { success: false, message: "Une erreur s'est produite" };
   }
 }
 
@@ -342,27 +342,27 @@ export async function updateProductAction(formData: UpdateProductFormData) {
 const creditFormSchema = z.object({
   customerName: z
     .string()
-    .min(2, { message: "Customer name must be at least 2 characters." })
-    .max(100, { message: "Customer name must be at most 100 characters." }),
+    .min(2, { message: "Le nom du client doit avoir au moins 2 caractères." })
+    .max(100, { message: "Le nom du client doit avoir au plus 100 caractères." }),
   customerPhone: z
     .string()
-    .regex(/^\+?[1-9]\d{1,14}$/, { message: "Invalid phone number format." })
-    .min(5, { message: "Phone number must be at least 5 digits." })
-    .max(15, { message: "Phone number must be at most 15 digits." }),
+    .regex(/^\+?[1-9]\d{1,14}$/, { message: "Le numéro de téléphone est incorrecte." })
+    .min(5, { message: "Le numéro de téléphone doit avoir au moins 5 chiffres." })
+    .max(15, { message: "Le numéro de téléphone doit avoir au plus 15 chiffres." }),
   amount: z
     .number()
-    .min(0, { message: "Amount must be non-negative." })
-    .max(1000000, { message: "Amount must be less than 1,000,000." }),
+    .min(0, { message: "Le montant doit etre positif." })
+    .max(1000000, { message: "Le montant doit pas exéder 1 000 000." }),
   status: z.enum(["pending", "paid", "overdue"]).optional().default("pending"),
   description: z
     .string()
-    .max(500, { message: "Description must be at most 500 characters." })
+    .max(500, { message: "La description doit avoir au plus 500 caractères." })
     .optional(),
-  productId: z.string().uuid({ message: "Invalid product ID." }).optional(),
+  productId: z.string().uuid({ message: "L'identifiant du produit est incorrect." }).optional(),
   numberOfProductsTaken: z
     .number()
-    .int({ message: "Number of products taken must be an integer." })
-    .min(1, { message: "Number of products taken must be at least 1." })
+    .int({ message: "Le nombre de produits pris doit etre entier." })
+    .min(1, { message: "Le nombre de produits pris doit etre au moins 1." })
     .optional(),
 });
 
@@ -395,7 +395,7 @@ export async function addCreditAction(formData: FormData) {
     if (!isSubscriptionActive) {
       return {
         success: false,
-        message: "Your subscription has expired, please renew it.",
+        message: "Ta souscription a expiré, veuillez la renouveler.",
       };
     }
 
@@ -409,17 +409,17 @@ export async function addCreditAction(formData: FormData) {
 
       if (productError || !product) {
         console.error("Error fetching product:", productError?.message);
-        return { success: false, message: "Invalid product ID" };
+        return { success: false, message: "L'identifiant du produit est incorrect" };
       }
 
       if (product.userId !== user.id) {
-        return { success: false, message: "Unauthorized to link this product" };
+        return { success: false, message: "Vous n'êtes pas autorisé de modifier ce produit" };
       }
 
       if (product.stock < validatedData.numberOfProductsTaken) {
         return {
           success: false,
-          message: `Insufficient stock. Available: ${product.stock}, Requested: ${validatedData.numberOfProductsTaken}`,
+          message: `Le stock du produit est insuffisant. Stock: ${product.stock}, Requis: ${validatedData.numberOfProductsTaken}`,
         };
       }
 
@@ -431,7 +431,7 @@ export async function addCreditAction(formData: FormData) {
 
       if (stockError) {
         console.error("Error updating product stock:", stockError.message);
-        return { success: false, message: "Failed to update product stock" };
+        return { success: false, message: "Echec durant la mise à jour du produit" };
       }
     } else if (
       validatedData.productId &&
@@ -440,7 +440,7 @@ export async function addCreditAction(formData: FormData) {
       return {
         success: false,
         message:
-          "Number of products taken is required when a product is selected",
+          "Le nombre de produits pris est requis lorsque l'identifiant du produit est fourni",
       };
     } else if (
       !validatedData.productId &&
@@ -449,7 +449,7 @@ export async function addCreditAction(formData: FormData) {
       return {
         success: false,
         message:
-          "Product ID is required when number of products taken is provided",
+          "L'identifiant du produit est requis lorsque le nombre de produits pris est fourni",
       };
     }
 
@@ -466,21 +466,21 @@ export async function addCreditAction(formData: FormData) {
 
     if (error) {
       console.error("Error creating credit:", error.message);
-      return { success: false, message: "Failed to create credit" };
+      return { success: false, message: "Echec durant la création du crédit" };
     }
 
-    return { success: true, message: "Credit added successfully" };
+    return { success: true, message: "Création du crédit reussie" };
   } catch (error) {
     console.error("Unexpected error during credit creation:", error);
     if (error instanceof z.ZodError) {
       return { success: false, message: error.errors[0].message };
     }
-    return { success: false, message: "An unexpected error occurred" };
+    return { success: false, message: "Une erreur s'est produite" };
   }
 }
 
 const updateCreditFormSchema = creditFormSchema.extend({
-  creditId: z.string().uuid({ message: "Invalid credit ID." }),
+  creditId: z.string().uuid({ message: "L'identifiant du crédit est incorrect." }),
 });
 
 export async function updateCreditAction(formData: FormData) {
@@ -510,7 +510,7 @@ export async function updateCreditAction(formData: FormData) {
     if (!isSubscriptionActive) {
       return {
         success: false,
-        message: "Your subscription has expired, please renew it.",
+        message: "Ta souscription a expiré, veuillez la renouveler.",
       };
     }
 
@@ -523,11 +523,11 @@ export async function updateCreditAction(formData: FormData) {
 
     if (fetchError || !credit) {
       console.error("Error fetching credit:", fetchError?.message);
-      return { success: false, message: "Credit not found" };
+      return { success: false, message: "Le crédit n'existe pas" };
     }
 
     if (credit.userId !== user.id) {
-      return { success: false, message: "Unauthorized to update this credit" };
+      return { success: false, message: "Vous n'êtes pas autorisé de modifier ce crédit" };
     }
 
     // If productId is provided, verify it exists and belongs to the user
@@ -540,11 +540,11 @@ export async function updateCreditAction(formData: FormData) {
 
       if (productError || !product) {
         console.error("Error fetching product:", productError?.message);
-        return { success: false, message: "Invalid product ID" };
+        return { success: false, message: "L'identifiant du produit est incorrect" };
       }
 
       if (product.userId !== user.id) {
-        return { success: false, message: "Unauthorized to link this product" };
+        return { success: false, message: "Vous n'êtes pas autorisé de modifier ce produit" };
       }
     }
 
@@ -563,23 +563,23 @@ export async function updateCreditAction(formData: FormData) {
 
     if (error) {
       console.error("Error updating credit:", error.message);
-      return { success: false, message: "Failed to update credit" };
+      return { success: false, message: "Echec durant la mise à jour du crédit" };
     }
 
-    return { success: true, message: "Credit updated successfully" };
+    return { success: true, message: "Mise à jour du crédit reussie" };
   } catch (error) {
     console.error("Unexpected error during credit update:", error);
     if (error instanceof z.ZodError) {
       return { success: false, message: error.errors[0].message };
     }
-    return { success: false, message: "An unexpected error occurred" };
+    return { success: false, message: "Une erreur s'est produite" };
   }
 }
 
 //Transactions
 
 const baseTransactionFormSchema = z.object({
-  productId: z.string().uuid({ message: "Invalid product ID." }).optional(),
+  productId: z.string().uuid({ message: "L'identifiant du produit est incorrect." }).optional(),
   productName: z
     .string()
     .max(100, { message: "Product name must be at most 100 characters." })
@@ -591,9 +591,9 @@ const baseTransactionFormSchema = z.object({
   quantity: z
     .number()
     .int({ message: "Quantity must be an integer" })
-    .min(1, { message: "Quantity must be at least 1" }),
+    .min(1, { message: "La quantité doit etre superieur à 0" }),
   type: z.enum(["sale", "credit", "expense"], {
-    message: "Invalid transaction type.",
+    message: "Le type de transaction doit etre 'sale', 'credit' ou 'expense'.",
   }),
 });
 
@@ -604,7 +604,7 @@ const transactionFormSchema = baseTransactionFormSchema.refine(
     data.productName,
   {
     message:
-      "Either a product must be selected or a product name must be provided for sale/credit transactions.",
+      "Un produit doit être sélectionné ou un nom de produit doit être fourni pour les transactions de vente ou de crédit.",
     path: ["productId"],
   }
 );
@@ -629,7 +629,7 @@ export async function addTransactionAction(formData: TransactionFormData) {
     if (!isSubscriptionActive) {
       return {
         success: false,
-        message: "Your subscription has expired, please renew it.",
+        message: "Ta souscription a expiré, veuillez la renouveler.",
       };
     }
 
@@ -645,11 +645,11 @@ export async function addTransactionAction(formData: TransactionFormData) {
 
       if (productError || !product) {
         console.error("Error fetching product:", productError?.message);
-        return { success: false, message: "Invalid product ID" };
+        return { success: false, message: "L'identifiant du produit est incorrect" };
       }
 
       if (product.userId !== user.id) {
-        return { success: false, message: "Unauthorized to use this product" };
+        return { success: false, message: "Vous n'êtes pas autorisé de modifier ce produit" };
       }
 
       if (
@@ -658,7 +658,7 @@ export async function addTransactionAction(formData: TransactionFormData) {
       ) {
         return {
           success: false,
-          message: `Insufficient stock. Available: ${product.stock}, Requested: ${validatedData.quantity}`,
+          message: `Stock insuffisant. Stock: ${product.stock}, Quantité demandée: ${validatedData.quantity}`,
         };
       }
 
@@ -674,7 +674,7 @@ export async function addTransactionAction(formData: TransactionFormData) {
 
         if (stockError) {
           console.error("Error updating product stock:", stockError.message);
-          return { success: false, message: "Failed to update product stock" };
+          return { success: false, message: "Echec de mise à jour du stock" };
         }
       }
     }
@@ -692,22 +692,22 @@ export async function addTransactionAction(formData: TransactionFormData) {
 
     if (error) {
       console.error("Error creating transaction:", error.message);
-      return { success: false, message: "Failed to create transaction" };
+      return { success: false, message: "Echec durant la création de la transaction" };
     }
 
-    return { success: true, message: "Transaction added successfully" };
+    return { success: true, message: "La transaction a bien été ajoutée" };
   } catch (error) {
     console.error("Unexpected error during transaction creation:", error);
     if (error instanceof z.ZodError) {
       return { success: false, message: error.errors[0].message };
     }
-    return { success: false, message: "An unexpected error occurred" };
+    return { success: false, message: "Une erreur s'est produite" };
   }
 }
 
 const updateTransactionFormSchema = baseTransactionFormSchema
   .extend({
-    transactionId: z.string().uuid({ message: "Invalid transaction ID." }),
+    transactionId: z.string().uuid({ message: "L'identifiant de la transaction est incorrect." }),
   })
   .refine(
     (data) =>
@@ -716,7 +716,7 @@ const updateTransactionFormSchema = baseTransactionFormSchema
       data.productName,
     {
       message:
-        "Either a product must be selected or a product name must be provided for sale/credit transactions.",
+        "Un produit doit être sélectionné ou un nom de produit doit être renseigné pour les transactions de vente ou de crédit.",
       path: ["productId"],
     }
   );
@@ -743,7 +743,7 @@ export async function updateTransactionAction(
     if (!isSubscriptionActive) {
       return {
         success: false,
-        message: "Your subscription has expired, please renew it.",
+        message: "Ta souscription a expiré, veuillez la renouveler.",
       };
     }
 
@@ -755,13 +755,13 @@ export async function updateTransactionAction(
 
     if (fetchError || !transaction) {
       console.error("Error fetching transaction:", fetchError?.message);
-      return { success: false, message: "Transaction not found" };
+      return { success: false, message: "La transaction n'existe pas" };
     }
 
     if (transaction.userId !== user.id) {
       return {
         success: false,
-        message: "Unauthorized to update this transaction",
+        message: "Vous n'êtes pas autorisé de modifier cette transaction",
       };
     }
 
@@ -777,11 +777,11 @@ export async function updateTransactionAction(
 
       if (productError || !product) {
         console.error("Error fetching product:", productError?.message);
-        return { success: false, message: "Invalid product ID" };
+        return { success: false, message: "L'identifiant du produit est incorrect" };
       }
 
       if (product.userId !== user.id) {
-        return { success: false, message: "Unauthorized to use this product" };
+        return { success: false, message: "Vous n'êtes pas autorisé de modifier ce produit" };
       }
 
       const stockAdjustment = transaction.quantity - validatedData.quantity;
@@ -793,7 +793,7 @@ export async function updateTransactionAction(
       ) {
         return {
           success: false,
-          message: `Insufficient stock. Available: ${product.stock}, Required: ${validatedData.quantity}`,
+          message: `Stock insuffisant Disponible: ${product.stock}, Requis: ${validatedData.quantity}`,
         };
       }
 
@@ -809,7 +809,7 @@ export async function updateTransactionAction(
 
         if (stockError) {
           console.error("Error updating product stock:", stockError.message);
-          return { success: false, message: "Failed to update product stock" };
+          return { success: false, message: "Echec durant la mise à jour du stock" };
         }
       }
     } else if (
@@ -825,7 +825,7 @@ export async function updateTransactionAction(
 
       if (oldProductError || !oldProduct) {
         console.error("Error fetching old product:", oldProductError?.message);
-        return { success: false, message: "Invalid old product ID" };
+        return { success: false, message: "L'identifiant de l'ancien produit  est incorrect" };
       }
 
       const { error: stockError } = await supabase
@@ -835,7 +835,7 @@ export async function updateTransactionAction(
 
       if (stockError) {
         console.error("Error restoring product stock:", stockError.message);
-        return { success: false, message: "Failed to restore product stock" };
+        return { success: false, message: "Echec durant la restauration du stock" };
       }
     }
 
@@ -853,16 +853,16 @@ export async function updateTransactionAction(
 
     if (error) {
       console.error("Error updating transaction:", error.message);
-      return { success: false, message: "Failed to update transaction" };
+      return { success: false, message: "Echec durant la mise à jour de la transaction" };
     }
 
-    return { success: true, message: "Transaction updated successfully" };
+    return { success: true, message: "La transaction a bien été mise à jour" };
   } catch (error) {
     console.error("Unexpected error during transaction update:", error);
     if (error instanceof z.ZodError) {
       return { success: false, message: error.errors[0].message };
     }
-    return { success: false, message: "An unexpected error occurred" };
+    return { success: false, message: "Une erreur s'est produite" };
   }
 }
 
@@ -877,7 +877,7 @@ export async function getRecentTransactions() {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return { success: false, message: "Unauthorized", transactions: [] };
+      return { success: false, message: "Non autorisé", transactions: [] };
     }
 
     const { data, error } = await supabase
@@ -892,7 +892,7 @@ export async function getRecentTransactions() {
       console.error("Error fetching transactions:", error.message);
       return {
         success: false,
-        message: "Failed to fetch transactions",
+        message: "Echec durant la recherche des transactions",
         transactions: [],
       };
     }
@@ -908,14 +908,14 @@ export async function getRecentTransactions() {
 
     return {
       success: true,
-      message: "Transactions fetched successfully",
+      message: "Les transactions ont été récherchées avec succès",
       transactions,
     };
   } catch (error) {
     console.error("Unexpected error fetching transactions:", error);
     return {
       success: false,
-      message: "An unexpected error occurred",
+      message: "Une erreur s'est produite",
       transactions: [],
     };
   }
@@ -930,7 +930,7 @@ export async function getRecentCredits() {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return { success: false, message: "Unauthorized", credits: [] };
+      return { success: false, message: "Non autorisé", credits: [] };
     }
 
     const { data, error } = await supabase
@@ -944,7 +944,7 @@ export async function getRecentCredits() {
       console.error("Error fetching credits:", error.message);
       return {
         success: false,
-        message: "Failed to fetch credits",
+        message: "Echec durant la recherche des crédits",
         credits: [],
       };
     }
@@ -956,12 +956,12 @@ export async function getRecentCredits() {
       amount: c.amount,
     }));
 
-    return { success: true, message: "Credits fetched successfully", credits };
+    return { success: true, message: "Crédits récherchés avec succès.", credits };
   } catch (error) {
     console.error("Unexpected error fetching credits:", error);
     return {
       success: false,
-      message: "An unexpected error occurred",
+      message: "Une erreur s'est produite",
       credits: [],
     };
   }
@@ -976,7 +976,7 @@ export async function getDashboardData() {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return { success: false, message: "Unauthorized", data: {} };
+      return { success: false, message: "Non autorisé", data: {} };
     }
 
     const fourteenDaysAgo = new Date();
@@ -994,7 +994,7 @@ export async function getDashboardData() {
       console.error("Error fetching transactions:", txError.message);
       return {
         success: false,
-        message: "Failed to fetch transactions",
+        message: "Echec durant la recherche des transactions",
         data: {},
       };
     }
@@ -1009,7 +1009,7 @@ export async function getDashboardData() {
 
     if (creditsError) {
       console.error("Error fetching credits:", creditsError.message);
-      return { success: false, message: "Failed to fetch credits", data: {} };
+      return { success: false, message: "Echec durant la recherche des crédits", data: {} };
     }
 
     // Calculate totals
@@ -1059,7 +1059,7 @@ export async function getDashboardData() {
 
     return {
       success: true,
-      message: "Dashboard data fetched successfully",
+      message: "Les données du tableau de bord ont été récherchées avec succès",
       data: {
         sales: {
           total: totalSales,
@@ -1083,7 +1083,7 @@ export async function getDashboardData() {
     console.error("Unexpected error fetching dashboard data:", error);
     return {
       success: false,
-      message: "An unexpected error occurred",
+      message: "Une erreur s'est produite",
       data: {},
     };
   }
@@ -1098,7 +1098,7 @@ export async function getYearlyOverview() {
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return { success: false, message: "Unauthorized", data: [] };
+      return { success: false, message: "Non autorisé", data: [] };
     }
 
     const startOfYear = new Date(new Date().getFullYear(), 0, 1);
@@ -1116,7 +1116,7 @@ export async function getYearlyOverview() {
       console.error("Error fetching transactions:", txError.message);
       return {
         success: false,
-        message: "Failed to fetch transactions",
+        message: "Echec durant la recherche des transactions",
         data: [],
       };
     }
@@ -1132,7 +1132,7 @@ export async function getYearlyOverview() {
 
     if (creditsError) {
       console.error("Error fetching credits:", creditsError.message);
-      return { success: false, message: "Failed to fetch credits", data: [] };
+      return { success: false, message: "Echec durant la recherche des crédits", data: [] };
     }
 
     // Generate monthly data
@@ -1167,14 +1167,14 @@ export async function getYearlyOverview() {
 
     return {
       success: true,
-      message: "Yearly data fetched successfully",
+      message: "Les données annuelles ont été récherchées avec succès",
       data: yearlyData,
     };
   } catch (error) {
     console.error("Unexpected error fetching yearly data:", error);
     return {
       success: false,
-      message: "An unexpected error occurred",
+      message: "Une erreur s'est produite",
       data: [],
     };
   }
@@ -1197,7 +1197,7 @@ export async function getAnalyticsData(
     } = await supabase.auth.getUser();
 
     if (authError || !user) {
-      return { success: false, message: "Unauthorized", data: {} };
+      return { success: false, message: "Non autorisé", data: {} };
     }
 
     // Calculate date range
@@ -1234,7 +1234,7 @@ export async function getAnalyticsData(
         if (!customStart || !customEnd) {
           return {
             success: false,
-            message: "Custom range requires start and end dates",
+            message: "La durée personnalisée nécessite des dates de début et de fin.",
             data: {},
           };
         }
@@ -1247,13 +1247,13 @@ export async function getAnalyticsData(
         ) {
           return {
             success: false,
-            message: "Invalid custom date range",
+            message: "Les dates personnalisées sont invalides",
             data: {},
           };
         }
         break;
       default:
-        return { success: false, message: "Invalid period", data: {} };
+        return { success: false, message: "Durée invalide", data: {} };
     }
 
     // Fetch transactions
@@ -1269,7 +1269,7 @@ export async function getAnalyticsData(
       console.error("Error fetching transactions:", txError.message);
       return {
         success: false,
-        message: "Failed to fetch transactions",
+        message: "Echec durant la recherche des transactions",
         data: {},
       };
     }
@@ -1284,7 +1284,7 @@ export async function getAnalyticsData(
 
     if (creditsError) {
       console.error("Error fetching credits:", creditsError.message);
-      return { success: false, message: "Failed to fetch credits", data: {} };
+      return { success: false, message: "Echec durant la recherche des crédits", data: {} };
     }
 
     // Fetch total products (no time filter)
@@ -1295,7 +1295,7 @@ export async function getAnalyticsData(
 
     if (productsError) {
       console.error("Error fetching products:", productsError.message);
-      return { success: false, message: "Failed to fetch products", data: {} };
+      return { success: false, message: "Echec durant la recherche des produits", data: {} };
     }
 
     // Calculate totals
@@ -1326,7 +1326,7 @@ export async function getAnalyticsData(
       console.error("Analytics data serialization failed:", e);
       return {
         success: false,
-        message: "Invalid analytics data format",
+        message: "Format de données analytiques invalide.",
         data: {},
       };
     }
@@ -1335,14 +1335,14 @@ export async function getAnalyticsData(
 
     return {
       success: true,
-      message: "Analytics data fetched successfully",
+      message: "Les données analytiques ont été récherchées avec succès",
       data: analyticsData,
     };
   } catch (error) {
     console.error("Unexpected error fetching analytics data:", error);
     return {
       success: false,
-      message: "An unexpected error occurred",
+      message: "Une erreur s'est produite",
       data: {},
     };
   }
@@ -1362,7 +1362,7 @@ export async function getGraphData(
 
     if (authError || !user) {
       console.error("Auth error:", authError?.message);
-      return { success: false, message: "Unauthorized", data: [] };
+      return { success: false, message: "Non autorisé", data: [] };
     }
 
     console.log("User ID:", user.id, "Period:", period, "Custom:", {
@@ -1404,7 +1404,7 @@ export async function getGraphData(
         if (!customStart || !customEnd) {
           return {
             success: false,
-            message: "Custom range requires start and end dates",
+            message: "La période personnalisée nécessite des dates de début et de fin.",
             data: [],
           };
         }
@@ -1418,14 +1418,14 @@ export async function getGraphData(
           console.error("Invalid custom dates:", { customStart, customEnd });
           return {
             success: false,
-            message: "Invalid custom date range",
+            message: "Les dates personnalisées sont invalides",
             data: [],
           };
         }
         break;
       default:
         console.error("Invalid period:", period);
-        return { success: false, message: "Invalid period", data: [] };
+        return { success: false, message: "Période invalide", data: [] };
     }
 
     // Set precise time boundaries
@@ -1450,7 +1450,7 @@ export async function getGraphData(
       console.error("Transaction fetch error:", txError.message);
       return {
         success: false,
-        message: "Failed to fetch transactions",
+        message: "Echec durant la recherche des transactions",
         data: [],
       };
     }
@@ -1465,7 +1465,7 @@ export async function getGraphData(
 
     if (creditsError) {
       console.error("Credits fetch error:", creditsError.message);
-      return { success: false, message: "Failed to fetch credits", data: [] };
+      return { success: false, message: "Echec durant la recherche des crédits", data: [] };
     }
 
     // Calculate granularity
@@ -1706,23 +1706,29 @@ export async function getGraphData(
       JSON.stringify(chartData);
     } catch (e) {
       console.error("Graph data serialization failed:", e);
-      return { success: false, message: "Invalid graph data format", data: [] };
+      return { success: false, message: "Format de données de graphique invalide.", data: [] };
     }
 
     return {
       success: true,
-      message: "Graph data fetched successfully",
+      message: "Les données du graphique ont été récherchées avec succès",
       data: chartData,
     };
   } catch (error) {
     console.error("Unexpected error fetching graph data:", error);
     return {
       success: false,
-      message: "An unexpected error occurred",
+      message: "Une erreur s'est produite",
       data: [],
     };
   }
 }
+
+
+
+
+
+
 
 // Invoice Page
 
@@ -1736,7 +1742,7 @@ export async function getProducts() {
 
     if (authError || !user) {
       console.error("Auth error:", authError?.message);
-      return { success: false, message: "Unauthorized", data: [] };
+      return { success: false, message: "Non autorisé", data: [] };
     }
 
     const { data: products, error } = await supabase
@@ -1747,19 +1753,19 @@ export async function getProducts() {
 
     if (error) {
       console.error("Error fetching products:", error.message);
-      return { success: false, message: "Failed to fetch products", data: [] };
+      return { success: false, message: "Echec durant la recherche des produits", data: [] };
     }
 
     return {
       success: true,
-      message: "Products fetched successfully",
+      message: "Les produits ont été récherchés avec succès",
       data: products,
     };
   } catch (error) {
     console.error("Unexpected error fetching products:", error);
     return {
       success: false,
-      message: "An unexpected error occurred",
+      message: "Une erreur s'est produite",
       data: [],
     };
   }
@@ -1788,7 +1794,7 @@ export async function createInvoice(formData: {
 
     if (authError || !user) {
       console.error("Auth error:", authError?.message);
-      return { success: false, message: "Unauthorized" };
+      return { success: false, message: "Non autorisé" };
     }
 
     // Check if the user has an active subscription
@@ -1797,7 +1803,7 @@ export async function createInvoice(formData: {
     if (!isSubscriptionActive) {
       return {
         success: false,
-        message: "Your subscription has expired, please renew it.",
+        message: "Ta souscription a expiré, veuillez la renouveler.",
       };
     }
 
@@ -1812,7 +1818,7 @@ export async function createInvoice(formData: {
       !storeAddress ||
       products.length === 0
     ) {
-      return { success: false, message: "All fields are required" };
+      return { success: false, message: "Veuillez remplir tous les champs" };
     }
 
     // Check stock for registered products
@@ -1829,7 +1835,7 @@ export async function createInvoice(formData: {
           console.error("Error fetching product stock:", fetchError?.message);
           return {
             success: false,
-            message: `Product ${product.name} not found`,
+            message: `Le produit ${product.name}  est introuvable ou n'est pas enregistré`,
           };
         }
 
@@ -1837,7 +1843,7 @@ export async function createInvoice(formData: {
         if (currentStock < product.quantity) {
           return {
             success: false,
-            message: `Insufficient stock for ${productData.name} (Available: ${currentStock})`,
+            message: `Le stock du produit ${productData.name} est insuffisant (Available: ${currentStock})`,
           };
         }
       }
@@ -1860,7 +1866,7 @@ export async function createInvoice(formData: {
       .insert(transactions);
     if (txError) {
       console.error("Error inserting transactions:", txError.message);
-      return { success: false, message: "Failed to create invoice" };
+      return { success: false, message: "Erreur durant la creation de la facture" };
     }
 
     // Update stock for registered products
@@ -1881,7 +1887,7 @@ export async function createInvoice(formData: {
           );
           return {
             success: false,
-            message: `Failed to fetch current stock for ${product.name}`,
+            message: `Echec durant la recherche du stock de l'article: ${product.name}`,
           };
         }
 
@@ -1897,37 +1903,38 @@ export async function createInvoice(formData: {
           console.error("Error updating stock:", updateError.message);
           return {
             success: false,
-            message: `Failed to update stock for ${product.name}`,
+            message: `Echec durant la mise à jour du stock de l'article: ${product.name}`,
           };
         }
       }
     }
 
-    return { success: true, message: "Invoice created successfully" };
+    return { success: true, message: "success, La facture a bien été crée " };
   } catch (error) {
     console.error("Unexpected error creating invoice:", error);
-    return { success: false, message: "An unexpected error occurred" };
+    return { success: false, message: "Une erreur s'est produite" };
   }
 }
 
 // Settings
 
 const userProfileSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "Le nom est requis"),
   phoneNumber: z
     .string()
-    .min(1, "Phone number is required")
-    .regex(/^\+?\d{10,15}$/, "Invalid phone number"),
+    .min(1, "Le numéro de téléphone est requis")
+    .regex(/^\+?\d{10,15}$/, "Numéro de téléphone invalide"),
 });
 
 // Schema for store details
 const storeDetailsSchema = z.object({
-  storeName: z.string().min(1, "Store name is required"),
-  storeAddress: z.string().min(1, "Store address is required"),
+  storeName: z.string().min(1, "Le nom du magasin est requis"),
+  storeAddress: z.string().min(1, "L'adresse du magasin est requise"),
   storePhoneNumber: z
     .string()
-    .min(1, "Store phone is required")
-    .regex(/^\+?\d{10,15}$/, "Invalid store phone number"),
+    .min(1, "Le numéro de téléphone du magasin est requis")
+    .max(15, "Le numéro de téléphone du magasin ne doit pas dépasser 15 chiffres")
+    .regex(/^\+?\d{10,15}$/, "Numéro de téléphone du magasin invalide"),
 });
 
 export async function updateUserProfile(formData: FormData) {
@@ -1938,7 +1945,7 @@ export async function updateUserProfile(formData: FormData) {
   } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    return { success: false, message: "Unauthorized User" };
+    return { success: false, message: "utilisateur non connecté" };
   }
 
   // Check if the user has an active subscription
@@ -1947,7 +1954,7 @@ export async function updateUserProfile(formData: FormData) {
   if (!isSubscriptionActive) {
     return {
       success: false,
-      message: "Your subscription has expired, please renew it.",
+      message: "Ta souscription a expiré, veuillez la renouveler.",
     };
   }
 
@@ -1969,10 +1976,10 @@ export async function updateUserProfile(formData: FormData) {
 
   if (error) {
     console.error("Update profile error:", error);
-    return { success: false, message: "Failed to update profile" };
+    return { success: false, message: "Echec durant la mise à jour du profil" };
   }
 
-  return { success: true, message: "Profile updated successfully" };
+  return { success: true, message: "success, Le profil a bien été mis à jour" };
 }
 
 export async function updateStoreDetails(formData: FormData) {
@@ -1983,7 +1990,7 @@ export async function updateStoreDetails(formData: FormData) {
   } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    return { success: false, message: "Unauthorized  Stores" };
+    return { success: false, message: "Magasin Non authorisé" };
   }
 
   // Check if the user has an active subscription
@@ -1992,7 +1999,7 @@ export async function updateStoreDetails(formData: FormData) {
   if (!isSubscriptionActive) {
     return {
       success: false,
-      message: "Your subscription has expired, please renew it.",
+      message: "Ta souscription a expiré, veuillez la renouveler.",
     };
   }
   const validated = storeDetailsSchema.safeParse({
@@ -2031,7 +2038,7 @@ export async function updateStoreDetails(formData: FormData) {
 
     if (insertError) {
       console.error("Insert store error:", insertError);
-      return { success: false, message: "Failed to create store" };
+      return { success: false, message: "Echec durant la création du magasin" };
     }
 
     // Update profiles.storeId
@@ -2042,7 +2049,7 @@ export async function updateStoreDetails(formData: FormData) {
 
     if (profileError) {
       console.error("Update profile storeId error:", profileError);
-      return { success: false, message: "Failed to link store to profile" };
+      return { success: false, message: "Echec durant la mise à jour du magasin" };
     }
   } else {
     // Update existing store
@@ -2058,18 +2065,18 @@ export async function updateStoreDetails(formData: FormData) {
 
     if (updateError) {
       console.error("Update store error:", updateError);
-      return { success: false, message: "Failed to update store" };
+      return { success: false, message: "Echec durant la mise à jour du magasin" };
     }
   }
 
-  return { success: true, message: "Store details updated successfully" };
+  return { success: true, message: "success, Les détails du magasin ont bien été mis à jour" };
 }
 
 export async function getStore() {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) {
-    return { success: false, message: "Unauthorized" };
+    return { success: false, message: "Non autorisé" };
   }
 
   const { data: storeData, error: storeError } = await supabase
@@ -2080,7 +2087,7 @@ export async function getStore() {
 
   if (storeError) {
     console.error("Error fetching store:", storeError.message);
-    return { success: false, message: "Failed to fetch store" };
+    return { success: false, message: "Le magasin est introuvable" };
   }
 
   return { success: true, store: storeData };
@@ -2186,6 +2193,6 @@ export async function updateSubscription(formData: FormData) {
     return { success: true, message: "Subscription updated successfully" };
   } catch (error) {
     console.error("Update subscription exception:", error);
-    return { success: false, message: "An unexpected error occurred" };
+    return { success: false, message: "Une erreur s'est produite" };
   }
 }

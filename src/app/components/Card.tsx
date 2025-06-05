@@ -65,10 +65,10 @@ function Card({ title, value, data, dataKey, icon: Icon, color, unit = "$" }: Ca
         </div>
         <div className="flex items-center justify-between gap-1 text-xs text-gray-500 mt-1">
           <p className="text-2xl font-semibold text-gray-800">
-            {unit}
-            {formattedValue}
+            {formattedValue} {' '}
+           <span className="text-sm text-gray-600">{unit}</span> 
           </p>
-          <span>Last 14 Days</span>
+          <span>Derniers 14 jours</span>
         </div>
         <div className="h-16 mt-3">
           <ResponsiveContainer width="100%" height="100%">
@@ -115,40 +115,40 @@ export default function Dashboard({ sales, expenses, credits, revenue }: Dashboa
   return (
     <div className="flex flex-wrap mx-auto justify-between gap-4 p-4 bg-gray-50">
       <Card
-        title="Total Sales"
+        title="Ventes"
         value={sales.total}
         data={sales.data}
         dataKey="sales"
         icon={ChartArea}
         color="green"
-        unit="$"
+        unit="Fcs"
       />
       <Card
-        title="Total Expenses"
+        title="Dépenses"
         value={expenses.total}
         data={expenses.data}
         dataKey="expenses"
         icon={DollarSign}
         color="red"
-        unit="$"
+        unit="Fcs"
       />
       <Card
-        title="Revenue"
+        title="Revenus"
         value={revenue.total}
         data={revenue.data}
         dataKey="revenue"
         icon={ChartArea}
         color="blue"
-        unit="$"
+        unit="Fcs"
       />
       <Card
-        title="Amount Credited"
+        title="Montant Crédité"
         value={credits.total}
         data={credits.data}
         dataKey="credits"
         icon={DollarSign}
         color="yellow"
-        unit="$"
+        unit="Fcs"
       />
     </div>
   );

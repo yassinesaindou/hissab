@@ -1,7 +1,7 @@
 "use client";
 
 import { Menu, User } from "lucide-react";
-import { usePathname } from "next/navigation";
+ 
 import React, { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -26,22 +26,63 @@ export default function Navbar({
 }: {
   toggleSidebar: () => void;
 }) {
-  let path = usePathname();
-  path = path.replace("/", "");
+  
+   
+  
+
+  
+  const [subscriptionDays, setSubscriptionDays] = useState<number | null>(null);
+  useEffect(() => {
+    async function fetchSubscriptionDays() { 
+      const {data :{user}} = await supabaseClient.auth.getUser();
+      
+      console.log("User:", user);
+      const {data: subscriptionData, error} = await supabaseClient
+        .from("subscriptions")
+        .select("endAt")
+        .eq("userId", user?.id)
+        .single();
+      
+      if (error) {
+        console.error("Error fetching subscription data:", error);
+        return;
+      }
+      if (subscriptionData && subscriptionData.endAt) {
+        const endAt = new Date(subscriptionData.endAt);
+        const today = new Date();
+        const diffTime = endAt.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        console.log("Subscription days left:", diffDays);
+        setSubscriptionDays(diffDays);
+      } else {
+        console.log("No subscription data found or endAt is null.");
+      }
+
+    } fetchSubscriptionDays();
+  })
 
   return (
-    <nav className="w-full bg-white shadow px-4 py-3 flex items-center justify-between gap-4">
+    <nav className="shadow px-4 py-3">
       {/* Hamburger only on mobile */}
-      <div>
-        <button onClick={toggleSidebar} className="md:hidden text-green-800">
-          <Menu size={24} />
-        </button>
-        <span className="text-lg font-semibold">
-          {!path ? "DASHBOARD" : path.toUpperCase()}
-        </span>
+      <div className="w-full bg-white  flex items-center     justify-between gap-4">
+        <div>
+          <button onClick={toggleSidebar} className="md:hidden text-green-800">
+            <Menu size={24} />
+          </button>
+         {subscriptionDays && <span className={`text-sm px-4 py-1 ${subscriptionDays <= 7 ? "bg-red-400" : "bg-green-400"} hidden md:inline font-normal rounded-full text text-white/95`}>
+        Il reste {subscriptionDays} jours avant l&apos;expiration de votre abonnement.
+        
+        </span>}
+        </div>
+        <UserMenu />
       </div>
-
-      <UserMenu />
+      <div>
+        {subscriptionDays && <div className={`text-sm px-4 py-1 ${subscriptionDays <= 7 ? "bg-red-400" : "bg-green-400"} md:hidden  font-normal rounded-full max-w-fit text text-white/95 mx-auto`}>
+        Il reste {subscriptionDays} jours avant l&apos;expiration de votre abonnement.
+        
+        </div>}
+      </div>
     </nav>
   );
 }
@@ -82,16 +123,16 @@ function UserMenu() {
         </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent>
-        <DropdownMenuLabel>{userEmail || "My Account"}</DropdownMenuLabel>
+        <DropdownMenuLabel>{userEmail || "Mon compte"}</DropdownMenuLabel>
         <DropdownMenuItem>
           <Link href="/settings" className="flex items-center gap-2">
-            Update My profile
+            Modifier le compte
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem >
           <Button onClick={logoutAction} className="flex items-center gap-2 w-full text-red-500" variant={"outline"}>
-            Logout
+             Se déconnecter
           </Button>
         </DropdownMenuItem>
       </DropdownMenuContent>

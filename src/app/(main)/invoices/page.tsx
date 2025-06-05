@@ -27,7 +27,7 @@ export default async function InvoicePage() {
 
   return (
     <div className="min-h-screen p-6 bg-gray-50 text-gray-700">
-      <h1 className="text-2xl font-semibold mb-6">Create Invoice</h1>
+      <h1 className="text-2xl font-semibold mb-6">Créer une facture</h1>
       <div className="max-w-4xl mx-auto">
         <InvoiceForm
           products={products || []}

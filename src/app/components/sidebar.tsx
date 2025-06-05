@@ -78,13 +78,13 @@ export default function Sidebar({
           <ul className="list-none px-2 pt-4 space-y-1">
             <NavItem
               icon={<Home size={20} />}
-              label="Dashboard"
+              label="Acceuil"
               href="/"
               onClick={closeSidebar}
             />
             <NavItem
               icon={<ChartBar size={20} />}
-              label="Analytics"
+              label="Analytiques"
               href="/analytics"
               onClick={closeSidebar}
             />
@@ -96,19 +96,19 @@ export default function Sidebar({
             />
             <NavItem
               icon={<UserRoundMinus size={20} />}
-              label="Credits"
+              label="Crédits"
               href="/credits"
               onClick={closeSidebar}
             />
             <NavItem
               icon={<Package size={20} />}
-              label="Products"
+              label="Articles"
               href="/products"
               onClick={closeSidebar}
             />
             <NavItem
               icon={<FileText size={20} />}
-              label="Invoices"
+              label="Factures"
               href="/invoices"
               onClick={closeSidebar}
             />
@@ -117,7 +117,7 @@ export default function Sidebar({
           <div className="list-none px-2 py-4 border-t border-blue-600 space-y-1">
             <NavItem
               icon={<Settings size={20} />}
-              label="Settings"
+              label="Paramètres"
               href="/settings"
               onClick={closeSidebar}
             />
@@ -125,7 +125,7 @@ export default function Sidebar({
               <Button
                 type="submit"
                 className="w-full text-gray-200 cursor-pointer bg-red-700">
-                Logout
+                Se déconnecter
               </Button>
             </form>
           </div>

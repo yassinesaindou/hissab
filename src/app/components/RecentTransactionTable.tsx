@@ -25,16 +25,16 @@ interface RecentTransactionTableProps {
 export default function RecentTransactionTable({ transactions }: RecentTransactionTableProps) {
   return (
     <div className="p-4 border text-gray-600 rounded-2xl shadow-lg lg:mb-10">
-      <h2 className="text-xl font-semibold text-gray-700">Recent transactions</h2>
+      <h2 className="text-xl font-semibold text-gray-700">Transactions récentes</h2>
 
       <Table className="mt-6">
-        <TableCaption>A list of your recent transactions.</TableCaption>
+        <TableCaption>Une liste de vos transactions récentes.</TableCaption>
         <TableHeader className="text-gray-600">
           <TableRow>
-            <TableHead className="w-[100px]">Sr No</TableHead>
+            <TableHead className="w-[100px]">No</TableHead>
             <TableHead>Date</TableHead>
             <TableHead>Type</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
+            <TableHead className="text-right">Montant</TableHead>
             <TableHead>Description</TableHead>
           </TableRow>
         </TableHeader>
@@ -57,13 +57,13 @@ export default function RecentTransactionTable({ transactions }: RecentTransacti
                   </div>
                 </TableCell>
                 <TableCell className="text-right">${transaction.amount.toFixed(2)}</TableCell>
-                <TableCell className="pl-5">{transaction.description}</TableCell>
+                <TableCell className="pl-5 text-right">{transaction.description}</TableCell>
               </TableRow>
             ))
           ) : (
             <TableRow>
               <TableCell colSpan={5} className="text-center">
-                No recent transactions found.
+                Aucune transaction récente trouvée
               </TableCell>
             </TableRow>
           )}

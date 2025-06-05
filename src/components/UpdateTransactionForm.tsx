@@ -25,22 +25,22 @@ import { updateTransactionAction } from "@/app/actions";
 
 const formSchema = z
   .object({
-    transactionId: z.string().uuid("Invalid transaction ID"),
+    transactionId: z.string().uuid("L'index de transaction doit être un UUID valide."),
     productId: z.string().optional(),
     productName: z
       .string()
-      .max(100, { message: "Product name must be at most 100 characters." })
+      .max(100, { message: "Le nom de l'artice ne doit pas exéder 100 caractères" })
       .optional(),
     unitPrice: z
       .number()
-      .min(0, { message: "Unit price must be non-negative" })
-      .max(1000000, { message: "Unit price too high" }),
+      .min(0, { message: "Le prix unitaire doit être supérieur ou égal à 0" })
+      .max(1000000, { message: "Le prix unitaire doit être inférieur ou égal à 1 000 000" }),
     quantity: z
       .number()
-      .int({ message: "Quantity must be an integer" })
-      .min(1, { message: "Quantity must be at least 1" }),
+      .int({ message: "La quatité doit être un entier" })
+      .min(1, { message: "Le quantité doit être supérieur ou égal à 1" }),
     type: z.enum(["sale", "credit", "expense"], {
-      message: "Invalid transaction type",
+      message: "Le type de transaction est invalide",
     }),
   })
   .refine(
@@ -50,7 +50,7 @@ const formSchema = z
       data.productName,
     {
       message:
-        "Either a product must be selected or a product name must be provided for sale/credit transactions.",
+        "Un produit doit être sélectionné ou un nom de produit doit être fourni pour les transactions de vente/crédit.",
       path: ["productId"],
     }
   );
@@ -150,7 +150,7 @@ export default function UpdateTransactionForm({
               <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
+                    <SelectValue placeholder="Choisir un type" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -168,7 +168,7 @@ export default function UpdateTransactionForm({
           name="productId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Product (Optional)</FormLabel>
+              <FormLabel>Article (Optionnel)</FormLabel>
               <Select
                 onValueChange={(value) => {
                   field.onChange(value);
@@ -185,7 +185,7 @@ export default function UpdateTransactionForm({
               >
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a product (optional)" />
+                    <SelectValue placeholder="Choisir un article" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -206,10 +206,10 @@ export default function UpdateTransactionForm({
           name="productName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Product Name (Optional)</FormLabel>
+              <FormLabel>Nom de l&apos;article</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="Enter product name"
+                  placeholder="Entrez un nom d'article"
                   {...field}
                   value={field.value || ""}
                   onChange={field.onChange}
@@ -224,7 +224,7 @@ export default function UpdateTransactionForm({
           name="unitPrice"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Unit Price</FormLabel>
+              <FormLabel>Prix Unitaire</FormLabel>
               <FormControl>
                 <Input
                   type="number"
@@ -244,7 +244,7 @@ export default function UpdateTransactionForm({
           name="quantity"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Quantity</FormLabel>
+              <FormLabel>Quantite</FormLabel>
               <FormControl>
                 <Input
                   type="number"
@@ -259,9 +259,9 @@ export default function UpdateTransactionForm({
         {error && <p className="text-red-600 text-sm">{error}</p>}
         <div className="flex justify-end gap-2">
           <Button disabled={form.formState.isSubmitting} type="button" variant="outline" onClick={closeDialog}>
-            Cancel
+            Annuler
           </Button>
-          <Button disabled={form.formState.isSubmitting} className="bg-blue-600" type="submit">Update Transaction</Button>
+          <Button disabled={form.formState.isSubmitting} className="bg-blue-600" type="submit">Mettre à jour</Button>
         </div>
       </form>
     </Form>

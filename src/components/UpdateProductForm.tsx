@@ -53,12 +53,12 @@ export default function UpdateProductForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <input type="hidden" name="productId" value={product.productId} />
       <div>
-        <Label htmlFor="name">Product Name</Label>
+        <Label htmlFor="name">Nom de l&apos;article</Label>
         <Input
           id="name"
           name="name"
           type="text"
-          placeholder="Enter product name"
+          placeholder="Entrez le nom de l'article"
           defaultValue={product.name}
           required
         />
@@ -71,20 +71,20 @@ export default function UpdateProductForm({
           type="number"
           min="0"
           step="1"
-          placeholder="Enter stock quantity"
+          placeholder="Entrez la quantité en stock"
           defaultValue={product.stock}
           required
         />
       </div>
       <div>
-        <Label htmlFor="unitPrice">Unit Price</Label>
+        <Label htmlFor="unitPrice">Prix unitaire</Label>
         <Input
           id="unitPrice"
           name="unitPrice"
           type="number"
           step="0.01"
           min="0"
-          placeholder="Enter unit price"
+          placeholder="Entrez le prix unitaire"
           defaultValue={product.unitPrice}
           required
         />
@@ -95,7 +95,7 @@ export default function UpdateProductForm({
           id="category"
           name="category"
           type="text"
-          placeholder="Enter category (optional)"
+          placeholder="Entrez la catégorie (optionnel)"
           defaultValue={product.category || ""}
         />
       </div>
@@ -104,7 +104,7 @@ export default function UpdateProductForm({
         <Textarea
           id="description"
           name="description"
-          placeholder="Enter description (optional)"
+          placeholder="Entrez une description (optionnel)"
           defaultValue={product.description || ""}
           rows={4}
         />
@@ -112,7 +112,7 @@ export default function UpdateProductForm({
       {error && <p className="text-red-500">{error}</p>}
       {success && <p className="text-green-500">{success}</p>}
       <Button disabled={isLoading} type="submit" className="bg-blue-700 text-gray-50">
-        Update Product
+        Mettre à jour l&apos;article
       </Button>
     </form>
   );

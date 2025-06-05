@@ -126,20 +126,21 @@ export default function AddTransactionForm({
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
+          
           name="type"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Type</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
+              <Select onValueChange={field.onChange} value={field.value} >
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="sale">Sale</SelectItem>
+                  <SelectItem value="sale">Vente</SelectItem>
                   <SelectItem value="credit">Credit</SelectItem>
-                  <SelectItem value="expense">Expense</SelectItem>
+                  <SelectItem value="expense">Depense</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -151,7 +152,7 @@ export default function AddTransactionForm({
           name="productId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Product (Optional)</FormLabel>
+              <FormLabel>Article  (Optionnel)</FormLabel>
               <Select
                 onValueChange={(value) => {
                   field.onChange(value);
@@ -189,10 +190,10 @@ export default function AddTransactionForm({
           name="productName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Product Name (Optional)</FormLabel>
+              <FormLabel>Non de l&apos;article (Optionnel)</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="Enter product name"
+                  placeholder="Entrez le nom d'un article (optionnel)"
                   {...field}
                   value={field.value || ""}
                   onChange={field.onChange}
@@ -207,7 +208,7 @@ export default function AddTransactionForm({
           name="unitPrice"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Unit Price</FormLabel>
+              <FormLabel>Prix Unitaire</FormLabel>
               <FormControl>
                 <Input
                   type="number"
@@ -227,7 +228,7 @@ export default function AddTransactionForm({
           name="quantity"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Quantity</FormLabel>
+              <FormLabel>Quantité</FormLabel>
               <FormControl>
                 <Input
                   type="number"
@@ -242,9 +243,9 @@ export default function AddTransactionForm({
         {error && <p className="text-red-600 text-sm">{error}</p>}
         <div className="flex justify-end gap-2">
           <Button disabled={form.formState.isSubmitting} type="button" variant="outline" onClick={closeDialog}>
-            Cancel
+            Annuler
           </Button>
-          <Button disabled={form.formState.isSubmitting} className="bg-blue-600" type="submit">Add Transaction</Button>
+          <Button disabled={form.formState.isSubmitting} className="bg-blue-600 hover:bg-blue-700" type="submit">Ajouter la transaction</Button>
         </div>
       </form>
     </Form>

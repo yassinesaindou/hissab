@@ -35,17 +35,17 @@ export default function ClientProductsPage({ products }: ClientProductsPageProps
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">Products</h1>
+      <h1 className="text-2xl font-bold mb-4">Articles</h1>
       <div className="flex justify-end w-full mb-4">
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-blue-600 hover:bg-blue-700">
-              Add a new Product
+              Ajouter un article
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Add New Product</DialogTitle>
+              <DialogTitle>Ajouter un article</DialogTitle>
             </DialogHeader>
             <AddProductForm closeDialog={closeAddDialog} />
           </DialogContent>
@@ -54,7 +54,7 @@ export default function ClientProductsPage({ products }: ClientProductsPageProps
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Product</DialogTitle>
+            <DialogTitle>Modifier l&apos;article</DialogTitle>
           </DialogHeader>
           {selectedProduct && (
             <UpdateProductForm

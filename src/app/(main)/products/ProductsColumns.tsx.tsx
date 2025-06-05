@@ -29,7 +29,7 @@ export const productColumns: ColumnDef<Product>[] = [
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-        Sr. No
+        No
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
@@ -41,7 +41,7 @@ export const productColumns: ColumnDef<Product>[] = [
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-        Name
+        Nom
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
@@ -52,12 +52,12 @@ export const productColumns: ColumnDef<Product>[] = [
   },
   {
     accessorKey: "unitPrice",
-    header: "Unit Price",
+    header: "Prix Unitaire",
     cell: ({ row }) => `$${row.original.unitPrice.toFixed(2)}`,
   },
   {
     accessorKey: "category",
-    header: "Category",
+    header: "Categorie",
     cell: ({ row }) => row.original.category || "N/A",
   },
   {
@@ -67,7 +67,7 @@ export const productColumns: ColumnDef<Product>[] = [
   },
   {
     accessorKey: "created_at",
-    header: "Created At",
+    header: "Créé le",
     cell: ({ row }) => new Date(row.original.created_at).toLocaleDateString(),
   },
   {
@@ -88,7 +88,7 @@ export const productColumns: ColumnDef<Product>[] = [
             <DropdownMenuItem
               className="cursor-pointer"
               onClick={() => navigator.clipboard.writeText(product.name)}>
-              Copy Product Name
+              Copier le nom
             </DropdownMenuItem>
             <DropdownMenuItem
               className="cursor-pointer"
@@ -96,7 +96,7 @@ export const productColumns: ColumnDef<Product>[] = [
                 // Trigger edit modal via table meta
                 table.options.meta?.onEditProduct?.(product);
               }}>
-              Edit product
+              Modifier
             </DropdownMenuItem>
              
           </DropdownMenuContent>

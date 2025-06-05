@@ -20,12 +20,12 @@ import { useRouter } from "next/navigation";
 const formSchema = z.object({
   email: z
     .string()
-    .min(7, { message: "Email must be at least 7 characters." })
+    .min(7, { message: "L'email doit avoir au moins 7 caractères." })
     .max(50)
-    .email({ message: "Please enter a valid email." }),
+    .email({ message: "Veuillez entrer une adresse email valide." }),
   password: z
     .string()
-    .min(8, { message: "Password must be at least 8 characters." })
+    .min(8, { message: "Le mot de passe doit avoir au moins 8 caractères." })
     .max(50),
 });
 
@@ -94,11 +94,11 @@ export default function LoginPage() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel>Mot de passe</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
-                      placeholder="Enter your password"
+                      placeholder="Entrez votre mot de passe"
                       className="border-gray-300 focus:ring-blue-600 focus:border-blue-600"
                       {...field}
                     />
@@ -111,14 +111,14 @@ export default function LoginPage() {
               type="submit"
               className="w-full bg-blue-600 hover:bg-blue-700 text-white"
               disabled={isPending}>
-              {isPending ? "Logging In..." : "Login"}
+              {isPending ? "En cours..." : "Se connecter"}
             </Button>
           </form>
         </Form>
         <p className="mt-4 text-center text-sm text-gray-600">
-          Don&apos;t have an account?{" "}
+          Je n&apos;ai pas de compte{" "}
           <Link href="/signup" className="text-blue-600 hover:underline">
-            Sign Up
+            S&apos;inscrire
           </Link>
         </p>
       </div>

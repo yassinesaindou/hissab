@@ -81,12 +81,12 @@ export default function ClientTransactionsPage({
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogTrigger asChild>
           <Button className="self-end bg-blue-600 hover:bg-blue-700">
-            Add New Transaction
+           Ajouter une transaction
           </Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add A New Transaction</DialogTitle>
+            <DialogTitle>Ajouter une transaction</DialogTitle>
           </DialogHeader>
           <AddTransactionForm
             closeDialog={closeAddDialog}
@@ -98,7 +98,7 @@ export default function ClientTransactionsPage({
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Transaction</DialogTitle>
+            <DialogTitle>Modifier la transaction</DialogTitle>
           </DialogHeader>
           {selectedTransaction && (
             <UpdateTransactionForm
@@ -143,12 +143,12 @@ export function ClientAddTransactionForm({
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogTrigger asChild>
           <Button className="self-end bg-blue-600 hover:bg-blue-700">
-            Add New Transaction
+            Ajouter une transaction
           </Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add A New Transaction</DialogTitle>
+            <DialogTitle>Ajouter une transaction</DialogTitle>
           </DialogHeader>
           <AddTransactionForm
             closeDialog={closeAddDialog}

@@ -23,16 +23,16 @@ interface RecentCreditsProps {
 export default function RecentCredits({ credits }: RecentCreditsProps) {
   return (
     <div className="p-4 border h-fit text-gray-600 rounded-2xl shadow-lg flex-1 mb-10">
-      <h2 className="text-xl font-semibold text-gray-700">Recent Credits</h2>
+      <h2 className="text-xl font-semibold text-gray-700">Recents Crédits</h2>
 
       <Table className="mt-6">
-        <TableCaption>A list of your recent credits.</TableCaption>
+        <TableCaption>Une liste de vos crédits récents</TableCaption>
         <TableHeader className="text-gray-600">
           <TableRow>
             <TableHead className="w-[100px]">Sr No</TableHead>
-            <TableHead>Customer Name</TableHead>
-            <TableHead>Phone No</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
+            <TableHead>Nom du client</TableHead>
+            <TableHead>No de tel</TableHead>
+            <TableHead className="text-right">Montant</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -50,7 +50,7 @@ export default function RecentCredits({ credits }: RecentCreditsProps) {
           ) : (
             <TableRow>
               <TableCell colSpan={4} className="text-center">
-                No recent credits found.
+                Aucun crédit récent trouvé.
               </TableCell>
             </TableRow>
           )}

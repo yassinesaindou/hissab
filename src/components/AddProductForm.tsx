@@ -44,7 +44,7 @@ export default function AddProductForm({ closeDialog }: AddProductFormProps) {
       }}
       className="space-y-4">
       <div>
-        <Label htmlFor="name">Product Name</Label>
+        <Label htmlFor="name">Nom de l&apos;article</Label>
         <Input
           id="name"
           name="name"
@@ -66,7 +66,7 @@ export default function AddProductForm({ closeDialog }: AddProductFormProps) {
         />
       </div>
       <div>
-        <Label htmlFor="unitPrice">Unit Price</Label>
+        <Label htmlFor="unitPrice">Prix Unitaire</Label>
         <Input
           id="unitPrice"
           name="unitPrice"
@@ -78,7 +78,7 @@ export default function AddProductForm({ closeDialog }: AddProductFormProps) {
         />
       </div>
       <div>
-        <Label htmlFor="category">Category</Label>
+        <Label htmlFor="category">Categorie</Label>
         <Input
           id="category"
           name="category"
@@ -101,7 +101,7 @@ export default function AddProductForm({ closeDialog }: AddProductFormProps) {
         disabled={isLoading}
         type="submit"
         className="bg-blue-700 text-gray-50">
-        Add Product
+        Ajouter l&apos;article
       </Button>
     </form>
   );

@@ -8,7 +8,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
+   
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -23,14 +23,16 @@ export type Credit = {
   created_at: string;
 };
 
-export const columns: ColumnDef<Credit>[] = [
+ 
+
+export const columns: ColumnDef<Credit >[] = [
   {
     accessorKey: "customerName",
     header: ({ column }) => (
       <Button
         variant="ghost"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-        Name
+        Nom du client 
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
@@ -42,12 +44,12 @@ export const columns: ColumnDef<Credit>[] = [
   },
   {
     accessorKey: "customerPhone",
-    header: "Phone Number",
+    header: "Numéro de tél",
   },
   {
     accessorKey: "description",
-    header: "Item Name",
-    cell: ({ row }) => row.original.description || "N/A",
+    header: "Description",
+    cell: ({ row }) => row.original.description?.substring(0,20) || "N/A",
   },
   {
     accessorKey: "amount",
@@ -107,12 +109,12 @@ export const columns: ColumnDef<Credit>[] = [
               onClick={() =>
                 navigator.clipboard.writeText(credit.customerName)
               }>
-              Copy Customer Name
+              Copier le nom
             </DropdownMenuItem>
             <DropdownMenuItem
               className="cursor-pointer"
               onClick={() => table.options.meta?.onEditCredit?.(credit)}>
-              Edit Credit
+              Modifier le crédit
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

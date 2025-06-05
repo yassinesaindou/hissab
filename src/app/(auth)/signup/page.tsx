@@ -20,27 +20,27 @@ const formSchema = z
   .object({
     name: z
       .string()
-      .min(2, { message: 'Name must be at least 2 characters.' })
-      .max(50, { message: 'Name must be at most 50 characters.' }),
+      .min(2, { message: 'Le nom doit avoir au moins 2 caractères.' })
+      .max(50, { message: 'Le nom doit comporter au maximum 50 caractères. ' }),
     email: z
       .string()
-      .min(7, { message: 'Email must be at least 7 characters.' })
+      .min(7, { message: 'L\'email doit avoir au moins 7 caractères.' })
       .max(50)
-      .email({ message: 'Please enter a valid email.' }),
+      .email({ message: 'Veuillez entrer une adresse email valide.' }),
     phone: z
       .string()
-      .min(10, { message: 'Phone number must be at least 10 digits.' })
-      .max(15, { message: 'Phone number must be at most 15 digits.' })
+      .min(10, { message: 'Le no de telephone doit avoir au moins 10 chiffres.' })
+      .max(15, { message: 'Le no de telephone doit avoir au maximum 15 chiffres.' })
       .regex(/^\+?\d+$/, {
-        message: 'Phone number must contain only digits and an optional leading +.',
+        message: 'Le no de telephone doit contenir uniquement des chiffres et un signe plus (+) au debut.',
       }),
     password: z
       .string()
-      .min(8, { message: 'Password must be at least 8 characters.' })
+      .min(8, { message: 'Le mot de passe doit avoir au moins 8 caractères.' })
       .max(50),
     confirmPassword: z
       .string()
-      .min(8, { message: 'Password must be at least 8 characters.' })
+      .min(8, { message: 'Le mot de passe doit avoir au moins 8 caractères.' })
       .max(50),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -77,7 +77,7 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h1 className="text-2xl font-bold text-center text-blue-600 mb-6">Sign Up</h1>
+        <h1 className="text-2xl font-bold text-center text-blue-600 mb-6">S&apos;inscrire</h1>
         {message && (
           <div
             className={`mb-4 p-3 rounded text-sm ${
@@ -96,7 +96,7 @@ export default function SignupPage() {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>Nom</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="John Doe"
@@ -130,7 +130,7 @@ export default function SignupPage() {
               name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Phone Number</FormLabel>
+                  <FormLabel>Numéro de telephone</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="+1234567890"
@@ -147,11 +147,11 @@ export default function SignupPage() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel>Mot de passe</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
-                      placeholder="Enter your password"
+                      placeholder="Entrez votre mot de passe"
                       className="border-gray-300 focus:ring-blue-600 focus:border-blue-600"
                       {...field}
                     />
@@ -169,7 +169,7 @@ export default function SignupPage() {
                   <FormControl>
                     <Input
                       type="password"
-                      placeholder="Confirm your password"
+                      placeholder="Confimez votre mot de passe"
                       className="border-gray-300 focus:ring-blue-600 focus:border-blue-600"
                       {...field}
                     />
@@ -183,14 +183,14 @@ export default function SignupPage() {
               className="w-full bg-blue-600 hover:bg-blue-700 text-white"
               disabled={isPending}
             >
-              {isPending ? 'Signing Up...' : 'Sign Up'}
+              {isPending ? 'Enregisterement...' : 'S\'inscrire'}
             </Button>
           </form>
         </Form>
         <p className="mt-4 text-center text-sm text-gray-600">
-          Already have an account?{' '}
+          J&apos;ai deja un compte?{' '}
           <Link href="/login" className="text-blue-600 hover:underline">
-            Login
+            Se connecter
           </Link>
         </p>
       </div>

@@ -139,7 +139,7 @@ export default function UpdateCreditForm({
       </div>
 
       <div>
-        <Label htmlFor="productId">Product (Optional)</Label>
+        <Label htmlFor="productId">Article (Optionel)</Label>
         <Select
           name="productId"
           defaultValue={credit.productId || "none"}
@@ -148,7 +148,7 @@ export default function UpdateCreditForm({
           }
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select a product" />
+            <SelectValue placeholder="Choisir un artile" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">None</SelectItem>
@@ -163,7 +163,7 @@ export default function UpdateCreditForm({
 
       <div>
         <Label htmlFor="numberOfProductsTaken">
-          Number of Products Taken
+          Nombre D&apos;articles pris
         </Label>
         <Input
           id="numberOfProductsTaken"
@@ -180,14 +180,14 @@ export default function UpdateCreditForm({
               setNumberOfProductsTaken(value);
             }
           }}
-          placeholder="Enter number of products taken"
+          placeholder="Entrez le nombre d'articles pris"
           disabled={!selectedProductId || selectedProductId === "none"}
           required={!!selectedProductId && selectedProductId !== "none"}
         />
       </div>
 
       <div>
-        <Label htmlFor="amount">Amount</Label>
+        <Label htmlFor="amount">Montant</Label>
         <Input
           id="amount"
           name="amount"
@@ -202,15 +202,15 @@ export default function UpdateCreditForm({
       </div>
 
       <div>
-        <Label htmlFor="status">Status</Label>
+        <Label htmlFor="status">Statut</Label>
         <Select name="status" defaultValue={credit.status || "pending"}>
           <SelectTrigger>
             <SelectValue placeholder="Select status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="paid">Paid</SelectItem>
-            <SelectItem value="overdue">Overdue</SelectItem>
+            <SelectItem value="pending">En attente</SelectItem>
+            <SelectItem value="paid">Paye</SelectItem>
+            <SelectItem value="overdue">En retard</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -220,7 +220,7 @@ export default function UpdateCreditForm({
         <Textarea
           id="description"
           name="description"
-          placeholder="Enter description (optional)"
+          placeholder="Entrez une description (optional)"
           defaultValue={credit.description || ""}
           rows={4}
         />
@@ -234,7 +234,7 @@ export default function UpdateCreditForm({
         className="bg-blue-700 text-gray-50"
         disabled={isPending}
       >
-        {isPending ? "Updating..." : "Update Credit"}
+        {isPending ? "En cours..." : "Mettre à jour"}
       </Button>
     </form>
   );

@@ -31,7 +31,7 @@ export default function AnalyticsCard({
   value,
   icon: Icon,
   color,
-  unit = "$",
+  unit = "Fcs",
   isProducts = false,
 }: AnalyticsCardProps) {
   const backgroundColor = colorClasses[color] || "bg-green-100";
@@ -49,10 +49,10 @@ export default function AnalyticsCard({
         </div>
         <div className="flex items-center justify-between gap-1 text-xs text-gray-500 mt-1">
           <p className="text-2xl font-semibold text-gray-800">
-            {unit}
             {formattedValue}
+            <span className="text-gray-600 text-sm">{ " "}{unit}</span> 
           </p>
-          <span>{isProducts ? "All Time" : "Selected Period"}</span>
+          <span>{isProducts ? "Toujours" : "Période choisie"}</span>
         </div>
       </div>
     </div>
