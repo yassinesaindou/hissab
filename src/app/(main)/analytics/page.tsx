@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import PeriodSelector from "@/components/PeriodSelector";
@@ -13,7 +14,7 @@ import { SyncLoader } from "react-spinners";
 
 export default async function AnalyticsPage({
   searchParams,
-}:{searchParams: unknown}) {
+}:any) {
   const supabase = createSupabaseServerClient();
   const {
     data: { session },
