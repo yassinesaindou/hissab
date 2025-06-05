@@ -33,8 +33,82 @@ export default async function AnalyticsPage({
     data: analyticsData,
     message: analyticsMessage,
   } = await getAnalyticsData(period, customStart, customEnd);
+
   if (!analyticsSuccess) {
     console.error("Error fetching analytics data:", analyticsMessage);
+    // Provide fallback data to avoid type errors
+    const fallbackAnalyticsData = {
+      sales: { total: 0 },
+      expenses: { total: 0 },
+      credits: { total: 0 },
+      revenue: { total: 0 },
+      products: { total: 0 },
+    };
+
+    return (
+      <Suspense
+        fallback={
+          <div className="flex justify-center items-center min-h-screen">
+            <SyncLoader
+              color="#2563eb"
+              loading={true}
+              size={15}
+              aria-label="Loading Spinner"
+              data-testid="loader"
+              className="mx-auto"
+            />
+          </div>
+        }
+      >
+        <div className="min-h-screen p-6 bg-gray-50 text-gray-700">
+          <h1 className="text-2xl font-semibold mb-6">Analytiques</h1>
+          <PeriodSelector
+            period={period}
+            customStart={customStart}
+            customEnd={customEnd}
+          />
+          <div className="flex flex-wrap justify-start gap-4 my-6 w-full">
+            <AnalyticsCard
+              title="Ventes"
+              value={fallbackAnalyticsData.sales.total}
+              icon={ChartArea}
+              color="green"
+              unit="Fcs"
+            />
+            <AnalyticsCard
+              title="Dépenses"
+              value={fallbackAnalyticsData.expenses.total}
+              icon={DollarSign}
+              color="red"
+              unit="Fcs"
+            />
+            <AnalyticsCard
+              title="Revenus"
+              value={fallbackAnalyticsData.revenue.total}
+              icon={ChartArea}
+              color="blue"
+              unit="Fcs"
+            />
+            <AnalyticsCard
+              title="Crédits"
+              value={fallbackAnalyticsData.credits.total}
+              icon={DollarSign}
+              color="yellow"
+              unit="Fcs"
+            />
+            <AnalyticsCard
+              title="Articles Enregistrés"
+              value={fallbackAnalyticsData.products.total}
+              icon={Package}
+              color="purple"
+              unit=""
+              isProducts={true}
+            />
+          </div>
+          <AnalyticsGraph data={[]} />
+        </div>
+      </Suspense>
+    );
   }
 
   // Fetch graph data
@@ -49,11 +123,11 @@ export default async function AnalyticsPage({
 
   // Validate data for serialization
   const safeAnalyticsData = {
-    sales: { total: Number(analyticsData.sales?.total || 0) },
-    expenses: { total: Number(analyticsData.expenses?.total || 0) },
-    credits: { total: Number(analyticsData.credits?.total || 0) },
-    revenue: { total: Number(analyticsData.revenue?.total || 0) },
-    products: { total: Number(analyticsData.products?.total || 0) },
+    sales: { total: Number(analyticsData.sales.total || 0) },
+    expenses: { total: Number(analyticsData.expenses.total || 0) },
+    credits: { total: Number(analyticsData.credits.total || 0) },
+    revenue: { total: Number(analyticsData.revenue.total || 0) },
+    products: { total: Number(analyticsData.products.total || 0) },
   };
 
   return (
@@ -66,18 +140,19 @@ export default async function AnalyticsPage({
             size={15}
             aria-label="Loading Spinner"
             data-testid="loader"
-            className="mx-auto "
+            className="mx-auto"
           />
         </div>
-      }>
+      }
+    >
       <div className="min-h-screen p-6 bg-gray-50 text-gray-700">
-        <h1 className="text-2xl  font-semibold mb-6">Analytiques</h1>
+        <h1 className="text-2xl font-semibold mb-6">Analytiques</h1>
         <PeriodSelector
           period={period}
           customStart={customStart}
           customEnd={customEnd}
         />
-        <div className="flex flex-wrap justify-start   gap-4 my-6 w-full">
+        <div className="flex flex-wrap justify-start gap-4 my-6 w-full">
           <AnalyticsCard
             title="Ventes"
             value={safeAnalyticsData.sales.total}

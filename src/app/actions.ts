@@ -1327,8 +1327,7 @@ export async function getAnalyticsData(
       return {
         success: false,
         message: "Format de données analytiques invalide.",
-        data: {},
-      };
+        data: { }
     }
 
     console.log("Analytics data:", analyticsData);
