@@ -1,4 +1,3 @@
- 
 "use client";
 import { ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown, MoreHorizontal } from "lucide-react";
@@ -23,15 +22,14 @@ export type Transaction = {
   type: "sale" | "credit" | "expense";
 };
 
-export const columns: ColumnDef<Transaction>[] = [
+export const transactionColumns: ColumnDef<Transaction>[] = [
   {
     accessorKey: "created_at",
     id: "created_at",
     header: ({ column }) => (
       <Button
         variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
         Date
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
@@ -67,8 +65,7 @@ export const columns: ColumnDef<Transaction>[] = [
     header: ({ column }) => (
       <Button
         variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
         Type
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
@@ -83,8 +80,7 @@ export const columns: ColumnDef<Transaction>[] = [
               : type === "credit"
               ? "bg-yellow-100 text-yellow-600"
               : "bg-red-100 text-red-600"
-          }`}
-        >
+          }`}>
           {type.charAt(0).toUpperCase() + type.slice(1)}
         </div>
       );
@@ -107,15 +103,15 @@ export const columns: ColumnDef<Transaction>[] = [
             <DropdownMenuItem
               className="cursor-pointer"
               onClick={() =>
-                navigator.clipboard.writeText(transaction.productName || '')
-              }
-            >
+                navigator.clipboard.writeText(transaction.productName || "")
+              }>
               Copier le nom de l&apos;article
             </DropdownMenuItem>
             <DropdownMenuItem
               className="cursor-pointer"
-              onClick={() => table.options.meta?.onEditTransaction?.(transaction)}
-            >
+              onClick={() =>
+                table.options.meta?.onEditTransaction?.(transaction)
+              }>
               Modifier la transaction
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -124,4 +120,3 @@ export const columns: ColumnDef<Transaction>[] = [
     },
   },
 ];
- 

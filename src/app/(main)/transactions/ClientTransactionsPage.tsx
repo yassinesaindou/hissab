@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "./TransactionTable";
-import { columns } from "./TransactionColumns";
+import { transactionColumns } from "./TransactionColumns";
 import AddTransactionForm from "@/components/AddTransactionForm";
 import UpdateTransactionForm from "@/components/UpdateTransactionForm";
 import {
@@ -13,7 +13,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
- 
 
 interface ClientTransactionsPageProps {
   transactions: {
@@ -81,7 +80,7 @@ export default function ClientTransactionsPage({
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogTrigger asChild>
           <Button className="self-end bg-blue-600 hover:bg-blue-700">
-           Ajouter une transaction
+            Ajouter une transaction
           </Button>
         </DialogTrigger>
         <DialogContent>
@@ -111,7 +110,7 @@ export default function ClientTransactionsPage({
         </DialogContent>
       </Dialog>
       <DataTable
-        columns={columns}
+        columns={transactionColumns}
         data={transactions}
         onEditTransaction={handleEditTransaction}
       />

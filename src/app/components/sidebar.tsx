@@ -47,7 +47,7 @@ const NavItem = ({
   );
 };
 
-export default function Sidebar({
+export default function SidebarComponent({
   isOpen,
   closeSidebar,
 }: {

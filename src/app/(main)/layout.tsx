@@ -1,10 +1,8 @@
 "use client";
 import { useState } from "react";
 import Navbar from "../components/Navbar";
-import Sidebar from "../components/Sidebar";
- 
- 
- 
+
+import SidebarComponent from "../components/Sidebar";
 
 export default function RootLayout({
   children,
@@ -13,11 +11,9 @@ export default function RootLayout({
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-   
-
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar
+      <SidebarComponent
         isOpen={isSidebarOpen}
         closeSidebar={() => setIsSidebarOpen(false)}
       />
