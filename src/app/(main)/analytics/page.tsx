@@ -11,9 +11,7 @@ import { SyncLoader } from "react-spinners";
 
 export default async function AnalyticsPage({
   searchParams,
-}: {
-  searchParams: { period?: string; start?: string; end?: string };
-}) {
+}:any) {
   const supabase = createSupabaseServerClient();
   const {
     data: { session },
@@ -34,7 +32,7 @@ export default async function AnalyticsPage({
     message: analyticsMessage,
   } = await getAnalyticsData(period, customStart, customEnd);
 
-  if (!analyticsSuccess) {
+  if (!analyticsData) {
     console.error("Error fetching analytics data:", analyticsMessage);
     // Provide fallback data to avoid type errors
     const fallbackAnalyticsData = {
@@ -58,8 +56,7 @@ export default async function AnalyticsPage({
               className="mx-auto"
             />
           </div>
-        }
-      >
+        }>
         <div className="min-h-screen p-6 bg-gray-50 text-gray-700">
           <h1 className="text-2xl font-semibold mb-6">Analytiques</h1>
           <PeriodSelector
@@ -120,6 +117,7 @@ export default async function AnalyticsPage({
   if (!graphSuccess) {
     console.error("Error fetching graph data:", graphMessage);
   }
+  
 
   // Validate data for serialization
   const safeAnalyticsData = {
@@ -143,8 +141,7 @@ export default async function AnalyticsPage({
             className="mx-auto"
           />
         </div>
-      }
-    >
+      }>
       <div className="min-h-screen p-6 bg-gray-50 text-gray-700">
         <h1 className="text-2xl font-semibold mb-6">Analytiques</h1>
         <PeriodSelector
