@@ -8,13 +8,12 @@ import { getAnalyticsData, getGraphData } from "@/app/actions";
 import { ChartArea, DollarSign, Package } from "lucide-react";
 import { Suspense } from "react";
 import { SyncLoader } from "react-spinners";
-//  // {
-//   searchParams: { period?: string; start?: string; end?: string };
-// }
 
 export default async function AnalyticsPage({
   searchParams,
-}:any) {
+}: {
+  searchParams: { period?: string; start?: string; end?: string };
+}) {
   const supabase = createSupabaseServerClient();
   const {
     data: { session },
@@ -48,8 +47,6 @@ export default async function AnalyticsPage({
     console.error("Error fetching graph data:", graphMessage);
   }
 
-  
-
   // Validate data for serialization
   const safeAnalyticsData = {
     sales: { total: Number(analyticsData.sales?.total || 0) },
@@ -59,22 +56,27 @@ export default async function AnalyticsPage({
     products: { total: Number(analyticsData.products?.total || 0) },
   };
 
- 
-
   return (
-    <Suspense fallback={<div className="flex justify-center items-center min-h-screen">
-      <SyncLoader
-        color="#2563eb"
-        loading={true}
-        size={15}
-        aria-label="Loading Spinner"
-        data-testid="loader"
-        className='mx-auto '
-      />
-    </div>}>
+    <Suspense
+      fallback={
+        <div className="flex justify-center items-center min-h-screen">
+          <SyncLoader
+            color="#2563eb"
+            loading={true}
+            size={15}
+            aria-label="Loading Spinner"
+            data-testid="loader"
+            className="mx-auto "
+          />
+        </div>
+      }>
       <div className="min-h-screen p-6 bg-gray-50 text-gray-700">
         <h1 className="text-2xl  font-semibold mb-6">Analytiques</h1>
-        <PeriodSelector period={period} customStart={customStart} customEnd={customEnd} />
+        <PeriodSelector
+          period={period}
+          customStart={customStart}
+          customEnd={customEnd}
+        />
         <div className="flex flex-wrap justify-start   gap-4 my-6 w-full">
           <AnalyticsCard
             title="Ventes"
