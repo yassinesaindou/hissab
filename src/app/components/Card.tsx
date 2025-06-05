@@ -15,7 +15,7 @@ interface CardProps {
   value: number;
   data: { day: string; [key: string]: number }[];
   dataKey: string;
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<unknown>;
   color: string;
   unit?: string;
 }

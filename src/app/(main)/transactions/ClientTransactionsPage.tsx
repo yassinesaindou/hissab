@@ -13,7 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
-import { transactionColumns } from "./MyTransactionColumns";
+import { transactionColumns } from "./TransactionColumns";
 
 interface ClientTransactionsPageProps {
   transactions: {
