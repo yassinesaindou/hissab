@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Navbar from "../components/Navbar";
 
-import SidebarComponent from "../components/Sidebar";
+import SidebarComponent from "../components/MySideBar";
 
 export default function RootLayout({
   children,
