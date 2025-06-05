@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "./TransactionTable";
-import { transactionColumns } from "./TransactionColumns";
+ 
 import AddTransactionForm from "@/components/AddTransactionForm";
 import UpdateTransactionForm from "@/components/UpdateTransactionForm";
 import {
@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
+import { transactionColumns } from "./MyTransactionColumns";
 
 interface ClientTransactionsPageProps {
   transactions: {
