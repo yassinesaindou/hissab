@@ -7,13 +7,13 @@ import { getAnalyticsData, getGraphData } from "@/app/actions";
 import { ChartArea, DollarSign, Package } from "lucide-react";
 import { Suspense } from "react";
 import { SyncLoader } from "react-spinners";
-
+//  // {
+//   searchParams: { period?: string; start?: string; end?: string };
+// }
 
 export default async function AnalyticsPage({
   searchParams,
-}: {
-  searchParams: { period?: string; start?: string; end?: string };
-}) {
+}:{searchParams: unknown}) {
   const supabase = createSupabaseServerClient();
   const {
     data: { session },
