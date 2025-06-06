@@ -164,8 +164,8 @@ export default function AddCreditForm({ closeDialog, products }: AddCreditFormPr
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="pending">En attente</SelectItem>
-            <SelectItem value="paid">Paye</SelectItem>
-            <SelectItem value="overdue">En retard</SelectItem>
+            <SelectItem value="paid">Payé</SelectItem>
+            {/* <SelectItem value="overdue">En retard</SelectItem> */}
           </SelectContent>
         </Select>
       </div>

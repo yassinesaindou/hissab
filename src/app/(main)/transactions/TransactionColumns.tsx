@@ -46,7 +46,7 @@ export const transactionColumns: ColumnDef<TransactionInterface>[] = [
   {
     accessorKey: "quantity",
     id: "quantity",
-    header: "Quantite",
+    header: "Quantité",
   },
   {
     accessorKey: "totalPrice",

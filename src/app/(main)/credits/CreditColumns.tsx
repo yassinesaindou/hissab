@@ -47,11 +47,11 @@ export const columns: ColumnDef<CreditInterface >[] = [
   },
   {
     accessorKey: "amount",
-    header: "Amount",
+    header: "Montant",
     cell: ({ row }) => `$${Number(row.original.amount).toFixed(2)}`,
   },
   {
-    accessorKey: "status",
+    accessorKey: "statut",
     header: ({ column }) => (
       <Button
         variant="ghost"
@@ -65,13 +65,13 @@ export const columns: ColumnDef<CreditInterface >[] = [
       if (status === "paid") {
         return (
           <div className="bg-green-100 text-center text-green-600 py-1 px-3 rounded-full text-xs font-medium">
-            Paid
+            Payé 
           </div>
         );
       } else if (status === "unpaid" || status === "pending") {
         return (
           <div className="bg-red-100 text-red-600 py-1 px-3 rounded-full text-xs font-medium text-center">
-            {status === "pending" ? "Pending" : "Unpaid"}
+            {status === "pending" ? "En attente" : "Unpaid"}
           </div>
         );
       } else if (status === "overdue") {
