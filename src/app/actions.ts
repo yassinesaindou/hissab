@@ -201,9 +201,9 @@ const productFormSchema = z.object({
     .optional(),
 });
 
-type ProductFormData = z.infer<typeof productFormSchema>;
+// type ProductFormData = z.infer<typeof productFormSchema>;
 
-export async function newProductAction(formData: ProductFormData) {
+export async function newProductAction(formData: FormData) {
   try {
     const validatedData = productFormSchema.parse({
       name: formData.get("name"),
@@ -262,9 +262,9 @@ const updateProductFormSchema = productFormSchema.extend({
   productId: z.string().uuid({ message: "L' identifiant du produit est incorrect." }),
 });
 
-type UpdateProductFormData = z.infer<typeof updateProductFormSchema>;
+// type UpdateProductFormData = z.infer<typeof updateProductFormSchema>;
 
-export async function updateProductAction(formData: UpdateProductFormData) {
+export async function updateProductAction(formData:FormData) {
   try {
     const validatedData = updateProductFormSchema.parse({
       productId: formData.get("productId"),
@@ -2167,10 +2167,12 @@ export async function updateSubscription(formData: FormData) {
       setTimeout(() => reject(new Error("Subscription fetch timeout")), 5000)
     );
 
-    const { data: subscription } = await Promise.race([
+    const subscriptionResult = await Promise.race([
       subscriptionPromise,
       timeoutPromise,
-    ]);
+    ]) as { data: { endAt: string } | null };
+
+    const subscription = subscriptionResult.data;
 
     if (!subscription) {
       console.error("Subscription not found for ID:", subscriptionId);

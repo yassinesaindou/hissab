@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import React from "react";
 import {
@@ -13,9 +14,9 @@ import { ChartArea, DollarSign } from "lucide-react";
 interface CardProps {
   title: string;
   value: number;
-  data: { day: string; [key: string]: number }[];
+  data: { day: string; [key: string]: string | number }[];
   dataKey: string;
-  icon: React.ComponentType<unknown>;
+  icon: React.ComponentType<any>;
   color: string;
   unit?: string;
 }

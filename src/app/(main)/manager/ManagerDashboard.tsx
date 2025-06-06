@@ -61,14 +61,19 @@ type ProfileWithSubscription = {
 
 const subscriptionSchema = z.object({
   subscriptionId: z.string().min(1, "Please select a client"),
-  months: z.string().transform(Number).refine((n) => n >= 1 && n <= 12, {
-    message: "Months must be between 1 and 12",
-  }),
+  months: z
+    .number({ invalid_type_error: "Months must be a number" })
+    .min(1, "Months must be at least 1")
+    .max(12, "Months cannot exceed 12"),
 });
 
 type SubscriptionForm = z.infer<typeof subscriptionSchema>;
 
-export default function ManagerDashboard({ profiles }: { profiles: ProfileWithSubscription[] }) {
+export default function ManagerDashboard({
+  profiles,
+}: {
+  profiles: ProfileWithSubscription[];
+}) {
   const [globalFilter, setGlobalFilter] = useState("");
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isResultOpen, setIsResultOpen] = useState(false);
@@ -77,7 +82,7 @@ export default function ManagerDashboard({ profiles }: { profiles: ProfileWithSu
 
   const form = useForm<SubscriptionForm>({
     resolver: zodResolver(subscriptionSchema),
-    defaultValues: { subscriptionId: "", months: "1" },
+    defaultValues: { subscriptionId: "", months: 1 },
   });
 
   const columns: ColumnDef<ProfileWithSubscription>[] = useMemo(
@@ -87,8 +92,9 @@ export default function ManagerDashboard({ profiles }: { profiles: ProfileWithSu
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
+            onClick={() =>
+              column.toggleSorting(column.getIsSorted() === "asc")
+            }>
             Name
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
@@ -105,8 +111,9 @@ export default function ManagerDashboard({ profiles }: { profiles: ProfileWithSu
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
+            onClick={() =>
+              column.toggleSorting(column.getIsSorted() === "asc")
+            }>
             Started
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
@@ -121,8 +128,9 @@ export default function ManagerDashboard({ profiles }: { profiles: ProfileWithSu
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
+            onClick={() =>
+              column.toggleSorting(column.getIsSorted() === "asc")
+            }>
             Updated
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
@@ -136,15 +144,18 @@ export default function ManagerDashboard({ profiles }: { profiles: ProfileWithSu
         accessorKey: "endAt",
         header: "Ends",
         cell: ({ row }) =>
-          row.original.endAt ? new Date(row.original.endAt).toLocaleDateString() : "N/A",
+          row.original.endAt
+            ? new Date(row.original.endAt).toLocaleDateString()
+            : "N/A",
       },
       {
         accessorKey: "daysLeft",
         header: ({ column }) => (
           <Button
             variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
+            onClick={() =>
+              column.toggleSorting(column.getIsSorted() === "asc")
+            }>
             Days Left
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
@@ -201,7 +212,9 @@ export default function ManagerDashboard({ profiles }: { profiles: ProfileWithSu
     <>
       {/* Profiles Table Section */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100">
-        <h2 className="text-lg font-semibold text-gray-700 mb-4">User Profiles</h2>
+        <h2 className="text-lg font-semibold text-gray-700 mb-4">
+          User Profiles
+        </h2>
         <div className="mb-4">
           <Input
             placeholder="Search by name..."
@@ -217,7 +230,10 @@ export default function ManagerDashboard({ profiles }: { profiles: ProfileWithSu
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
                     <TableHead key={header.id}>
-                      {flexRender(header.column.columnDef.header, header.getContext())}
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -229,14 +245,19 @@ export default function ManagerDashboard({ profiles }: { profiles: ProfileWithSu
                   <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
                       </TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="h-24 text-center">
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center">
                     No results.
                   </TableCell>
                 </TableRow>
@@ -251,9 +272,13 @@ export default function ManagerDashboard({ profiles }: { profiles: ProfileWithSu
 
       {/* Subscription Update Section */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100">
-        <h2 className="text-lg font-semibold text-gray-700 mb-4">Update Subscription</h2>
+        <h2 className="text-lg font-semibold text-gray-700 mb-4">
+          Update Subscription
+        </h2>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-md">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-4 max-w-md">
             <FormField
               control={form.control}
               name="subscriptionId"
@@ -287,7 +312,13 @@ export default function ManagerDashboard({ profiles }: { profiles: ProfileWithSu
                 <FormItem>
                   <FormLabel>Months to Extend</FormLabel>
                   <FormControl>
-                    <Input type="number" min="1" max="12" {...field} />
+                    <Input
+                      type="number"
+                      min="1"
+                      max="12"
+                      {...field}
+                      onChange={(e) => field.onChange(Number(e.target.value))} // Convert string to number
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -297,9 +328,10 @@ export default function ManagerDashboard({ profiles }: { profiles: ProfileWithSu
               <Button
                 type="submit"
                 className="bg-blue-600 hover:bg-blue-700 text-gray-100"
-                disabled={form.formState.isSubmitting}
-              >
-                {form.formState.isSubmitting ? "Updating..." : "Update Subscription"}
+                disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting
+                  ? "Updating..."
+                  : "Update Subscription"}
               </Button>
             </div>
           </form>
@@ -322,8 +354,7 @@ export default function ManagerDashboard({ profiles }: { profiles: ProfileWithSu
             </Button>
             <Button
               className="bg-blue-600 hover:bg-blue-700 text-gray-100"
-              onClick={confirmUpdate}
-            >
+              onClick={confirmUpdate}>
               Confirm
             </Button>
           </DialogFooter>
@@ -340,8 +371,7 @@ export default function ManagerDashboard({ profiles }: { profiles: ProfileWithSu
           <DialogFooter>
             <Button
               className="bg-blue-600 hover:bg-blue-700 text-gray-100"
-              onClick={() => setIsResultOpen(false)}
-            >
+              onClick={() => setIsResultOpen(false)}>
               Close
             </Button>
           </DialogFooter>
