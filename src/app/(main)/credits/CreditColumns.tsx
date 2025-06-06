@@ -11,8 +11,9 @@ import {
    
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { CreditTableMeta } from "./CreditTable";
 
-export type Credit = {
+export type CreditInterface = {
   creditId: string;
   customerName: string;
   customerPhone: string;
@@ -25,7 +26,7 @@ export type Credit = {
 
  
 
-export const columns: ColumnDef<Credit >[] = [
+export const columns: ColumnDef<CreditInterface >[] = [
   {
     accessorKey: "customerName",
     header: ({ column }) => (
@@ -113,7 +114,7 @@ export const columns: ColumnDef<Credit >[] = [
             </DropdownMenuItem>
             <DropdownMenuItem
               className="cursor-pointer"
-              onClick={() => table.options.meta?.onEditCredit?.(credit)}>
+              onClick={() => (table.options.meta as CreditTableMeta)?.onEditCredit?.(credit)}>
               Modifier le crédit
             </DropdownMenuItem>
           </DropdownMenuContent>

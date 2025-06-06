@@ -11,8 +11,9 @@ import {
    
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ProductTableMeta } from "./ProductsTable";
 
-export type Product = {
+export type ProductInterface = {
   productId: string;
   name: string;
   stock: number;
@@ -22,7 +23,7 @@ export type Product = {
   created_at: string;
 };
 
-export const productColumns: ColumnDef<Product>[] = [
+export const productColumns: ColumnDef<ProductInterface>[] = [
   {
     id: "sn",
     header: ({ column }) => (
@@ -94,7 +95,7 @@ export const productColumns: ColumnDef<Product>[] = [
               className="cursor-pointer"
               onClick={() => {
                 // Trigger edit modal via table meta
-                table.options.meta?.onEditProduct?.(product);
+                (table.options.meta as ProductTableMeta)?.onEditProduct?.(product);
               }}>
               Modifier
             </DropdownMenuItem>

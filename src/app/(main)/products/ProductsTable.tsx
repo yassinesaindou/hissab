@@ -10,6 +10,7 @@ import {
   SortingState,
   ColumnFiltersState,
   getFilteredRowModel,
+  TableMeta,
 } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,11 +23,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useState } from "react";
+import { ProductInterface } from "./ProductsColumns.tsx";
 
 interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
+  columns: ColumnDef<ProductInterface, TValue>[];
+  data: ProductInterface[];
   onEditProduct?: (product: TData) => void;
+}
+
+export interface ProductTableMeta extends TableMeta<ProductInterface> {
+  onEditProduct?: (product: ProductInterface) => void;
 }
 
 export function ProductsTable<TData, TValue>({
@@ -51,7 +57,7 @@ export function ProductsTable<TData, TValue>({
     },
     meta: {
       onEditProduct,
-    },
+    } as ProductTableMeta,
   });
 
   return (

@@ -10,6 +10,7 @@ import {
   SortingState,
   ColumnFiltersState,
   getFilteredRowModel,
+  TableMeta,
 } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,11 +23,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useState } from "react";
+import { CreditInterface } from "./CreditColumns";
 
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
-  onEditCredit?: (credit: TData) => void;
+
+export interface CreditTableMeta extends TableMeta<CreditInterface> {
+  onEditCredit?: (credit: CreditInterface) => void;
+}
+
+interface DataTableProps<CreditInterface, TValue> {
+  columns: ColumnDef<CreditInterface, TValue>[];
+  data: CreditInterface[];
+  onEditCredit?: (credit: CreditInterface) => void;
 }
 
 export function DataTable<TData, TValue>({
