@@ -1327,7 +1327,12 @@ export async function getAnalyticsData(
       return {
         success: false,
         message: "Format de données analytiques invalide.",
-        data: {},
+        data: {sales: { total: 0 },
+      expenses: { total: 0 },
+      credits: { total: 0 },
+      revenue: { total: 0 },
+          products: { total: 0 }
+        },
       };
     }
 
@@ -1343,7 +1348,12 @@ export async function getAnalyticsData(
     return {
       success: false,
       message: "Une erreur s'est produite",
-      data: {},
+      data: {sales: { total: 0 },
+      expenses: { total: 0 },
+      credits: { total: 0 },
+      revenue: { total: 0 },
+          products: { total: 0 }
+        },
     };
   }
 }

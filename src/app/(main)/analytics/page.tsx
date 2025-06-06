@@ -122,11 +122,11 @@ export default async function AnalyticsPage({
 
   // Validate data for serialization
   const safeAnalyticsData = {
-    sales: { total: Number(analyticsData.sales.total || 0) },
-    expenses: { total: Number(analyticsData.expenses.total || 0) },
-    credits: { total: Number(analyticsData.credits.total || 0) },
-    revenue: { total: Number(analyticsData.revenue.total || 0) },
-    products: { total: Number(analyticsData.products.total || 0) },
+    sales: { total: Number(analyticsData.sales?.total || 0) },
+    expenses: { total: Number(analyticsData.expenses?.total || 0) },
+    credits: { total: Number(analyticsData.credits?.total || 0) },
+    revenue: { total: Number(analyticsData.revenue?.total || 0) },
+    products: { total: Number(analyticsData.products?.total || 0) },
   };
 
   return (
