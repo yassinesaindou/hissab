@@ -1,14 +1,8 @@
 "use client";
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { ArrowUpDown  } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+ 
 import { TransactionTableMeta } from "./TransactionTable";
 
 export type TransactionInterface = {
@@ -92,34 +86,19 @@ export const transactionColumns: ColumnDef<TransactionInterface>[] = [
     cell: ({ row, table }) => {
       const transaction = row.original;
       return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem
-              className="cursor-pointer"
-              onClick={() =>
-                navigator.clipboard.writeText(transaction.productName || "")
-              }>
-              Copier le nom de l&apos;article
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="cursor-pointer"
-              onClick={() =>
-                (
-                  table.options.meta as TransactionTableMeta
-                )?.onEditTransaction?.(transaction)
-              }>
-              Modifier la transaction
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          variant="ghost"
+          className="text-blue-600 hover:text-blue-800"
+          size="sm"
+          onClick={() => {
+            console.log("Editing product:", transaction.transactionId);
+            (table.options.meta as TransactionTableMeta)?.onEditTransaction?.(
+              transaction
+            );
+          }}>
+          Modifier
+        </Button>
       );
     },
-  },
+  }
 ];

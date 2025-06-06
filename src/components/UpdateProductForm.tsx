@@ -1,34 +1,30 @@
+// app/components/UpdateProductForm.tsx
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { updateProductAction } from "@/app/actions";
+import { ProductInterface } from "@/app/(main)/products/ProductsColumns.tsx";
+ 
 
 interface UpdateProductFormProps {
   closeDialog: () => void;
-  product: {
-    productId: string;
-    name: string;
-    stock: number;
-    unitPrice: number;
-    category: string | null;
-    description: string | null;
-  };
+  product: ProductInterface;
+  onUpdateProduct: (updatedProduct: ProductInterface) => void;
 }
 
 export default function UpdateProductForm({
   closeDialog,
   product,
+  onUpdateProduct,
 }: UpdateProductFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const router = useRouter();
 
-   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
@@ -40,13 +36,22 @@ export default function UpdateProductForm({
 
     if (result.success) {
       setSuccess(result.message);
+      const updatedProduct: ProductInterface = {
+        productId: formData.get("productId") as string,
+        name: formData.get("name") as string,
+        stock: Number(formData.get("stock")),
+        unitPrice: Number(formData.get("unitPrice")),
+        category: (formData.get("category") as string) || null,
+        description: (formData.get("description") as string) || null,
+        created_at: product.created_at,
+      };
+      console.log("Updating product state:", updatedProduct);
+      onUpdateProduct(updatedProduct);
       closeDialog();
-      router.refresh();
     } else {
       setError(result.message);
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   return (

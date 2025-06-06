@@ -1,55 +1,63 @@
+// app/components/AddProductForm.tsx
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { newProductAction } from "@/app/actions";
+import { ProductInterface } from "@/app/(main)/products/ProductsColumns.tsx";
+ 
 
 interface AddProductFormProps {
   closeDialog: () => void;
+  onAddProduct: (newProduct: ProductInterface) => void;
 }
 
-export default function AddProductForm({ closeDialog }: AddProductFormProps) {
+export default function AddProductForm({ closeDialog, onAddProduct }: AddProductFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const router = useRouter();
 
-  const handleSubmit = async (formData: FormData) => {
-  setIsLoading(true);
-  setError(null);
-  setSuccess(null);
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setIsLoading(true);
 
-  const result = await newProductAction(formData);
+    const formData = new FormData(e.currentTarget);
+    const result = await newProductAction(formData);
+    console.log("Add action result:", result);
 
-  if (result.success) {
-    setSuccess(result.message);
-    closeDialog();
-    router.refresh();
-  } else {
-    setError(result.message);
-  }
-
-  setIsLoading(false);
-};
+    if (result.success) {
+      setSuccess(result.message);
+      // Create new product object
+      const newProduct: ProductInterface = {
+        productId: formData.get("productId") as string, // Assume server returns or generate client-side
+        name: formData.get("name") as string,
+        stock: Number(formData.get("stock")),
+        unitPrice: Number(formData.get("unitPrice")),
+        category: (formData.get("category") as string) || null,
+        description: (formData.get("description") as string) || null,
+        created_at: new Date().toISOString(),
+      };
+      onAddProduct(newProduct);
+      closeDialog();
+    } else {
+      setError(result.message);
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault(); // prevent page reload
-        const formData = new FormData(e.currentTarget);
-        handleSubmit(formData);
-      }}
-      className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <Label htmlFor="name">Nom de l&apos;article</Label>
         <Input
           id="name"
           name="name"
           type="text"
-          placeholder="Enter product name"
+          placeholder="Entrez le nom de l'article"
           required
         />
       </div>
@@ -61,29 +69,29 @@ export default function AddProductForm({ closeDialog }: AddProductFormProps) {
           type="number"
           min="0"
           step="1"
-          placeholder="Enter stock quantity"
+          placeholder="Entrez la quantité en stock"
           required
         />
       </div>
       <div>
-        <Label htmlFor="unitPrice">Prix Unitaire</Label>
+        <Label htmlFor="unitPrice">Prix unitaire</Label>
         <Input
           id="unitPrice"
           name="unitPrice"
           type="number"
           step="0.01"
           min="0"
-          placeholder="Enter unit price"
+          placeholder="Entrez le prix unitaire"
           required
         />
       </div>
       <div>
-        <Label htmlFor="category">Categorie</Label>
+        <Label htmlFor="category">Category</Label>
         <Input
           id="category"
           name="category"
           type="text"
-          placeholder="Enter category (optional)"
+          placeholder="Entrez la catégorie (optionnel)"
         />
       </div>
       <div>
@@ -91,16 +99,13 @@ export default function AddProductForm({ closeDialog }: AddProductFormProps) {
         <Textarea
           id="description"
           name="description"
-          placeholder="Enter description (optional)"
+          placeholder="Entrez une description (optionnel)"
           rows={4}
         />
       </div>
       {error && <p className="text-red-500">{error}</p>}
       {success && <p className="text-green-500">{success}</p>}
-      <Button
-        disabled={isLoading}
-        type="submit"
-        className="bg-blue-700 text-gray-50">
+      <Button disabled={isLoading} type="submit" className="bg-blue-700 text-gray-50">
         Ajouter l&apos;article
       </Button>
     </form>

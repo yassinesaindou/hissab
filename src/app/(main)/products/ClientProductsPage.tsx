@@ -1,10 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/products/ClientProductsPage.tsx
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ProductsTable } from "./ProductsTable";
- 
 import AddProductForm from "@/components/AddProductForm";
 import UpdateProductForm from "@/components/UpdateProductForm";
 import {
@@ -14,23 +12,39 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { productColumns } from "./ProductsColumns.tsx";
+import { productColumns, ProductInterface } from "./ProductsColumns.tsx";
+ 
 
 interface ClientProductsPageProps {
-  products: any[];
+  products: ProductInterface[];
 }
 
-export default function ClientProductsPage({ products }: ClientProductsPageProps) {
+export default function ClientProductsPage({ products: initialProducts }: ClientProductsPageProps) {
+  const [products, setProducts] = useState<ProductInterface[]>(initialProducts);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<ProductInterface | null>(null);
+   
 
   const closeAddDialog = () => setIsAddDialogOpen(false);
   const closeEditDialog = () => setIsEditDialogOpen(false);
 
-  const handleEditProduct = (product: any) => {
+  const handleEditProduct = (product: ProductInterface) => {
+    console.log("Opening edit dialog for:", product.productId);
     setSelectedProduct(product);
     setIsEditDialogOpen(true);
+  };
+
+  const handleAddProduct = (newProduct: ProductInterface) => {
+    setProducts((prev) => [...prev, newProduct]);
+    closeAddDialog();
+  };
+
+  const handleUpdateProduct = (updatedProduct: ProductInterface) => {
+    setProducts((prev) =>
+      prev.map((p) => (p.productId === updatedProduct.productId ? updatedProduct : p))
+    );
+    closeEditDialog();
   };
 
   return (
@@ -47,11 +61,14 @@ export default function ClientProductsPage({ products }: ClientProductsPageProps
             <DialogHeader>
               <DialogTitle>Ajouter un article</DialogTitle>
             </DialogHeader>
-            <AddProductForm closeDialog={closeAddDialog} />
+            <AddProductForm closeDialog={closeAddDialog} onAddProduct={handleAddProduct} />
           </DialogContent>
         </Dialog>
       </div>
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+        setIsEditDialogOpen(open);
+        if (!open) setSelectedProduct(null);
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Modifier l&apos;article</DialogTitle>
@@ -60,6 +77,7 @@ export default function ClientProductsPage({ products }: ClientProductsPageProps
             <UpdateProductForm
               closeDialog={closeEditDialog}
               product={selectedProduct}
+              onUpdateProduct={handleUpdateProduct}
             />
           )}
         </DialogContent>
@@ -69,6 +87,7 @@ export default function ClientProductsPage({ products }: ClientProductsPageProps
         data={products}
         onEditProduct={handleEditProduct}
       />
+     
     </div>
   );
 }
