@@ -1,16 +1,9 @@
 // app/credits/CreditColumns.tsx
 "use client";
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal } from "lucide-react";
+import { ArrowUpDown} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-   
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
 import { CreditTableMeta } from "./CreditTable";
 
 export type CreditInterface = {
