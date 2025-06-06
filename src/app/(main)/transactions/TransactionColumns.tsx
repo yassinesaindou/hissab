@@ -9,8 +9,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { TransactionTableMeta } from "./TransactionTable";
 
-export type Transaction = {
+export type TransactionInterface = {
   transactionId: string;
   created_at: string;
   userId: string;
@@ -22,7 +23,7 @@ export type Transaction = {
   type: "sale" | "credit" | "expense";
 };
 
-export const transactionColumns: ColumnDef<Transaction>[] = [
+export const transactionColumns: ColumnDef<TransactionInterface>[] = [
   {
     accessorKey: "created_at",
     id: "created_at",
@@ -110,7 +111,9 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
             <DropdownMenuItem
               className="cursor-pointer"
               onClick={() =>
-                table.options.meta?.onEditTransaction?.(transaction)
+                (
+                  table.options.meta as TransactionTableMeta
+                )?.onEditTransaction?.(transaction)
               }>
               Modifier la transaction
             </DropdownMenuItem>

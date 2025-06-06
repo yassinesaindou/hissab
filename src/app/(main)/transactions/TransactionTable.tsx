@@ -9,6 +9,7 @@ import {
   getPaginationRowModel,
   useReactTable,
   SortingState,
+  TableMeta,
 } from "@tanstack/react-table";
 import {
   Table,
@@ -20,18 +21,23 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { TransactionInterface } from "./TransactionColumns";
 
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
-  onEditTransaction?: (transaction: TData) => void;
+
+export interface TransactionTableMeta extends TableMeta<TransactionInterface> {
+  onEditTransaction?: (transaction: TransactionInterface) => void;
+}
+interface DataTableProps<TValue> {
+  columns: ColumnDef<TransactionInterface, TValue>[];
+  data: TransactionInterface[];
+  onEditTransaction?: (transaction: TransactionInterface) => void;
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable< TValue>({
   columns,
   data,
   onEditTransaction,
-}: DataTableProps<TData, TValue>) {
+}: DataTableProps< TValue>) {
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
 
@@ -59,7 +65,7 @@ export function DataTable<TData, TValue>({
     },
     meta: {
       onEditTransaction,
-    },
+    } as TransactionTableMeta,
   });
 
   return (
