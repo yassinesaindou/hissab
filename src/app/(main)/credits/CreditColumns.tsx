@@ -1,9 +1,16 @@
 // app/credits/CreditColumns.tsx
 "use client";
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown  } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
- 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+   
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { CreditTableMeta } from "./CreditTable";
 
 export type CreditInterface = {
@@ -47,11 +54,11 @@ export const columns: ColumnDef<CreditInterface >[] = [
   },
   {
     accessorKey: "amount",
-    header: "Montant",
+    header: "Amount",
     cell: ({ row }) => `$${Number(row.original.amount).toFixed(2)}`,
   },
   {
-    accessorKey: "statut",
+    accessorKey: "status",
     header: ({ column }) => (
       <Button
         variant="ghost"
@@ -65,7 +72,7 @@ export const columns: ColumnDef<CreditInterface >[] = [
       if (status === "paid") {
         return (
           <div className="bg-green-100 text-center text-green-600 py-1 px-3 rounded-full text-xs font-medium">
-            Payé 
+            Payé
           </div>
         );
       } else if (status === "unpaid" || status === "pending") {
