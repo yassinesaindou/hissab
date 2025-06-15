@@ -70,7 +70,7 @@ export default function Navbar({
           <button onClick={toggleSidebar} className="md:hidden text-green-800">
             <Menu size={24} />
           </button>
-         {subscriptionDays && <span className={`text-sm px-4 py-1 ${subscriptionDays <= 7 ? "bg-red-400" : "bg-green-400"} hidden md:inline font-normal rounded-full text text-white/95`}>
+         {subscriptionDays && <span className={`text-sm px-4 py-1 ${subscriptionDays <= 7 ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"} hidden md:inline font-normal rounded-full text `}>
         Il reste {subscriptionDays} jours avant l&apos;expiration de votre abonnement.
         
         </span>}
@@ -78,7 +78,7 @@ export default function Navbar({
         <UserMenu />
       </div>
       <div>
-        {subscriptionDays && <div className={`text-sm px-4 py-1 ${subscriptionDays <= 7 ? "bg-red-400" : "bg-green-400"} md:hidden  font-normal rounded-full max-w-fit text text-white/95 mx-auto`}>
+        {subscriptionDays && <div className={`text-sm px-4 py-1 ${subscriptionDays <= 7 ? "bg-red-100" : "bg-green-100"} md:hidden  font-normal rounded-full max-w-fit text text-white/95 mx-auto`}>
         Il reste {subscriptionDays} jours avant l&apos;expiration de votre abonnement.
         
         </div>}

@@ -1919,7 +1919,7 @@ export async function createInvoice(formData: {
       }
     }
 
-    return { success: true, message: "success, La facture a bien été crée " };
+    return { success: true, message: "success, La facture a été crée " };
   } catch (error) {
     console.error("Unexpected error creating invoice:", error);
     return { success: false, message: "Une erreur s'est produite" };
