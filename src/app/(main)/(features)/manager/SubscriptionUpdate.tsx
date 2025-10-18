@@ -79,16 +79,16 @@ export default function SubscriptionUpdate({ profiles }: { profiles: ProfileWith
   };
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100">
+    <div className="bg-blue-500 p-6 rounded-2xl shadow-sm border border-green-100">
       <h2 className="text-lg font-semibold text-gray-700 mb-4">Update Subscription</h2>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-md">
+      <Form {...form} >
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-md flex justify-around">
           <FormField
             control={form.control}
             name="subscriptionId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Client</FormLabel>
+                <FormLabel>Select a client</FormLabel>
                 <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>

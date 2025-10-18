@@ -16,17 +16,33 @@ export default async function TransactionsPage() {
       redirect("/login");
     }
 
+    const { data: profile } = await supabase
+    .from("profiles")
+    .select("userId,name,storeId , role")
+    .eq("userId", user.id)
+    .single();
+
+  
+    
+    const modifiedStoreId = profile?.role === 'employee' ? user.id : profile?.storeId;
+
+    const comparisonColumn = profile?.role === 'employee' ? 'userId' : 'storeId';
+    
     const { data: transactions, error: transactionsError } = await supabase
       .from("transactions")
       .select(
         "transactionId, created_at, userId, productId, productName, unitPrice, totalPrice, quantity, type"
       )
-      .eq("userId", user.id);
+      .eq(comparisonColumn,  modifiedStoreId);
+    
+   console.log('Trnsation from emp', transactions);
 
     const { data: products, error: productsError } = await supabase
       .from("products")
       .select("productId, name, unitPrice, stock")
-      .eq("userId", user.id);
+      .eq("storeId",profile?.storeId);
+    
+   
 
     if (transactionsError) {
       console.error("Transactions error:", transactionsError.message);

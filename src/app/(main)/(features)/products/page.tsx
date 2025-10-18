@@ -11,10 +11,11 @@ export default async function ProductsPage() {
     redirect("/login");
   }
 
+  const {data: profile} = await supabase.from('profiles').select('storeId').eq('userId', user.id).single();
   const { data: products, error } = await supabase
     .from("products")
     .select("productId, name, stock, unitPrice, category, description, created_at")
-    .eq("userId", user.id);
+    .eq("storeId", profile?.storeId);
 
   if (error) {
     console.error("Error fetching products:", error.message);

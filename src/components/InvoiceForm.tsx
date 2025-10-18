@@ -6,19 +6,25 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   FormControl,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { createInvoice } from "@/app/actions";
 import {
   PDFDownloadLink,
@@ -28,6 +34,8 @@ import {
   View,
   StyleSheet,
 } from "@react-pdf/renderer";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const productSchema = z.object({
   productId: z.string().optional(),
@@ -54,9 +62,9 @@ interface Product {
 }
 
 interface InvoiceFormProps {
-  storeName?: string,
-  storeAddress?: string,
-  storePhoneNumber?: string
+  storeName?: string;
+  storeAddress?: string;
+  storePhoneNumber?: string;
   products: Product[];
 }
 
@@ -127,15 +135,15 @@ const styles = StyleSheet.create({
     color: "#111111",
     textAlign: "right",
   },
-  sections:{
-    display:'flex',
-    justifyContent:'space-between',
-    flexDirection:'row',
-  }
+  sections: {
+    display: "flex",
+    justifyContent: "space-between",
+    flexDirection: "row",
+  },
 });
 
 // PDF Document Component
-const PDFDocument = ({ data , storePhoneNumber }: { data: FormValues ,  storePhoneNumber?: string }) => {
+const PDFDocument = ({ data, storePhoneNumber }: { data: FormValues; storePhoneNumber?: string }) => {
   const formatDateIST = () =>
     new Date().toLocaleString("en-IN", {
       timeZone: "Asia/Kolkata",
@@ -207,21 +215,20 @@ const PDFDocument = ({ data , storePhoneNumber }: { data: FormValues ,  storePho
   );
 };
 
-export default function InvoiceForm({ products , storeAddress, storeName, storePhoneNumber }: InvoiceFormProps ) {
+export default function InvoiceForm({ products, storeAddress, storeName, storePhoneNumber }: InvoiceFormProps) {
   const [totalPrice, setTotalPrice] = useState<number | null>(null);
   const [submitMessage, setSubmitMessage] = useState<string>("");
   const [invoiceData, setInvoiceData] = useState<FormValues | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-
-  console.log(storeName, storeAddress)
+  console.log(storeName, storeAddress);
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       clientName: "",
       clientPhone: "",
-      storeName:storeName || '',
-      storeAddress : storeAddress|| '',
+      storeName: storeName || "",
+      storeAddress: storeAddress || "",
       products: [
         { isManual: false, name: "", unitPrice: 0, quantity: 1, productId: "" },
       ],
@@ -257,11 +264,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
       const unitPrice = Number(product.unitPrice) || 0;
       const quantity = Number(product.quantity) || 0;
       console.log(
-        `Product ${
-          product.name
-        }: unitPrice=${unitPrice}, quantity=${quantity}, subtotal=${
-          unitPrice * quantity
-        }`
+        `Product ${product.name}: unitPrice=${unitPrice}, quantity=${quantity}, subtotal=${unitPrice * quantity}`
       );
       return sum + unitPrice * quantity;
     }, 0);
@@ -306,7 +309,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                   name="clientPhone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Numéro de téléphone</FormLabel>
+                      <FormLabel>Numéro de téléphone</FormLabel>
                       <FormControl>
                         <Input placeholder="+269 485 78 96" {...field} />
                       </FormControl>
@@ -319,7 +322,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                   name="storeName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nom du magasin du magasin</FormLabel>
+                      <FormLabel>Nom du magasin</FormLabel>
                       <FormControl>
                         <Input placeholder="Magasin John" defaultValue={storeName} {...field} />
                       </FormControl>
@@ -344,215 +347,258 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
             </div>
 
             {/* Products */}
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold text-gray-700">Articles</h2>
-              {fields.map((field, index) => (
-                <div
-                  key={field.id}
-                  className="flex flex-col space-y-4 border-b pb-4">
-                  <div className="flex items-center space-x-4">
-                    <FormField
-                      control={form.control}
-                      name={`products.${index}.isManual`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Type</FormLabel>
-                          <Select
-                            onValueChange={(value) => {
-                              const isManual = value === "manual";
-                              form.setValue(
-                                `products.${index}.isManual`,
-                                isManual
-                              );
-                              form.setValue(`products.${index}.productId`, "");
-                              form.setValue(`products.${index}.name`, "");
-                              form.setValue(`products.${index}.unitPrice`, 0);
-                              console.log(
-                                `Entry type changed for index ${index}:`,
-                                isManual
-                              );
-                            }}
-                            value={field.value ? "manual" : "select"}>
-                            <SelectTrigger className="w-[180px]">
-                              <SelectValue placeholder="Select type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="select">
-                                Choisir un article
-                              </SelectItem>
-                              <SelectItem value="manual">
-                                Saisir manuellement
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormItem>
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold text-gray-800">Articles</h2>
+
+              <div className="space-y-5">
+                {fields.map((field, index) => (
+                  <div
+                    key={field.id}
+                    className="p-5 rounded-2xl border border-gray-200 shadow-sm bg-white space-y-4 transition hover:shadow-md"
+                  >
+                    <div className="flex flex-wrap items-end gap-4">
+                      {/* Type Selector */}
+                      <FormField
+                        control={form.control}
+                        name={`products.${index}.isManual`}
+                        render={({ field }) => (
+                          <FormItem className="min-w-[180px]">
+                            <FormLabel>Type</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className={cn(
+                                      "w-[180px] justify-between",
+                                      !field.value && "text-muted-foreground"
+                                    )}
+                                  >
+                                    {field.value ? "Saisir manuellement" : "Choisir un article"}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[180px] p-0">
+                                <Command>
+                                  <CommandList>
+                                    <CommandGroup>
+                                      <CommandItem
+                                        value="select"
+                                        onSelect={() => {
+                                          form.setValue(`products.${index}.isManual`, false);
+                                          form.setValue(`products.${index}.productId`, "");
+                                          form.setValue(`products.${index}.name`, "");
+                                          form.setValue(`products.${index}.unitPrice`, 0);
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            !field.value ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        Choisir un article
+                                      </CommandItem>
+                                      <CommandItem
+                                        value="manual"
+                                        onSelect={() => {
+                                          form.setValue(`products.${index}.isManual`, true);
+                                          form.setValue(`products.${index}.productId`, "");
+                                          form.setValue(`products.${index}.name`, "");
+                                          form.setValue(`products.${index}.unitPrice`, 0);
+                                        }}
+                                      >
+                                        <Check
+                                          className={cn(
+                                            "mr-2 h-4 w-4",
+                                            field.value ? "opacity-100" : "opacity-0"
+                                          )}
+                                        />
+                                        Saisir manuellement
+                                      </CommandItem>
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Conditional Inputs */}
+                      {form.watch(`products.${index}.isManual`) ? (
+                        <>
+                          <FormField
+                            control={form.control}
+                            name={`products.${index}.name`}
+                            render={({ field }) => (
+                              <FormItem className="flex-1 min-w-[220px]">
+                                <FormLabel>Nom de l&apos;article</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Ex: Clou, planche, ciment..." {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name={`products.${index}.unitPrice`}
+                            render={({ field }) => (
+                              <FormItem className="w-32">
+                                <FormLabel>Prix Unitaire</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    placeholder="0"
+                                    value={field.value || ""}
+                                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </>
+                      ) : (
+                        <>
+                          <FormField
+                            control={form.control}
+                            name={`products.${index}.productId`}
+                            render={({ field }) => (
+                              <FormItem className="flex-1 min-w-[220px]">
+                                <FormLabel>Article</FormLabel>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <FormControl>
+                                      <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        className={cn(
+                                          "w-full justify-between",
+                                          !field.value && "text-muted-foreground"
+                                        )}
+                                      >
+                                        {field.value
+                                          ? products.find((p) => p.productId === field.value)?.name ||
+                                            "Choisir un article"
+                                          : "Choisir un article"}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                      </Button>
+                                    </FormControl>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-full p-0">
+                                    <Command>
+                                      <CommandInput placeholder="Rechercher un article..." />
+                                      <CommandList>
+                                        <CommandEmpty>Aucun article trouvé.</CommandEmpty>
+                                        <CommandGroup>
+                                          {products.map((product) => (
+                                            <CommandItem
+                                              key={product.productId}
+                                              value={`${product.name} (${product.unitPrice} KMF)`} // Use name for search
+                                              onSelect={() => {
+                                                field.onChange(product.productId);
+                                                form.setValue(`products.${index}.name`, product.name);
+                                                form.setValue(`products.${index}.unitPrice`, product.unitPrice);
+                                              }}
+                                            >
+                                              <Check
+                                                className={cn(
+                                                  "mr-2 h-4 w-4",
+                                                  field.value === product.productId ? "opacity-100" : "opacity-0"
+                                                )}
+                                              />
+                                              {product.name} ({product.unitPrice} KMF)
+                                            </CommandItem>
+                                          ))}
+                                        </CommandGroup>
+                                      </CommandList>
+                                    </Command>
+                                  </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name={`products.${index}.unitPrice`}
+                            render={({ field }) => (
+                              <FormItem className="w-32">
+                                <FormLabel>Prix Unitaire</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    value={field.value || ""}
+                                    readOnly
+                                    className="bg-gray-100 text-gray-600"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </>
                       )}
-                    />
-                    {form.watch(`products.${index}.isManual`) ? (
-                      <>
-                        <FormField
-                          control={form.control}
-                          name={`products.${index}.name`}
-                          render={({ field }) => (
-                            <FormItem className="flex-1">
-                              <FormLabel>Nom de l&apos;article</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder="Saisir le nom de l'article"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`products.${index}.unitPrice`}
-                          render={({ field }) => (
-                            <FormItem className="w-32">
-                              <FormLabel>Prix Unitaire</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                  
-                                  placeholder="0"
-                                  value={field.value}
-                                  onChange={(e) =>
-                                    field.onChange(
-                                      parseFloat(e.target.value) || 0
-                                    )
-                                  }
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <FormField
-                          control={form.control}
-                          name={`products.${index}.productId`}
-                          render={({ field }) => (
-                            <FormItem className="flex-1">
-                              <FormLabel>Article</FormLabel>
-                              <Select
-                                onValueChange={(value) => {
-                                  console.log(
-                                    `Product select onValueChange for index ${index}:`,
-                                    value
-                                  );
-                                  field.onChange(value);
-                                  const product = products.find(
-                                    (p) => p.productId === value
-                                  );
-                                  if (product) {
-                                    form.setValue(
-                                      `products.${index}.name`,
-                                      product.name
-                                    );
-                                    form.setValue(
-                                      `products.${index}.unitPrice`,
-                                      product.unitPrice
-                                    );
-                                    console.log(
-                                      `Selected product for index ${index}:`,
-                                      product
-                                    );
-                                  } else {
-                                    form.setValue(`products.${index}.name`, "");
-                                    form.setValue(
-                                      `products.${index}.unitPrice`,
-                                      0
-                                    );
-                                  }
-                                }}
-                                value={field.value || ""}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Choisir un article" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {products.map((product) => (
-                                    <SelectItem
-                                      key={product.productId}
-                                      value={product.productId}>
-                                      {product.name} (${product.unitPrice})
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control}
-                          name={`products.${index}.unitPrice`}
-                          render={({ field }) => (
-                            <FormItem className="w-32">
-                              <FormLabel>Prix Unitaire</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="number"
-                                   
-                                  value={field.value}
-                                  readOnly
-                                  className="bg-gray-100"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </>
-                    )}
-                    <FormField
-                      control={form.control}
-                      name={`products.${index}.quantity`}
-                      render={({ field }) => (
-                        <FormItem className="w-24">
-                          <FormLabel>Quantité</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="1"
-                              value={field.value}
-                              onChange={(e) =>
-                                field.onChange(parseInt(e.target.value) || 1)
-                              }
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => remove(index)}
-                      disabled={fields.length === 1}>
-                      Rétirer
-                    </Button>
+
+                      {/* Quantity */}
+                      <FormField
+                        control={form.control}
+                        name={`products.${index}.quantity`}
+                        render={({ field }) => (
+                          <FormItem className="w-24">
+                            <FormLabel>Quantité</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={1}
+                                value={field.value || 1}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Remove Button */}
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => remove(index)}
+                        disabled={fields.length === 1}
+                        className="mt-6"
+                      >
+                        Rétirer
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
-              <Button
-                type="button"
-                className="bg-blue-600 hover:bg-blue-700 text-gray-100"
-                onClick={() =>
-                  append({
-                    isManual: false,
-                    name: "",
-                    unitPrice: 0,
-                    quantity: 1,
-                    productId: "",
-                  })
-                }>
-                Ajouter un article
-              </Button>
+                ))}
+              </div>
+
+              {/* Add Button at Bottom */}
+              <div className="pt-4 border-t border-gray-200 flex items-center justify-between w-full">
+                <Button
+                  type="button"
+                  className="bg-blue-600 max-w-fit hover:bg-blue-700 text-white"
+                  onClick={() =>
+                    append({
+                      isManual: false,
+                      name: "",
+                      unitPrice: 0,
+                      quantity: 1,
+                      productId: "",
+                    })
+                  }
+                >
+                  + Ajouter un article
+                </Button>
+              </div>
             </div>
 
             {/* Total Price */}
@@ -575,30 +621,27 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
               <Button
                 className="bg-blue-600 hover:bg-blue-700 text-gray-100"
                 type="submit"
-                disabled={isSubmitting}>
+                disabled={isSubmitting}
+              >
                 {isSubmitting ? "En cours..." : "Créer la facture"}
               </Button>
               {submitMessage.includes("success") && invoiceData && (
-                <>
-                  <PDFDownloadLink
-                    document={<PDFDocument storePhoneNumber={storePhoneNumber} data={invoiceData}   />}
-                    fileName={`invoice ${invoiceData.clientName}.pdf`}
-                    className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-gray-100 rounded-md text-sm font-medium">
-                    {({ loading }) =>
-                      loading ? "Téléchargement..." : "Télécharger le PDF"
-                    }
-                  </PDFDownloadLink>
-                </>
+                <PDFDownloadLink
+                  document={<PDFDocument storePhoneNumber={storePhoneNumber} data={invoiceData} />}
+                  fileName={`invoice ${invoiceData.clientName}.pdf`}
+                  className="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-gray-100 rounded-md text-sm font-medium"
+                >
+                  {({ loading }) => (loading ? "Téléchargement..." : "Télécharger le PDF")}
+                </PDFDownloadLink>
               )}
             </div>
             {submitMessage && (
               <p
                 className={`text-sm ${
-                  submitMessage.includes("success")
-                    ? "text-green-600"
-                    : "text-red-600"
-                }`}>
-                La facture a été créée avec succès!
+                  submitMessage.includes("success") ? "text-green-600" : "text-red-600"
+                }`}
+              >
+                {submitMessage}
               </p>
             )}
           </form>
@@ -619,9 +662,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                 Informations du magasin
               </h2>
               <p className="text-sm text-gray-600">{invoiceData.storeName}</p>
-              <p className="text-sm text-gray-600">
-                {invoiceData.storeAddress}
-              </p>
+              <p className="text-sm text-gray-600">{invoiceData.storeAddress}</p>
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-700">
@@ -644,7 +685,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                     Prix Unitaire
                   </th>
                   <th className="border border-gray-300 p-2 text-left text-sm font-semibold text-gray-700">
-                    Quatité
+                    Quantité
                   </th>
                   <th className="border border-gray-300 p-2 text-left text-sm font-semibold text-gray-700">
                     Sous total
@@ -668,10 +709,9 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
                     </td>
                     <td className="border border-gray-300 p-2 text-sm text-gray-600">
                       $
-                      {(product.unitPrice * product.quantity).toLocaleString(
-                        undefined,
-                        { minimumFractionDigits: 2 }
-                      )}
+                      {(product.unitPrice * product.quantity).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                      })}
                     </td>
                   </tr>
                 ))}
@@ -683,10 +723,7 @@ export default function InvoiceForm({ products , storeAddress, storeName, storeP
             <p className="text-lg font-semibold text-gray-700">
               Total: $
               {invoiceData.products
-                .reduce(
-                  (sum, product) => sum + product.unitPrice * product.quantity,
-                  0
-                )
+                .reduce((sum, product) => sum + product.unitPrice * product.quantity, 0)
                 .toLocaleString(undefined, { minimumFractionDigits: 2 })}
             </p>
           </div>

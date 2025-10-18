@@ -2,12 +2,13 @@
 import {
   createSupabaseServerClient,
   createSubscription,
+  createStore,
 } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
- 
 
 import { isUserSubscriptionActive } from "@/lib/utils/utils";
+
 
 const SignupFormSchema = z
   .object({
@@ -22,8 +23,12 @@ const SignupFormSchema = z
       .email({ message: "Veuillez entrer une adresse email valide." }),
     phone: z
       .string()
-      .min(10, { message: "Le numero de telephone doit avoir au moins 10 chiffres." })
-      .max(15, { message: "Le numero de telephone doit avoir au maximum 15 chiffres." })
+      .min(10, {
+        message: "Le numero de telephone doit avoir au moins 10 chiffres.",
+      })
+      .max(15, {
+        message: "Le numero de telephone doit avoir au maximum 15 chiffres.",
+      })
       .regex(/^\+?\d+$/, {
         message:
           "Le numero de telephone doit contenir uniquement des chiffres et un signe plus (+) au debut.",
@@ -99,16 +104,41 @@ export async function signupAction(formData: SignupFormData) {
       return { success: false, message: "Failed to create profile" };
     }
 
+    const storeData = await createStore(authData.user.id);
+
+    if (!storeData) {
+      return { success: false, message: "Failed to create store" };
+    }
+
     // Create subscription
-    const subscription = await createSubscription(authData.user.id, "pro");
+    const subscription = await createSubscription(
+      authData.user.id,
+      "pro",
+      storeData.storeId
+    );
     if (!subscription) {
       return { success: false, message: "Echec durant la souscription" };
+    }
+
+    const { error: updateStoreError } = await supabase
+      .from("stores")
+      .update({ subscriptionId: subscription.subscriptionId })
+      .eq("storeId", storeData.storeId);
+
+    if (updateStoreError) {
+      console.error(
+        "Error updating store with subscription:",
+        updateStoreError.message
+      );
     }
 
     // Update profile with subscriptionId
     const { error: updateError } = await supabase
       .from("profiles")
-      .update({ subscriptionId: subscription.subscriptionId })
+      .update({
+        subscriptionId: subscription.subscriptionId,
+        storeId: storeData.storeId,
+      })
       .eq("userId", authData.user.id);
 
     if (updateError) {
@@ -121,7 +151,8 @@ export async function signupAction(formData: SignupFormData) {
 
     return {
       success: true,
-      message: "Inscription réussie, veuilller verifier votre email pour confirmer votre compte.",
+      message:
+        "Inscription réussie, veuilller verifier votre email pour confirmer votre compte.",
     };
   } catch (error) {
     console.error("Une erreur s'est produite lors de l'inscription:", error);
@@ -182,7 +213,9 @@ const productFormSchema = z.object({
   name: z
     .string()
     .min(2, { message: "Le nom du produit doit avoir au moins 2 caractères." })
-    .max(100, { message: "Le nom du produit doit avoir moins de 100 caractères." }),
+    .max(100, {
+      message: "Le nom du produit doit avoir moins de 100 caractères.",
+    }),
   stock: z
     .number()
     .int({ message: "Le stock doit etre un nombre entier." })
@@ -190,7 +223,9 @@ const productFormSchema = z.object({
   unitPrice: z
     .number()
     .min(0, { message: "Le prix unitaire doit etre non-negative." })
-    .max(1000000, { message: "Le prix unitaire doit avoir moins de 1 000 000." }),
+    .max(1000000, {
+      message: "Le prix unitaire doit avoir moins de 1 000 000.",
+    }),
   category: z
     .string()
     .max(50, { message: "La categorie doit avoir moins de 50 caractères." })
@@ -222,9 +257,21 @@ export async function newProductAction(formData: FormData) {
       redirect("/login"); // Redirect for auth errors
     }
 
+    const { data } = await supabase
+      .from("profiles")
+      .select("storeId")
+      .eq("userId", user.id)
+      .single();
+    const storeId = data?.storeId;
     // Check if the user has an active subscription
+    if (!storeId) {
+      return {
+        success: false,
+        message: "Aucun magasin n'est associé à votre compte.",
+      };
+    }
 
-    const isSubscriptionActive = await isUserSubscriptionActive(user.id);
+    const isSubscriptionActive = await isUserSubscriptionActive(storeId);
 
     if (!isSubscriptionActive) {
       return {
@@ -238,6 +285,7 @@ export async function newProductAction(formData: FormData) {
       name: validatedData.name,
       stock: validatedData.stock,
       unitPrice: validatedData.unitPrice,
+      storeId: storeId,
       category: validatedData.category,
       description: validatedData.description,
       created_at: new Date().toISOString(),
@@ -259,12 +307,14 @@ export async function newProductAction(formData: FormData) {
 }
 
 const updateProductFormSchema = productFormSchema.extend({
-  productId: z.string().uuid({ message: "L' identifiant du produit est incorrect." }),
+  productId: z
+    .string()
+    .uuid({ message: "L' identifiant du produit est incorrect." }),
 });
 
 // type UpdateProductFormData = z.infer<typeof updateProductFormSchema>;
 
-export async function updateProductAction(formData:FormData) {
+export async function updateProductAction(formData: FormData) {
   try {
     const validatedData = updateProductFormSchema.parse({
       productId: formData.get("productId"),
@@ -284,8 +334,28 @@ export async function updateProductAction(formData:FormData) {
       redirect("/login");
     }
 
+    const { data } = await supabase
+      .from("profiles")
+      .select("storeId, role")
+      .eq("userId", user.id)
+      .single();
+
+    if (data?.role === "employee")
+      return {
+        success: false,
+        message: "Vous n'avez pas les droits pour modifier ce produit.",
+      };
+    const storeId = data?.storeId;
     // Check if the user has an active subscription
-    const isSubscriptionActive = await isUserSubscriptionActive(user.id);
+    if (!storeId) {
+      return {
+        success: false,
+        message: "Aucun magasin n'est associé à votre compte.",
+      };
+    }
+
+    // Check if the user has an active subscription
+    const isSubscriptionActive = await isUserSubscriptionActive(storeId);
 
     if (!isSubscriptionActive) {
       return {
@@ -297,17 +367,23 @@ export async function updateProductAction(formData:FormData) {
     // Verify the product exists and belongs to the user
     const { data: product, error: fetchError } = await supabase
       .from("products")
-      .select("userId")
+      .select("storeId")
       .eq("productId", validatedData.productId)
       .single();
 
     if (fetchError || !product) {
-      console.error("Echec durant la recherche du produit", fetchError?.message);
+      console.error(
+        "Echec durant la recherche du produit",
+        fetchError?.message
+      );
       return { success: false, message: "Produit introuvable" };
     }
 
-    if (product.userId !== user.id) {
-      return { success: false, message: "Vous n'êtes pas autorisé de modifier ce produit" };
+    if (product.storeId !== storeId) {
+      return {
+        success: false,
+        message: "Vous n'êtes pas autorisé de modifier ce produit",
+      };
     }
 
     // Update the product
@@ -324,7 +400,10 @@ export async function updateProductAction(formData:FormData) {
 
     if (error) {
       console.error("Error updating product:", error.message);
-      return { success: false, message: "Echec durant la mise à jour du produit" };
+      return {
+        success: false,
+        message: "Echec durant la mise à jour du produit",
+      };
     }
 
     return { success: true, message: "Produit mis à jour avec succès." };
@@ -337,18 +416,26 @@ export async function updateProductAction(formData:FormData) {
   }
 }
 
-/// PRODUCTS
+/// CREDITS
 
 const creditFormSchema = z.object({
   customerName: z
     .string()
     .min(2, { message: "Le nom du client doit avoir au moins 2 caractères." })
-    .max(100, { message: "Le nom du client doit avoir au plus 100 caractères." }),
+    .max(100, {
+      message: "Le nom du client doit avoir au plus 100 caractères.",
+    }),
   customerPhone: z
     .string()
-    .regex(/^\+?[1-9]\d{1,14}$/, { message: "Le numéro de téléphone est incorrecte." })
-    .min(5, { message: "Le numéro de téléphone doit avoir au moins 5 chiffres." })
-    .max(15, { message: "Le numéro de téléphone doit avoir au plus 15 chiffres." }),
+    .regex(/^\+?[1-9]\d{1,14}$/, {
+      message: "Le numéro de téléphone est incorrecte.",
+    })
+    .min(5, {
+      message: "Le numéro de téléphone doit avoir au moins 5 chiffres.",
+    })
+    .max(15, {
+      message: "Le numéro de téléphone doit avoir au plus 15 chiffres.",
+    }),
   amount: z
     .number()
     .min(0, { message: "Le montant doit etre positif." })
@@ -358,7 +445,10 @@ const creditFormSchema = z.object({
     .string()
     .max(500, { message: "La description doit avoir au plus 500 caractères." })
     .optional(),
-  productId: z.string().uuid({ message: "L'identifiant du produit est incorrect." }).optional(),
+  productId: z
+    .string()
+    .uuid({ message: "L'identifiant du produit est incorrect." })
+    .optional(),
   numberOfProductsTaken: z
     .number()
     .int({ message: "Le nombre de produits pris doit etre entier." })
@@ -389,8 +479,21 @@ export async function addCreditAction(formData: FormData) {
       redirect("/login");
     }
 
+    const { data } = await supabase
+      .from("profiles")
+      .select("storeId")
+      .eq("userId", user.id)
+      .single();
+    const storeId = data?.storeId;
     // Check if the user has an active subscription
-    const isSubscriptionActive = await isUserSubscriptionActive(user.id);
+    if (!storeId) {
+      return {
+        success: false,
+        message: "Aucun magasin n'est associé à votre compte.",
+      };
+    }
+    // Check if the user has an active subscription
+    const isSubscriptionActive = await isUserSubscriptionActive(storeId);
 
     if (!isSubscriptionActive) {
       return {
@@ -403,17 +506,23 @@ export async function addCreditAction(formData: FormData) {
     if (validatedData.productId && validatedData.numberOfProductsTaken) {
       const { data: product, error: productError } = await supabase
         .from("products")
-        .select("userId, stock")
+        .select("storeId, stock")
         .eq("productId", validatedData.productId)
         .single();
 
       if (productError || !product) {
         console.error("Error fetching product:", productError?.message);
-        return { success: false, message: "L'identifiant du produit est incorrect" };
+        return {
+          success: false,
+          message: "L'identifiant du produit est incorrect",
+        };
       }
 
-      if (product.userId !== user.id) {
-        return { success: false, message: "Vous n'êtes pas autorisé de modifier ce produit" };
+      if (product.storeId !== storeId) {
+        return {
+          success: false,
+          message: "Vous n'êtes pas autorisé de modifier ce produit",
+        };
       }
 
       if (product.stock < validatedData.numberOfProductsTaken) {
@@ -431,7 +540,10 @@ export async function addCreditAction(formData: FormData) {
 
       if (stockError) {
         console.error("Error updating product stock:", stockError.message);
-        return { success: false, message: "Echec durant la mise à jour du produit" };
+        return {
+          success: false,
+          message: "Echec durant la mise à jour du produit",
+        };
       }
     } else if (
       validatedData.productId &&
@@ -458,6 +570,7 @@ export async function addCreditAction(formData: FormData) {
       customerName: validatedData.customerName,
       customerPhone: validatedData.customerPhone,
       amount: validatedData.amount,
+      storeId: storeId,
       status: validatedData.status,
       description: validatedData.description,
       productId: validatedData.productId,
@@ -480,7 +593,9 @@ export async function addCreditAction(formData: FormData) {
 }
 
 const updateCreditFormSchema = creditFormSchema.extend({
-  creditId: z.string().uuid({ message: "L'identifiant du crédit est incorrect." }),
+  creditId: z
+    .string()
+    .uuid({ message: "L'identifiant du crédit est incorrect." }),
 });
 
 export async function updateCreditAction(formData: FormData) {
@@ -504,8 +619,21 @@ export async function updateCreditAction(formData: FormData) {
       redirect("/login");
     }
 
+    const { data } = await supabase
+      .from("profiles")
+      .select("storeId")
+      .eq("userId", user.id)
+      .single();
+    const storeId = data?.storeId;
     // Check if the user has an active subscription
-    const isSubscriptionActive = await isUserSubscriptionActive(user.id);
+    if (!storeId) {
+      return {
+        success: false,
+        message: "Aucun magasin n'est associé à votre compte.",
+      };
+    }
+    // Check if the user has an active subscription
+    const isSubscriptionActive = await isUserSubscriptionActive(storeId);
 
     if (!isSubscriptionActive) {
       return {
@@ -517,7 +645,7 @@ export async function updateCreditAction(formData: FormData) {
     // Verify the credit exists and belongs to the user
     const { data: credit, error: fetchError } = await supabase
       .from("credits")
-      .select("userId")
+      .select("storeId")
       .eq("creditId", validatedData.creditId)
       .single();
 
@@ -526,25 +654,34 @@ export async function updateCreditAction(formData: FormData) {
       return { success: false, message: "Le crédit n'existe pas" };
     }
 
-    if (credit.userId !== user.id) {
-      return { success: false, message: "Vous n'êtes pas autorisé de modifier ce crédit" };
+    if (credit.storeId !== storeId) {
+      return {
+        success: false,
+        message: "Vous n'êtes pas autorisé de modifier ce crédit",
+      };
     }
 
     // If productId is provided, verify it exists and belongs to the user
     if (validatedData.productId) {
       const { data: product, error: productError } = await supabase
         .from("products")
-        .select("userId")
+        .select("storeId")
         .eq("productId", validatedData.productId)
         .single();
 
       if (productError || !product) {
         console.error("Error fetching product:", productError?.message);
-        return { success: false, message: "L'identifiant du produit est incorrect" };
+        return {
+          success: false,
+          message: "L'identifiant du produit est incorrect",
+        };
       }
 
-      if (product.userId !== user.id) {
-        return { success: false, message: "Vous n'êtes pas autorisé de modifier ce produit" };
+      if (product.storeId !== storeId) {
+        return {
+          success: false,
+          message: "Vous n'êtes pas autorisé de modifier ce produit",
+        };
       }
     }
 
@@ -563,7 +700,10 @@ export async function updateCreditAction(formData: FormData) {
 
     if (error) {
       console.error("Error updating credit:", error.message);
-      return { success: false, message: "Echec durant la mise à jour du crédit" };
+      return {
+        success: false,
+        message: "Echec durant la mise à jour du crédit",
+      };
     }
 
     return { success: true, message: "Mise à jour du crédit reussie" };
@@ -579,7 +719,10 @@ export async function updateCreditAction(formData: FormData) {
 //Transactions
 
 const baseTransactionFormSchema = z.object({
-  productId: z.string().uuid({ message: "L'identifiant du produit est incorrect." }).optional(),
+  productId: z
+    .string()
+    .uuid({ message: "L'identifiant du produit est incorrect." })
+    .optional(),
   productName: z
     .string()
     .max(100, { message: "Product name must be at most 100 characters." })
@@ -623,8 +766,21 @@ export async function addTransactionAction(formData: TransactionFormData) {
       redirect("/login");
     }
 
+    const { data } = await supabase
+      .from("profiles")
+      .select("storeId")
+      .eq("userId", user.id)
+      .single();
+    const storeId = data?.storeId;
     // Check if the user has an active subscription
-    const isSubscriptionActive = await isUserSubscriptionActive(user.id);
+    if (!storeId) {
+      return {
+        success: false,
+        message: "Aucun magasin n'est associé à votre compte.",
+      };
+    }
+    // Check if the user has an active subscription
+    const isSubscriptionActive = await isUserSubscriptionActive(storeId);
 
     if (!isSubscriptionActive) {
       return {
@@ -639,17 +795,23 @@ export async function addTransactionAction(formData: TransactionFormData) {
     if (validatedData.productId && validatedData.productId !== "none") {
       const { data: product, error: productError } = await supabase
         .from("products")
-        .select("userId, unitPrice, stock, name")
+        .select("userId, unitPrice, stock, name, storeId, productId")
         .eq("productId", validatedData.productId)
         .single();
 
       if (productError || !product) {
         console.error("Error fetching product:", productError?.message);
-        return { success: false, message: "L'identifiant du produit est incorrect" };
+        return {
+          success: false,
+          message: "L'identifiant du produit est incorrect",
+        };
       }
 
-      if (product.userId !== user.id) {
-        return { success: false, message: "Vous n'êtes pas autorisé de modifier ce produit" };
+      if (product.storeId !== storeId) {
+        return {
+          success: false,
+          message: "Vous n'êtes pas autorisé de modifier ce produit",
+        };
       }
 
       if (
@@ -680,9 +842,12 @@ export async function addTransactionAction(formData: TransactionFormData) {
     }
 
     const { error } = await supabase.from("transactions").insert({
+      storeId,
       userId: user.id,
-      productId: validatedData.productId || null,
-      productName: validatedData.productName || null,
+      productId:
+        validatedData.productId === "none" ? null : validatedData.productId,
+      productName:
+        validatedData.productName === "none" ? null : validatedData.productName,
       unitPrice,
       totalPrice,
       quantity: validatedData.quantity,
@@ -692,7 +857,10 @@ export async function addTransactionAction(formData: TransactionFormData) {
 
     if (error) {
       console.error("Error creating transaction:", error.message);
-      return { success: false, message: "Echec durant la création de la transaction" };
+      return {
+        success: false,
+        message: "Echec durant la création de la transaction",
+      };
     }
 
     return { success: true, message: "La transaction a bien été ajoutée" };
@@ -707,7 +875,9 @@ export async function addTransactionAction(formData: TransactionFormData) {
 
 const updateTransactionFormSchema = baseTransactionFormSchema
   .extend({
-    transactionId: z.string().uuid({ message: "L'identifiant de la transaction est incorrect." }),
+    transactionId: z
+      .string()
+      .uuid({ message: "L'identifiant de la transaction est incorrect." }),
   })
   .refine(
     (data) =>
@@ -737,8 +907,27 @@ export async function updateTransactionAction(
       redirect("/login");
     }
 
+    const { data } = await supabase
+      .from("profiles")
+      .select("storeId, role")
+      .eq("userId", user.id)
+      .single();
+    const storeId = data?.storeId;
+
+    if (data?.role === "employee")
+      return {
+        success: false,
+        message: "Vous n'êtes pas autorisé à modifier une transaction.",
+      };
     // Check if the user has an active subscription
-    const isSubscriptionActive = await isUserSubscriptionActive(user.id);
+    if (!storeId) {
+      return {
+        success: false,
+        message: "Aucun magasin n'est associé à votre compte.",
+      };
+    }
+    // Check if the user has an active subscription
+    const isSubscriptionActive = await isUserSubscriptionActive(storeId);
 
     if (!isSubscriptionActive) {
       return {
@@ -749,7 +938,7 @@ export async function updateTransactionAction(
 
     const { data: transaction, error: fetchError } = await supabase
       .from("transactions")
-      .select("userId, productId, quantity, type")
+      .select(" productId, quantity, type, storeId")
       .eq("transactionId", validatedData.transactionId)
       .single();
 
@@ -758,7 +947,7 @@ export async function updateTransactionAction(
       return { success: false, message: "La transaction n'existe pas" };
     }
 
-    if (transaction.userId !== user.id) {
+    if (transaction.storeId !== storeId) {
       return {
         success: false,
         message: "Vous n'êtes pas autorisé de modifier cette transaction",
@@ -771,17 +960,23 @@ export async function updateTransactionAction(
     if (validatedData.productId && validatedData.productId !== "none") {
       const { data: product, error: productError } = await supabase
         .from("products")
-        .select("userId, unitPrice, stock, name")
+        .select("userId, storeId,unitPrice, stock, name")
         .eq("productId", validatedData.productId)
         .single();
 
       if (productError || !product) {
         console.error("Error fetching product:", productError?.message);
-        return { success: false, message: "L'identifiant du produit est incorrect" };
+        return {
+          success: false,
+          message: "L'identifiant du produit est incorrect",
+        };
       }
 
-      if (product.userId !== user.id) {
-        return { success: false, message: "Vous n'êtes pas autorisé de modifier ce produit" };
+      if (product.storeId !== storeId) {
+        return {
+          success: false,
+          message: "Vous n'êtes pas autorisé de modifier ce produit",
+        };
       }
 
       const stockAdjustment = transaction.quantity - validatedData.quantity;
@@ -809,7 +1004,10 @@ export async function updateTransactionAction(
 
         if (stockError) {
           console.error("Error updating product stock:", stockError.message);
-          return { success: false, message: "Echec durant la mise à jour du stock" };
+          return {
+            success: false,
+            message: "Echec durant la mise à jour du stock",
+          };
         }
       }
     } else if (
@@ -825,7 +1023,10 @@ export async function updateTransactionAction(
 
       if (oldProductError || !oldProduct) {
         console.error("Error fetching old product:", oldProductError?.message);
-        return { success: false, message: "L'identifiant de l'ancien produit  est incorrect" };
+        return {
+          success: false,
+          message: "L'identifiant de l'ancien produit  est incorrect",
+        };
       }
 
       const { error: stockError } = await supabase
@@ -835,15 +1036,22 @@ export async function updateTransactionAction(
 
       if (stockError) {
         console.error("Error restoring product stock:", stockError.message);
-        return { success: false, message: "Echec durant la restauration du stock" };
+        return {
+          success: false,
+          message: "Echec durant la restauration du stock",
+        };
       }
     }
 
     const { error } = await supabase
       .from("transactions")
       .update({
-        productId: validatedData.productId || null,
-        productName: validatedData.productName || null,
+        productId:
+          validatedData.productId === "none" ? null : validatedData.productId,
+        productName:
+          validatedData.productName === "none"
+            ? null
+            : validatedData.productName,
         unitPrice,
         totalPrice,
         quantity: validatedData.quantity,
@@ -853,7 +1061,10 @@ export async function updateTransactionAction(
 
     if (error) {
       console.error("Error updating transaction:", error.message);
-      return { success: false, message: "Echec durant la mise à jour de la transaction" };
+      return {
+        success: false,
+        message: "Echec durant la mise à jour de la transaction",
+      };
     }
 
     return { success: true, message: "La transaction a bien été mise à jour" };
@@ -865,6 +1076,23 @@ export async function updateTransactionAction(
     return { success: false, message: "Une erreur s'est produite" };
   }
 }
+
+
+// Download transactions as CSV
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Dashbord Actions
 
@@ -880,10 +1108,32 @@ export async function getRecentTransactions() {
       return { success: false, message: "Non autorisé", transactions: [] };
     }
 
+    const { data: storeData } = await supabase
+      .from("profiles")
+      .select("storeId, role")
+      .eq("userId", user.id)
+      .single();
+
+    let storeId = storeData?.storeId;
+    console.log("Store Data", storeData);
+
+    if (storeData?.role === "employee") {
+      storeId = user.id;
+    }
+    const comparionColumn =
+      storeData?.role === "employee" ? "userId" : "storeId";
+    // Check if the user has an active subscription
+    if (!storeId) {
+      return {
+        success: false,
+        message: "Aucun magasin n'est associé à votre compte.",
+      };
+    }
+
     const { data, error } = await supabase
       .from("transactions")
       .select("transactionId, created_at, type, totalPrice, productName")
-      .eq("userId", user.id)
+      .eq(comparionColumn, storeId)
       .in("type", ["sale", "expense"])
       .order("created_at", { ascending: false })
       .limit(10);
@@ -933,12 +1183,35 @@ export async function getRecentCredits() {
       return { success: false, message: "Non autorisé", credits: [] };
     }
 
+    const { data: storeData } = await supabase
+      .from("profiles")
+      .select("storeId , role")
+      .eq("userId", user.id)
+      .single();
+
+    const storeId =
+      storeData?.role === "employee" ? user.id : storeData?.storeId;
+
+    console.log("Store Data", storeData);
+
+    const comparionColumn =
+      storeData?.role === "employee" ? "userId" : "storeId";
+    // Check if the user has an active subscription
+    if (!storeId) {
+      return {
+        success: false,
+        message: "Aucun magasin n'est associé à votre compte.",
+      };
+    }
+
     const { data, error } = await supabase
       .from("credits")
       .select("creditId, customerName, customerPhone, amount")
-      .eq("userId", user.id)
+      .eq(comparionColumn, storeId)
       .order("created_at", { ascending: false })
-      .limit(7);
+      .limit(10);
+
+    console.log("Credits ", data);
 
     if (error) {
       console.error("Error fetching credits:", error.message);
@@ -956,7 +1229,11 @@ export async function getRecentCredits() {
       amount: c.amount,
     }));
 
-    return { success: true, message: "Crédits récherchés avec succès.", credits };
+    return {
+      success: true,
+      message: "Crédits récherchés avec succès.",
+      credits,
+    };
   } catch (error) {
     console.error("Unexpected error fetching credits:", error);
     return {
@@ -979,6 +1256,26 @@ export async function getDashboardData() {
       return { success: false, message: "Non autorisé", data: {} };
     }
 
+    const { data } = await supabase
+      .from("profiles")
+      .select("storeId , role")
+      .eq("userId", user.id)
+      .single();
+    let storeId = data?.storeId;
+
+    if (data?.role === "employee") {
+      storeId = user.id;
+    }
+
+    const comparionColumn = data?.role === "employee" ? "userId" : "storeId";
+    // Check if the user has an active subscription
+    if (!storeId) {
+      return {
+        success: false,
+        message: "Aucun magasin n'est associé à votre compte.",
+      };
+    }
+
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
@@ -986,7 +1283,7 @@ export async function getDashboardData() {
     const { data: transactions, error: txError } = await supabase
       .from("transactions")
       .select("created_at, type, totalPrice")
-      .eq("userId", user.id)
+      .eq(comparionColumn, storeId)
       .in("type", ["sale", "expense"])
       .gte("created_at", fourteenDaysAgo.toISOString());
 
@@ -1003,13 +1300,17 @@ export async function getDashboardData() {
     const { data: credits, error: creditsError } = await supabase
       .from("credits")
       .select("created_at, amount")
-      .eq("userId", user.id)
+      .eq(comparionColumn, storeId)
       .eq("status", "pending")
       .gte("created_at", fourteenDaysAgo.toISOString());
 
     if (creditsError) {
       console.error("Error fetching credits:", creditsError.message);
-      return { success: false, message: "Echec durant la recherche des crédits", data: {} };
+      return {
+        success: false,
+        message: "Echec durant la recherche des crédits",
+        data: {},
+      };
     }
 
     // Calculate totals
@@ -1101,6 +1402,21 @@ export async function getYearlyOverview() {
       return { success: false, message: "Non autorisé", data: [] };
     }
 
+    const { data } = await supabase
+      .from("profiles")
+      .select("storeId , role")
+      .eq("userId", user.id)
+      .single();
+    const comparisonColumn = data?.role === "employee" ? "userId" : "storeId";
+    const storeId = data?.role === "employee" ? user.id : data?.storeId;
+    // Check if the user has an active subscription
+    if (!storeId) {
+      return {
+        success: false,
+        message: "Aucun magasin n'est associé à votre compte.",
+      };
+    }
+
     const startOfYear = new Date(new Date().getFullYear(), 0, 1);
     const endOfYear = new Date(new Date().getFullYear(), 11, 31);
 
@@ -1108,7 +1424,7 @@ export async function getYearlyOverview() {
     const { data: transactions, error: txError } = await supabase
       .from("transactions")
       .select("created_at, type, totalPrice")
-      .eq("userId", user.id)
+      .eq(comparisonColumn, storeId)
       .gte("created_at", startOfYear.toISOString())
       .lte("created_at", endOfYear.toISOString());
 
@@ -1125,14 +1441,18 @@ export async function getYearlyOverview() {
     const { data: credits, error: creditsError } = await supabase
       .from("credits")
       .select("created_at, amount")
-      .eq("userId", user.id)
+      .eq(comparisonColumn, storeId)
       .eq("status", "paid")
       .gte("created_at", startOfYear.toISOString())
       .lte("created_at", endOfYear.toISOString());
 
     if (creditsError) {
       console.error("Error fetching credits:", creditsError.message);
-      return { success: false, message: "Echec durant la recherche des crédits", data: [] };
+      return {
+        success: false,
+        message: "Echec durant la recherche des crédits",
+        data: [],
+      };
     }
 
     // Generate monthly data
@@ -1200,6 +1520,21 @@ export async function getAnalyticsData(
       return { success: false, message: "Non autorisé", data: {} };
     }
 
+    const { data } = await supabase
+      .from("profiles")
+      .select("storeId, role")
+      .eq("userId", user.id)
+      .single();
+    const comparisonColumn = data?.role === "employee" ? "userId" : "storeId";
+    const storeId = data?.role === "employee" ? user.id : data?.storeId;
+    // Check if the user has an active subscription
+    if (!storeId) {
+      return {
+        success: false,
+        message: "Aucun magasin n'est associé à votre compte.",
+      };
+    }
+
     // Calculate date range
     let startDate: Date;
     let endDate = new Date();
@@ -1234,7 +1569,8 @@ export async function getAnalyticsData(
         if (!customStart || !customEnd) {
           return {
             success: false,
-            message: "La durée personnalisée nécessite des dates de début et de fin.",
+            message:
+              "La durée personnalisée nécessite des dates de début et de fin.",
             data: {},
           };
         }
@@ -1260,7 +1596,7 @@ export async function getAnalyticsData(
     const { data: transactions, error: txError } = await supabase
       .from("transactions")
       .select("type, totalPrice")
-      .eq("userId", user.id)
+      .eq(comparisonColumn, storeId)
       .in("type", ["sale", "expense"])
       .gte("created_at", startDate.toISOString())
       .lte("created_at", endDate.toISOString());
@@ -1278,24 +1614,32 @@ export async function getAnalyticsData(
     const { data: credits, error: creditsError } = await supabase
       .from("credits")
       .select("amount")
-      .eq("userId", user.id)
+      .eq(comparisonColumn, storeId)
       .gte("created_at", startDate.toISOString())
       .lte("created_at", endDate.toISOString());
 
     if (creditsError) {
       console.error("Error fetching credits:", creditsError.message);
-      return { success: false, message: "Echec durant la recherche des crédits", data: {} };
+      return {
+        success: false,
+        message: "Echec durant la recherche des crédits",
+        data: {},
+      };
     }
 
     // Fetch total products (no time filter)
     const { count: totalProducts, error: productsError } = await supabase
       .from("products")
       .select("productId", { count: "exact" })
-      .eq("userId", user.id);
+      .eq("storeId", data?.storeId);
 
     if (productsError) {
       console.error("Error fetching products:", productsError.message);
-      return { success: false, message: "Echec durant la recherche des produits", data: {} };
+      return {
+        success: false,
+        message: "Echec durant la recherche des produits",
+        data: {},
+      };
     }
 
     // Calculate totals
@@ -1327,11 +1671,12 @@ export async function getAnalyticsData(
       return {
         success: false,
         message: "Format de données analytiques invalide.",
-        data: {sales: { total: 0 },
-      expenses: { total: 0 },
-      credits: { total: 0 },
-      revenue: { total: 0 },
-          products: { total: 0 }
+        data: {
+          sales: { total: 0 },
+          expenses: { total: 0 },
+          credits: { total: 0 },
+          revenue: { total: 0 },
+          products: { total: 0 },
         },
       };
     }
@@ -1348,12 +1693,13 @@ export async function getAnalyticsData(
     return {
       success: false,
       message: "Une erreur s'est produite",
-      data: {sales: { total: 0 },
-      expenses: { total: 0 },
-      credits: { total: 0 },
-      revenue: { total: 0 },
-          products: { total: 0 }
-        },
+      data: {
+        sales: { total: 0 },
+        expenses: { total: 0 },
+        credits: { total: 0 },
+        revenue: { total: 0 },
+        products: { total: 0 },
+      },
     };
   }
 }
@@ -1373,6 +1719,21 @@ export async function getGraphData(
     if (authError || !user) {
       console.error("Auth error:", authError?.message);
       return { success: false, message: "Non autorisé", data: [] };
+    }
+
+    const { data } = await supabase
+      .from("profiles")
+      .select("storeId, role")
+      .eq("userId", user.id)
+      .single();
+    const storeId = data?.role === "employee" ? user.id : data?.storeId;
+    const comparisonColumn = data?.role === "employee" ? "userId" : "storeId";
+    // Check if the user has an active subscription
+    if (!storeId) {
+      return {
+        success: false,
+        message: "Aucun magasin n'est associé à votre compte.",
+      };
     }
 
     console.log("User ID:", user.id, "Period:", period, "Custom:", {
@@ -1414,7 +1775,8 @@ export async function getGraphData(
         if (!customStart || !customEnd) {
           return {
             success: false,
-            message: "La période personnalisée nécessite des dates de début et de fin.",
+            message:
+              "La période personnalisée nécessite des dates de début et de fin.",
             data: [],
           };
         }
@@ -1451,7 +1813,7 @@ export async function getGraphData(
     const { data: transactions, error: txError } = await supabase
       .from("transactions")
       .select("created_at, type, totalPrice")
-      .eq("userId", user.id)
+      .eq(comparisonColumn, storeId)
       .in("type", ["sale", "expense"])
       .gte("created_at", startDate.toISOString())
       .lte("created_at", endDate.toISOString());
@@ -1469,13 +1831,17 @@ export async function getGraphData(
     const { data: credits, error: creditsError } = await supabase
       .from("credits")
       .select("created_at, amount")
-      .eq("userId", user.id)
+      .eq(comparisonColumn, storeId)
       .gte("created_at", startDate.toISOString())
       .lte("created_at", endDate.toISOString());
 
     if (creditsError) {
       console.error("Credits fetch error:", creditsError.message);
-      return { success: false, message: "Echec durant la recherche des crédits", data: [] };
+      return {
+        success: false,
+        message: "Echec durant la recherche des crédits",
+        data: [],
+      };
     }
 
     // Calculate granularity
@@ -1716,7 +2082,11 @@ export async function getGraphData(
       JSON.stringify(chartData);
     } catch (e) {
       console.error("Graph data serialization failed:", e);
-      return { success: false, message: "Format de données de graphique invalide.", data: [] };
+      return {
+        success: false,
+        message: "Format de données de graphique invalide.",
+        data: [],
+      };
     }
 
     return {
@@ -1734,12 +2104,6 @@ export async function getGraphData(
   }
 }
 
-
-
-
-
-
-
 // Invoice Page
 
 export async function getProducts() {
@@ -1755,15 +2119,33 @@ export async function getProducts() {
       return { success: false, message: "Non autorisé", data: [] };
     }
 
+    const { data } = await supabase
+      .from("profiles")
+      .select("storeId")
+      .eq("userId", user.id)
+      .single();
+    const storeId = data?.storeId;
+    // Check if the user has an active subscription
+    if (!storeId) {
+      return {
+        success: false,
+        message: "Aucun magasin n'est associé à votre compte.",
+      };
+    }
+
     const { data: products, error } = await supabase
       .from("products")
       .select("productId, name, unitPrice")
-      .eq("userId", user.id)
+      .eq("storeId", storeId)
       .order("name", { ascending: true });
 
     if (error) {
       console.error("Error fetching products:", error.message);
-      return { success: false, message: "Echec durant la recherche des produits", data: [] };
+      return {
+        success: false,
+        message: "Echec durant la recherche des produits",
+        data: [],
+      };
     }
 
     return {
@@ -1807,8 +2189,22 @@ export async function createInvoice(formData: {
       return { success: false, message: "Non autorisé" };
     }
 
+    const { data } = await supabase
+      .from("profiles")
+      .select("storeId")
+      .eq("userId", user.id)
+      .single();
+    const storeId = data?.storeId;
     // Check if the user has an active subscription
-    const isSubscriptionActive = await isUserSubscriptionActive(user.id);
+    if (!storeId) {
+      return {
+        success: false,
+        message: "Aucun magasin n'est associé à votre compte.",
+      };
+    }
+
+    // Check if the user has an active subscription
+    const isSubscriptionActive = await isUserSubscriptionActive(storeId);
 
     if (!isSubscriptionActive) {
       return {
@@ -1838,7 +2234,7 @@ export async function createInvoice(formData: {
           .from("products")
           .select("stock, name")
           .eq("productId", product.productId)
-          .eq("userId", user.id)
+          .eq("storeId", storeId)
           .single();
 
         if (fetchError || !productData) {
@@ -1859,24 +2255,38 @@ export async function createInvoice(formData: {
       }
     }
 
-    // Prepare transactions
-    const transactions = products.map((product) => ({
-      userId: user.id,
-      productName: product.name,
-      unitPrice: product.unitPrice,
-      totalPrice: product.unitPrice * product.quantity,
-      quantity: product.quantity,
-      type: "sale",
-      productId: product.productId || null,
-    }));
+    // Build description and totals
+    let totalPrice = 0;
+    let totalQuantity = 0;
+    let description = "";
 
-    // Perform transaction: insert transactions and update stock
+    for (const product of products) {
+      totalPrice += product.unitPrice * product.quantity;
+      totalQuantity += product.quantity;
+      description += `${product.name} (x${product.quantity}), `;
+    }
+
+    const transaction = {
+      storeId,
+      userId: user.id,
+      productName: "Plusieurs articles",
+      unitPrice: null, // not meaningful anymore
+      totalPrice,
+      quantity: totalQuantity,
+      type: "sale",
+      description: description.slice(0, -2), // remove last comma
+    };
+
+    // Insert single transaction
     const { error: txError } = await supabase
       .from("transactions")
-      .insert(transactions);
+      .insert([transaction]);
     if (txError) {
       console.error("Error inserting transactions:", txError.message);
-      return { success: false, message: "Erreur durant la creation de la facture" };
+      return {
+        success: false,
+        message: "Erreur durant la creation de la facture",
+      };
     }
 
     // Update stock for registered products
@@ -1887,7 +2297,7 @@ export async function createInvoice(formData: {
           .from("products")
           .select("stock")
           .eq("productId", product.productId)
-          .eq("userId", user.id)
+          .eq("storeId", storeId)
           .single();
 
         if (stockFetchError || !stockData) {
@@ -1907,7 +2317,7 @@ export async function createInvoice(formData: {
           .from("products")
           .update({ stock: newStock })
           .eq("productId", product.productId)
-          .eq("userId", user.id);
+          .eq("storeId", storeId);
 
         if (updateError) {
           console.error("Error updating stock:", updateError.message);
@@ -1943,9 +2353,280 @@ const storeDetailsSchema = z.object({
   storePhoneNumber: z
     .string()
     .min(1, "Le numéro de téléphone du magasin est requis")
-    .max(15, "Le numéro de téléphone du magasin ne doit pas dépasser 15 chiffres")
+    .max(
+      15,
+      "Le numéro de téléphone du magasin ne doit pas dépasser 15 chiffres"
+    )
     .regex(/^\+?\d{10,15}$/, "Numéro de téléphone du magasin invalide"),
 });
+
+async function isUserAdmin(userId: string): Promise<boolean> {
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("userId", userId)
+    .single();
+
+  console.log("User role data:", data, "Error:", error);
+  if (error || !data) {
+    console.error("Error checking admin status:", error?.message);
+    return false;
+  }
+  return data.role === "admin" || data.role === "user";
+}
+
+// Schema for employee creation
+const createEmployeeFormSchema = z
+  .object({
+    name: z
+      .string()
+      .min(2, { message: "Le nom doit avoir au moins 2 caractères." })
+      .max(50, { message: "Le nom doit comporter au maximum 50 caractères." }),
+    email: z
+      .string()
+      .min(7, { message: "L'email doit avoir au moins 7 caractères." })
+      .max(50)
+      .email({ message: "Veuillez entrer une adresse email valide." }),
+    phone: z
+      .string()
+      .min(10, {
+        message: "Le numéro de téléphone doit avoir au moins 10 chiffres.",
+      })
+      .max(15, {
+        message: "Le numéro de téléphone doit avoir au maximum 15 chiffres.",
+      })
+      .regex(/^\+?\d+$/, {
+        message:
+          "Le numéro de téléphone doit contenir uniquement des chiffres et un signe plus (+) au début.",
+      }),
+    password: z
+      .string()
+      .min(8, { message: "Le mot de passe doit avoir au moins 8 caractères." })
+      .max(50),
+    confirmPassword: z
+      .string()
+      .min(8, { message: "Le mot de passe doit avoir au moins 8 caractères." })
+      .max(50),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Les mots de passe ne correspondent pas.",
+    path: ["confirmPassword"],
+  });
+
+export async function createEmployeeAction(formData: FormData) {
+  try {
+    // Validate form data
+    const validatedData = createEmployeeFormSchema.parse({
+      name: formData.get("name"),
+      email: formData.get("email"),
+      phone: formData.get("phone"),
+      password: formData.get("password"),
+      confirmPassword: formData.get("confirmPassword"),
+    });
+
+    const supabase = createSupabaseServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { success: false, message: "Non autorisé" };
+    }
+
+    // Check if user is admin
+    const isAdmin = await isUserAdmin(user.id);
+    if (!isAdmin) {
+      return {
+        success: false,
+        message: "Seul un administrateur peut créer un employé.",
+      };
+    }
+
+    // Get admin's storeId
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .select("storeId")
+      .eq("userId", user.id)
+      .single();
+
+    if (profileError || !profileData?.storeId) {
+      console.error("Error fetching admin profile:", profileError?.message);
+      return {
+        success: false,
+        message: "Aucun magasin associé au compte administrateur.",
+      };
+    }
+
+    const storeId = profileData.storeId;
+
+    // Check if subscription is active
+    const isSubscriptionActive = await isUserSubscriptionActive(storeId);
+    if (!isSubscriptionActive) {
+      return {
+        success: false,
+        message: "Ta souscription a expiré, veuillez la renouveler.",
+      };
+    }
+
+    console.log("Checkpoint 1");
+    // Create employee in Supabase Auth
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      email: validatedData.email,
+      password: validatedData.password,
+    });
+
+    if (signUpError || !authData.user) {
+      console.error("Error creating employee auth:", signUpError?.message);
+      return {
+        success: false,
+        message: signUpError?.message.includes("already registered")
+          ? "L'email est déjà enregistré."
+          : signUpError?.message || "Échec de la création du compte employé.",
+      };
+    }
+
+    // Insert into profiles table
+    const { error: profileInsertError } = await supabase
+      .from("profiles")
+      .insert({
+        userId: authData.user.id,
+        name: validatedData.name,
+        phoneNumber: validatedData.phone,
+        email: validatedData.email,
+        storeId: storeId,
+        role: "employee",
+        created_at: new Date().toISOString(),
+      });
+
+    if (profileInsertError) {
+      console.error(
+        "Error inserting employee profile:",
+        profileInsertError.message
+      );
+      return {
+        success: false,
+        message: "Échec de la création du profil employé.",
+      };
+    }
+
+    console.log("Check point 2");
+    // Insert into employees table
+    const { error: employeeInsertError } = await supabase
+      .from("employees")
+      .insert({
+        employeeId: authData.user.id,
+
+        storeId: storeId,
+        createdAt: new Date().toISOString(),
+      });
+
+    if (employeeInsertError) {
+      console.error(
+        "Error inserting employee record:",
+        employeeInsertError.message
+      );
+      return {
+        success: false,
+        message: "Échec de la création de l'enregistrement employé.",
+      };
+    }
+
+    return {
+      success: true,
+      message: "Compte employé créé avec succès.",
+    };
+  } catch (error) {
+    console.error("Unexpected error during employee creation:", error);
+    if (error instanceof z.ZodError) {
+      return { success: false, message: error.errors[0].message };
+    }
+    return { success: false, message: "Une erreur s'est produite." };
+  }
+}
+
+export async function getEmployeesByStore() {
+  try {
+    const supabase = createSupabaseServerClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return { success: false, message: "Non autorisé", employees: [] };
+    }
+
+    // Check if user is admin
+    const isAdmin = await isUserAdmin(user.id);
+    if (!isAdmin) {
+      return {
+        success: false,
+        message: "Seul un administrateur peut voir les employés.",
+        employees: [],
+      };
+    }
+
+    // Get admin's storeId
+    const { data: profileData, error: profileError } = await supabase
+      .from("profiles")
+      .select("storeId")
+      .eq("userId", user.id)
+      .single();
+
+    if (profileError || !profileData?.storeId) {
+      console.error("Error fetching admin profile:", profileError?.message);
+      return {
+        success: false,
+        message: "Aucun magasin associé au compte administrateur.",
+        employees: [],
+      };
+    }
+
+    const storeId = profileData.storeId;
+
+    // Fetch employees from profiles table (role: employee, matching storeId)
+    const { data: employeesData, error: employeesError } = await supabase
+      .from("profiles")
+      .select("userId, name, email, phoneNumber, created_at")
+      .eq("storeId", storeId)
+      .eq("role", "employee")
+      .order("created_at", { ascending: false });
+
+    if (employeesError) {
+      console.error("Error fetching employees:", employeesError.message);
+      return {
+        success: false,
+        message: "Échec durant la recherche des employés.",
+        employees: [],
+      };
+    }
+
+    // Map employees data for the table
+    const employees = employeesData.map((emp, index) => ({
+      id: index + 1, // 1-based Sr No for table
+      userId: emp.userId,
+      name: emp.name,
+      email: emp.email,
+      phone: emp.phoneNumber,
+      created_at: new Date(emp.created_at).toLocaleDateString("fr-FR"),
+    }));
+
+    return {
+      success: true,
+      message: "Employés récupérés avec succès.",
+      employees,
+    };
+  } catch (error) {
+    console.error("Unexpected error fetching employees:", error);
+    return {
+      success: false,
+      message: "Une erreur s'est produite.",
+      employees: [],
+    };
+  }
+}
 
 export async function updateUserProfile(formData: FormData) {
   const supabase = createSupabaseServerClient();
@@ -1958,8 +2639,22 @@ export async function updateUserProfile(formData: FormData) {
     return { success: false, message: "utilisateur non connecté" };
   }
 
+  const { data } = await supabase
+    .from("profiles")
+    .select("storeId")
+    .eq("userId", user.id)
+    .single();
+  const storeId = data?.storeId;
   // Check if the user has an active subscription
-  const isSubscriptionActive = await isUserSubscriptionActive(user.id);
+  if (!storeId) {
+    return {
+      success: false,
+      message: "Aucun magasin n'est associé à votre compte.",
+    };
+  }
+
+  // Check if the user has an active subscription
+  const isSubscriptionActive = await isUserSubscriptionActive(storeId);
 
   if (!isSubscriptionActive) {
     return {
@@ -2059,7 +2754,10 @@ export async function updateStoreDetails(formData: FormData) {
 
     if (profileError) {
       console.error("Update profile storeId error:", profileError);
-      return { success: false, message: "Echec durant la mise à jour du magasin" };
+      return {
+        success: false,
+        message: "Echec durant la mise à jour du magasin",
+      };
     }
   } else {
     // Update existing store
@@ -2075,11 +2773,17 @@ export async function updateStoreDetails(formData: FormData) {
 
     if (updateError) {
       console.error("Update store error:", updateError);
-      return { success: false, message: "Echec durant la mise à jour du magasin" };
+      return {
+        success: false,
+        message: "Echec durant la mise à jour du magasin",
+      };
     }
   }
 
-  return { success: true, message: "success, Les détails du magasin ont bien été mis à jour" };
+  return {
+    success: true,
+    message: "success, Les détails du magasin ont bien été mis à jour",
+  };
 }
 
 export async function getStore() {
@@ -2089,10 +2793,23 @@ export async function getStore() {
     return { success: false, message: "Non autorisé" };
   }
 
+  const { data: profileData, error: profileError } = await supabase
+    .from("profiles")
+    .select("storeId")
+    .eq("userId", data.user.id)
+    .single();
+
+  if (profileError || !profileData?.storeId) {
+    return {
+      success: false,
+      message: "Aucun magasin n'est associé à votre compte.",
+    };
+  }
+
   const { data: storeData, error: storeError } = await supabase
     .from("stores")
     .select("storeName, storeAddress, storePhoneNumber")
-    .eq("userId", data.user.id)
+    .eq("storeId", profileData?.storeId)
     .single();
 
   if (storeError) {
@@ -2102,6 +2819,15 @@ export async function getStore() {
 
   return { success: true, store: storeData };
 }
+
+
+
+
+
+
+
+
+
 
 // Managing Subscriptions by the admin
 
@@ -2167,10 +2893,10 @@ export async function updateSubscription(formData: FormData) {
       setTimeout(() => reject(new Error("Subscription fetch timeout")), 5000)
     );
 
-    const subscriptionResult = await Promise.race([
+    const subscriptionResult = (await Promise.race([
       subscriptionPromise,
       timeoutPromise,
-    ]) as { data: { endAt: string } | null };
+    ])) as { data: { endAt: string } | null };
 
     const subscription = subscriptionResult.data;
 
@@ -2182,9 +2908,14 @@ export async function updateSubscription(formData: FormData) {
     console.log("Current endAt:", subscription.endAt);
 
     // Calculate new endAt
-    const currentEndAt = new Date(subscription.endAt || new Date());
-    const newEndAt = new Date(currentEndAt);
-    newEndAt.setDate(currentEndAt.getDate() + months * 30);
+    const now = new Date();
+const currentEndAt = new Date(subscription.endAt || now);
+
+// If the subscription already expired, start from now
+const baseDate = currentEndAt > now ? currentEndAt : now;
+
+const newEndAt = new Date(baseDate);
+newEndAt.setDate(baseDate.getDate() + months * 30);
 
     console.log("New endAt:", newEndAt.toISOString());
 

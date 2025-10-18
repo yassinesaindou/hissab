@@ -1,9 +1,9 @@
 // components/SubNavbar.tsx
- 
+
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
-import { ClientAddTransactionForm } from "../(main)/transactions/ClientTransactionsPage";
+import { ClientAddTransactionForm } from "../(main)/(features)/transactions/ClientTransactionsPage";
 
 export default async function SubNavbar() {
   const supabase = createSupabaseServerClient();
@@ -17,7 +17,7 @@ export default async function SubNavbar() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("name")
+    .select("name,storeId")
     .eq("userId", user.id)
     .single();
 
@@ -26,7 +26,7 @@ export default async function SubNavbar() {
   const { data: products, error: productsError } = await supabase
     .from("products")
     .select("productId, name, unitPrice, stock")
-    .eq("userId", user.id);
+    .eq("storeId", profile?.storeId);
 
   if (productsError) {
     console.error("Products error:", productsError.message);

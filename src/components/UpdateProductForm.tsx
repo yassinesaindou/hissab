@@ -6,8 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { updateProductAction } from "@/app/actions";
-import { ProductInterface } from "@/app/(main)/products/ProductsColumns.tsx";
- 
+import { ProductInterface } from "@/app/(main)/(features)/products/ProductsColumns.tsx";
 
 interface UpdateProductFormProps {
   closeDialog: () => void;
@@ -116,7 +115,10 @@ export default function UpdateProductForm({
       </div>
       {error && <p className="text-red-500">{error}</p>}
       {success && <p className="text-green-500">{success}</p>}
-      <Button disabled={isLoading} type="submit" className="bg-blue-700 text-gray-50">
+      <Button
+        disabled={isLoading}
+        type="submit"
+        className="bg-blue-700 text-gray-50">
         Mettre à jour l&apos;article
       </Button>
     </form>

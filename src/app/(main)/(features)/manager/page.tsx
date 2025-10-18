@@ -35,7 +35,7 @@ export default async function ManagerPage() {
   // Fetch profiles and subscriptions
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("userId, name, phoneNumber, subscriptionId");
+    .select("userId, name, phoneNumber, subscriptionId").in("role", ['user', 'admin'])
 
   const { data: subscriptions } = await supabase
     .from("subscriptions")
@@ -66,7 +66,7 @@ export default async function ManagerPage() {
   console.log("Profiles with subscriptions:", profilesWithSubscriptions);
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-6  mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Admin Dashboard</h1>
       <ManagerDashboard profiles={profilesWithSubscriptions} />
     </div>

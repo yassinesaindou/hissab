@@ -50,15 +50,15 @@ export default function LoginPage() {
     setIsPending(false);
     if (result.success) {
       form.reset();
-      router.push("/"); // Redirect to dashboard
+      router.push("/dashboard"); // Redirect to dashboard
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+    <div className="min-h-screen flex items-center justify-center px-2 bg-gray-100">
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
         <h1 className="text-2xl font-bold text-center text-blue-600 mb-6">
-          Login
+          Se Connecter
         </h1>
         {message && (
           <div

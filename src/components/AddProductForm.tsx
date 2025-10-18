@@ -6,15 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { newProductAction } from "@/app/actions";
-import { ProductInterface } from "@/app/(main)/products/ProductsColumns.tsx";
- 
+import { ProductInterface } from "@/app/(main)/(features)/products/ProductsColumns.tsx";
 
 interface AddProductFormProps {
   closeDialog: () => void;
   onAddProduct: (newProduct: ProductInterface) => void;
 }
 
-export default function AddProductForm({ closeDialog, onAddProduct }: AddProductFormProps) {
+export default function AddProductForm({
+  closeDialog,
+  onAddProduct,
+}: AddProductFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -105,7 +107,10 @@ export default function AddProductForm({ closeDialog, onAddProduct }: AddProduct
       </div>
       {error && <p className="text-red-500">{error}</p>}
       {success && <p className="text-green-500">{success}</p>}
-      <Button disabled={isLoading} type="submit" className="bg-blue-700 text-gray-50">
+      <Button
+        disabled={isLoading}
+        type="submit"
+        className="bg-blue-700 text-gray-50">
         Ajouter l&apos;article
       </Button>
     </form>

@@ -1,4 +1,4 @@
- 
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -21,6 +21,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { addTransactionAction } from "@/app/actions";
 
 const formSchema = z
@@ -78,6 +93,8 @@ export default function AddTransactionForm({
   onSuccess,
 }: AddTransactionFormProps) {
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -101,13 +118,12 @@ export default function AddTransactionForm({
 
     const result = await addTransactionAction(formData);
     if (result.success) {
-      // Construct transaction object for client-side update
       const product = products.find((p) => p.productId === formData.productId);
       const unitPrice = formData.productId && product ? product.unitPrice : formData.unitPrice;
       const newTransaction = {
-        transactionId: crypto.randomUUID(), // Temporary ID; ideally, server should return this
+        transactionId: crypto.randomUUID(),
         created_at: new Date().toISOString(),
-        userId: "", // Unknown client-side; server sets this
+        userId: "",
         productId: formData.productId || null,
         productName: formData.productName || (formData.productId ? product?.name : null) || null,
         unitPrice,
@@ -116,6 +132,7 @@ export default function AddTransactionForm({
         type: formData.type,
       };
       onSuccess(newTransaction);
+      closeDialog();
     } else {
       setError(result.message);
     }
@@ -126,12 +143,11 @@ export default function AddTransactionForm({
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
-          
           name="type"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Type</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value} >
+              <Select onValueChange={field.onChange} value={field.value}>
                 <FormControl>
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
@@ -152,35 +168,73 @@ export default function AddTransactionForm({
           name="productId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Article  (Optionnel)</FormLabel>
-              <Select
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  if (value && value !== "none") {
-                    const product = products.find((p) => p.productId === value);
-                    form.setValue("productName", product?.name || "");
-                    form.setValue("unitPrice", product?.unitPrice || 0);
-                  } else {
-                    form.setValue("productName", "");
-                    form.setValue("unitPrice", 0);
-                  }
-                }}
-                value={field.value || ""}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a product (optional)" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {products.map((product) => (
-                    <SelectItem key={product.productId} value={product.productId}>
-                      {product.name} (Stock: {product.stock})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FormLabel>Article (Optionnel)</FormLabel>
+              <Popover open={open} onOpenChange={setOpen}>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={open}
+                      className="w-full justify-between"
+                    >
+                      {selectedProduct
+                        ? products.find((p) => p.productId === selectedProduct)?.name || "Select a product"
+                        : "Select a product"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0">
+                  <Command>
+                    <CommandInput placeholder="Search product..." />
+                    <CommandList>
+                      <CommandEmpty>No product found.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="none"
+                          onSelect={() => {
+                            form.setValue("productId", "");
+                            form.setValue("productName", "");
+                            form.setValue("unitPrice", 0);
+                            setSelectedProduct(null);
+                            setOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              !selectedProduct ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          None
+                        </CommandItem>
+                        {products.map((product) => (
+                          <CommandItem
+                            key={product.productId}
+                            value={product.name}
+                            onSelect={() => {
+                              form.setValue("productId", product.productId);
+                              form.setValue("productName", product.name);
+                              form.setValue("unitPrice", product.unitPrice);
+                              setSelectedProduct(product.productId);
+                              setOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedProduct === product.productId ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            {product.name} (Stock: {product.stock})
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               <FormMessage />
             </FormItem>
           )}
@@ -190,7 +244,7 @@ export default function AddTransactionForm({
           name="productName"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Non de l&apos;article (Optionnel)</FormLabel>
+              <FormLabel>Nom de l&apos;article (Optionnel)</FormLabel>
               <FormControl>
                 <Input
                   placeholder="Entrez le nom d'un article (optionnel)"
@@ -242,10 +296,21 @@ export default function AddTransactionForm({
         />
         {error && <p className="text-red-600 text-sm">{error}</p>}
         <div className="flex justify-end gap-2">
-          <Button disabled={form.formState.isSubmitting} type="button" variant="outline" onClick={closeDialog}>
+          <Button
+            disabled={form.formState.isSubmitting}
+            type="button"
+            variant="outline"
+            onClick={closeDialog}
+          >
             Annuler
           </Button>
-          <Button disabled={form.formState.isSubmitting} className="bg-blue-600 hover:bg-blue-700" type="submit">Ajouter la transaction</Button>
+          <Button
+            disabled={form.formState.isSubmitting}
+            className="bg-blue-600 hover:bg-blue-700"
+            type="submit"
+          >
+            Ajouter la transaction
+          </Button>
         </div>
       </form>
     </Form>

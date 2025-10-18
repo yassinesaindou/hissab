@@ -1,20 +1,23 @@
 // components/Sidebar.tsx
 "use client";
+import { logoutAction } from "@/app/actions";
+import { Button } from "@/components/ui/button";
+import { supabaseClient } from "@/lib/supabase/client";
 import {
   Banknote,
   ChartBar,
   FileText,
-  Home,
+  LayoutDashboard,
   Package,
   Settings,
   UserRoundMinus,
-  X,
+  Users,
+  X
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
-import React from "react";
 import { usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { logoutAction } from "@/app/actions";
+import React, { useEffect, useState } from "react";
 
 const NavItem = ({
   icon,
@@ -53,7 +56,26 @@ export default function SidebarComponent({
 }: {
   isOpen: boolean;
   closeSidebar: () => void;
-}) {
+  }) {
+  
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    async function checkAdmin() {
+      const supabase = supabaseClient;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("userId", user.id)
+          .single();
+        setIsAdmin(data?.role === "admin" || data?.role === "user");
+      }
+    }
+    checkAdmin();
+  }, []);
+  
   return (
     <>
       {isOpen && (
@@ -68,7 +90,7 @@ export default function SidebarComponent({
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}>
         <div className="flex items-center justify-between text-3xl font-bold text-center py-5 px-4 border-b border-blue-600">
-          <h1>Hissab</h1>
+          <Image src={"/hissabw.png"} alt="Logo" width={170} height={'45'} />
           <button onClick={closeSidebar} className="md:hidden text-white">
             <X size={24} />
           </button>
@@ -77,9 +99,9 @@ export default function SidebarComponent({
         <div className="flex flex-col justify-between h-[calc(100%-80px)]">
           <ul className="list-none px-2 pt-4 space-y-1">
             <NavItem
-              icon={<Home size={20} />}
+              icon={<LayoutDashboard size={20} />}
               label="Acceuil"
-              href="/"
+              href="/dashboard"
               onClick={closeSidebar}
             />
             <NavItem
@@ -94,12 +116,12 @@ export default function SidebarComponent({
               href="/transactions"
               onClick={closeSidebar}
             />
-            <NavItem
+           {isAdmin && <NavItem
               icon={<UserRoundMinus size={20} />}
               label="Crédits"
               href="/credits"
               onClick={closeSidebar}
-            />
+            />}
             <NavItem
               icon={<Package size={20} />}
               label="Articles"
@@ -112,6 +134,12 @@ export default function SidebarComponent({
               href="/invoices"
               onClick={closeSidebar}
             />
+           {isAdmin && <NavItem
+              icon={<Users size={20} />}
+              label="Employés"
+              href="/employees"
+              onClick={closeSidebar}
+            />}
           </ul>
 
           <div className="list-none px-2 py-4 border-t border-blue-600 space-y-1">

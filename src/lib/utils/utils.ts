@@ -1,13 +1,14 @@
 import { isBefore } from "date-fns";
 import { createSupabaseServerClient } from "../supabase/server";
 
-export async function isUserSubscriptionActive(userId: string) {
+export async function isUserSubscriptionActive(storeId: string) {
     const supabase = createSupabaseServerClient();
   const { data: subscription, error } = await supabase
     .from('subscriptions')
     .select('endAt')
-    .eq('userId', userId)
-    .maybeSingle();
+    .eq('storeId', storeId)
+    .maybeSingle()
+    
 
   if (error) {
     console.error('Subscription check error:', error.message);

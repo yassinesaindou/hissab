@@ -33,7 +33,7 @@ export const createSupabaseServerClient = () => {
 };
 
 // Create subscription
-export async function createSubscription(userId: string, planType: string = 'pro') {
+export async function createSubscription(userId: string, planType: string = 'pro', storeId:string) {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from('subscriptions')
@@ -43,6 +43,7 @@ export async function createSubscription(userId: string, planType: string = 'pro
       created_at: new Date().toISOString(),
       endAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
       updatedAt: new Date().toISOString(),
+      storeId,
     })
     .select()
     .single();
@@ -53,4 +54,21 @@ export async function createSubscription(userId: string, planType: string = 'pro
   }
 
   return data;
+}
+
+
+export async function createStore(userId: string) {
+  const supabase = createSupabaseServerClient();
+  const { data: storeData, error: storeError } = await supabase.from('stores').insert({
+    userId,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }).select().single();
+
+  if (storeError) {
+    console.error('Error creating store:', storeError.message);
+    return null;        
+  }
+
+  return storeData;
 }

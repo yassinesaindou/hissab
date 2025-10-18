@@ -20,7 +20,16 @@ export default async function CreditsPage() {
     )
     .eq("userId", user.id);
 
- 
+  const { data: profile, error: profileError } = await supabase.from('profiles').select('role').eq('userId', user.id).single();
+
+  if (profileError) {
+    console.error("Error fetching profile:", profileError.message);
+  }
+
+  if(profile?.role === 'employee'){
+    redirect('/')
+  }
+
 
   const { data: products, error: productsError } = await supabase
     .from("products")

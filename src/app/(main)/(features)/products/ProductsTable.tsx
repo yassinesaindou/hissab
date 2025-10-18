@@ -23,7 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useState } from "react";
-import { ProductInterface } from "./ProductsColumns.tsx";
+import { ProductInterface } from "./ProductsColumns.tsx.jsx";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<ProductInterface, TValue>[];
@@ -95,8 +95,7 @@ export function ProductsTable<TData, TValue>({
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
+                  data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
                       {flexRender(
@@ -109,7 +108,9 @@ export function ProductsTable<TData, TValue>({
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center">
                   Pas d&apos;articles trouvés.
                 </TableCell>
               </TableRow>
@@ -122,17 +123,15 @@ export function ProductsTable<TData, TValue>({
           variant="outline"
           size="sm"
           onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
+          disabled={!table.getCanPreviousPage()}>
           Précédente
         </Button>
         <Button
           variant="outline"
           size="sm"
           onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
-         Suivante
+          disabled={!table.getCanNextPage()}>
+          Suivante
         </Button>
       </div>
     </div>

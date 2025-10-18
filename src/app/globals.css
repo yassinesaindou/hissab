@@ -136,3 +136,7 @@
     margin: 10mm;
   }
 }
+
+html {
+  scroll-behavior: smooth;
+}

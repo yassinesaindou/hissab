@@ -17,6 +17,7 @@ export type TransactionInterface = {
   type: "sale" | "credit" | "expense";
 };
 
+
 export const transactionColumns: ColumnDef<TransactionInterface>[] = [
   {
     accessorKey: "created_at",
