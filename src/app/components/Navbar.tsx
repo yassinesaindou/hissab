@@ -125,7 +125,7 @@ function UserMenu() {
       <DropdownMenuContent>
         <DropdownMenuLabel>{userEmail || "Mon compte"}</DropdownMenuLabel>
         <DropdownMenuItem>
-          <Link href="/settings" className="flex items-center gap-2">
+          <Link prefetch={false} href="/settings" className="flex items-center gap-2">
             Modifier le compte
           </Link>
         </DropdownMenuItem>

@@ -16,14 +16,14 @@ const CtaSection = () => {
 
         {/* Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link
-            href="#"
+          <Link  prefetch={false}
+            href="/signin"
             className="px-6 py-3 rounded-lg bg-blue-600 text-white font-medium shadow-md hover:bg-blue-700 transition"
           >
             Commencer
           </Link>
-          <Link
-            href="#"
+          <Link  prefetch={false}
+            href="/signup"
             className="px-6 py-3 rounded-lg border border-gray-300 bg-white text-gray-800 font-medium hover:bg-gray-100 transition"
           >
             Découvrir Hissab

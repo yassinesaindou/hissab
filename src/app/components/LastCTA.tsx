@@ -37,7 +37,7 @@ const LastCTA = () => {
             </p>
 
             <div className="mx-auto max-w-md sm:max-w-xl flex justify-center">
-              <Link href="/signup" className="h-12 px-5 rounded-xl bg-blue-600 text-white flex items-center justify-center">
+              <Link prefetch={false} href="/signup" className="h-12 px-5 rounded-xl bg-blue-600 text-white flex items-center justify-center">
                 Commencer Gratuitement
               </Link>
             </div>

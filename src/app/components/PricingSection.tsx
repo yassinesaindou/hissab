@@ -56,7 +56,7 @@ const PricingSection = () => {
                 </li>
               ))}
             </ul>
-            <Link
+            <Link prefetch={false}
               href="/signup"
               className="mt-6 inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full font-medium hover:bg-blue-700 transition">
               Commencer
@@ -101,7 +101,7 @@ const PricingSection = () => {
                 </li>
               ))}
             </ul>
-            <Link
+            <Link prefetch={false}
               href="/signup"
               className="mt-6 inline-flex items-center justify-center gap-2 px-6 py-3 bg-white text-blue-600 rounded-full font-medium hover:opacity-90 transition">
               Commencer
@@ -149,7 +149,7 @@ const PricingSection = () => {
                 </li>
               ))}
             </ul>
-            <Link
+            <Link prefetch={false}
               href="/signup"
               className="mt-6 inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full font-medium hover:bg-blue-700 transition">
               Commencer

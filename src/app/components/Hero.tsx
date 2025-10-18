@@ -14,7 +14,7 @@ const Navbar = () => {
       <header className="fixed top-0 w-full flex items-center h-20 border-b border-b-gray-100 dark:border-b-gray-900 z-40 bg-white/80 dark:bg-gray-950/80 backdrop-filter backdrop-blur-xl">
         <nav className="relative mx-auto lg:max-w-7xl w-full px-5 sm:px-10 md:px-12 lg:px-5 flex gap-x-5 justify-between items-center">
           <div className="flex items-center min-w-max">
-            <Link href="/" className="relative flex items-center gap-2.5">
+            <Link prefetch={false} href="/" className="relative flex items-center gap-2.5">
               
               <span className="inline-flex text-lg font-bold text-blue-950 dark:text-white">
                 <Image src="/Hissab_logo.png" width={120} height={30} alt="Hissab" />
@@ -63,10 +63,10 @@ export default function HeroSection() {
                 Gérez facilement vos ventes, suivez vos stocks et optimisez vos revenus avec notre solution POS simple et puissante, conçue pour les commerçants.
               </p>
               <div className="mt-10 flex gap-4 justify-center lg:justify-start flex-wrap">
-                <Link href="/login" className="relative px-6 py-3 before:absolute before:inset-0 before:rounded-lg before:transition active:before:bg-blue-700 text-white hover:before:bg-blue-800 before:bg-blue-600 hover:before:scale-105">
+                <Link prefetch={false} href="/login"  className="relative px-6 py-3 before:absolute before:inset-0 before:rounded-lg before:transition active:before:bg-blue-700 text-white hover:before:bg-blue-800 before:bg-blue-600 hover:before:scale-105">
                   <span className="relative">Connexion</span>
                 </Link>
-                <Link href="/signup" className="relative px-6 py-3 before:absolute before:inset-0  before:transition border border-blue-600 before:rounded-lg before:bg-gray-100 dark:before:bg-gray-900 text-blue-600 dark:text-white hover:before:scale-105 rounded-lg">
+                <Link prefetch={false} href="/signup" className="relative px-6 py-3 before:absolute before:inset-0  before:transition border border-blue-600 before:rounded-lg before:bg-gray-100 dark:before:bg-gray-900 text-blue-600 dark:text-white hover:before:scale-105 rounded-lg">
                   <span className="relative">Inscription</span>
                 </Link>
               </div>
