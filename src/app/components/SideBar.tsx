@@ -38,6 +38,7 @@ const NavItem = ({
   return (
     <li>
       <Link
+        prefetch={false}
         href={href}
         onClick={onClick}
         className={`flex items-center gap-3 py-2 px-4 rounded ${textColor} ${
