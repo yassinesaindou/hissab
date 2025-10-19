@@ -1,3 +1,5 @@
+ 
+
 import { User, Store, Activity } from 'lucide-react';
 
 const steps = [

@@ -10,6 +10,9 @@ import Testimonials from "../components/Testimonials";
 import LastCTA from "../components/LastCTA";
 import Footer from "../components/Footer";
 
+
+export const dynamic = "force-static";
+
 export default function LandingPage() {
   return (
     <div>

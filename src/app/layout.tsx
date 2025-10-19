@@ -18,6 +18,9 @@ export default async function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preload" href="/favicon.ico" as="image" />
+      </head>
       <body className={`${jakartaSans.className} antialiased font-medium`}>{children}</body>
     </html>
   );
