@@ -1,3 +1,5 @@
+'use client'
+
 import React from "react";
 import HeroSection from "../components/Hero";
 import { Features } from "../components/Features";
