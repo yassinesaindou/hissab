@@ -133,6 +133,7 @@ export default function AddTransactionForm({
       };
       onSuccess(newTransaction);
       closeDialog();
+      window.dispatchEvent(new Event("refresh-dashboard"));
     } else {
       setError(result.message);
     }
