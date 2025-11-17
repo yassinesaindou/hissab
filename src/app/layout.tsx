@@ -12,7 +12,14 @@ const jakartaSans = Inter({
   subsets: ["latin"],
 });
 
-export default async function RootLayout({
+export const metadata = {
+  title: "Hissab",
+  icons: {
+    icon: "/favicon.ico",
+  },
+};
+
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -20,7 +27,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="preload" href="/favicon.ico" as="image" />
+       
       </head>
       <body className={`${jakartaSans.className} antialiased font-normal`}>{children}</body>
     </html>
