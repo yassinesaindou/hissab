@@ -1,4 +1,4 @@
-'use client'
+ 
 
 import React from "react";
 import HeroSection from "../components/Hero";
@@ -11,7 +11,7 @@ import LastCTA from "../components/LastCTA";
 import Footer from "../components/Footer";
 
 
-export const dynamic = "force-static";
+export const revalidate = 0; 
 
 export default function LandingPage() {
   return (
