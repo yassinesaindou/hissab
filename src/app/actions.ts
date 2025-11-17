@@ -10,6 +10,7 @@ import { z } from "zod";
 import { isUserSubscriptionActive } from "@/lib/utils/utils";
 
 
+
 const SignupFormSchema = z
   .object({
     name: z
@@ -111,11 +112,11 @@ export async function signupAction(formData: SignupFormData) {
     }
 
     // Create subscription
-    const subscription = await createSubscription(
-      authData.user.id,
-      "pro",
-      storeData.storeId
-    );
+  const subscription = await createSubscription(
+  authData.user.id,
+  2, // ← Pro plan ID
+  storeData.storeId
+);
     if (!subscription) {
       return { success: false, message: "Echec durant la souscription" };
     }
@@ -758,70 +759,94 @@ export async function addTransactionAction(formData: TransactionFormData) {
   try {
     const validatedData = transactionFormSchema.parse(formData);
     const supabase = createSupabaseServerClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
 
-    if (!user) {
-      redirect("/login");
-    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) redirect("/login");
 
-    const { data } = await supabase
+    const { data: profile } = await supabase
       .from("profiles")
       .select("storeId")
       .eq("userId", user.id)
       .single();
-    const storeId = data?.storeId;
-    // Check if the user has an active subscription
+
+    const storeId = profile?.storeId;
     if (!storeId) {
-      return {
-        success: false,
-        message: "Aucun magasin n'est associé à votre compte.",
-      };
+      return { success: false, message: "Aucun magasin n'est associé à votre compte." };
     }
-    // Check if the user has an active subscription
+
+    // === 1. CHECK SUBSCRIPTION ACTIVE ===
     const isSubscriptionActive = await isUserSubscriptionActive(storeId);
-
     if (!isSubscriptionActive) {
+      return { success: false, message: "Votre abonnement a expiré. Veuillez le renouveler." };
+    }
+
+    // === 2. GET PLAN'S DAILY TRANSACTION LIMIT ===
+    const { data: subscription } = await supabase
+      .from("subscriptions")
+      .select("planId")
+      .eq("storeId", storeId)
+      .single();
+
+    if (!subscription?.planId) {
+      return { success: false, message: "Aucun plan trouvé." };
+    }
+
+    const { data: plan } = await supabase
+      .from("plans")
+      .select("transactionsPerDay")
+      .eq("planId", subscription.planId)
+      .single();
+
+    const dailyLimit = plan?.transactionsPerDay ?? 0;
+    if (dailyLimit <= 0) {
+      return { success: false, message: "Ce plan n'autorise pas de transactions." };
+    }
+
+    // === 3. COUNT TODAY'S Transactions === 
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+
+    const { count, error: countError } = await supabase
+      .from("transactions")
+      .select("*", { count: "exact", head: true })
+      .eq("storeId", storeId)
+      .gte("created_at", startOfDay)
+      .lt("created_at", endOfDay);
+
+    if (countError) {
+      console.error("Error counting transactions:", countError);
+      return { success: false, message: "Erreur lors du comptage des transactions." };
+    }
+
+    if ((count ?? 0) >= dailyLimit) {
       return {
         success: false,
-        message: "Ta souscription a expiré, veuillez la renouveler.",
+        message: `Limite quotidienne atteinte : ${dailyLimit} transactions/jour.`,
       };
     }
 
+    // === 4. PROCEED WITH TRANSACTION ===
     let unitPrice = validatedData.unitPrice;
     let totalPrice = validatedData.unitPrice * validatedData.quantity;
 
     if (validatedData.productId && validatedData.productId !== "none") {
       const { data: product, error: productError } = await supabase
         .from("products")
-        .select("userId, unitPrice, stock, name, storeId, productId")
+        .select("unitPrice, stock, name, storeId")
         .eq("productId", validatedData.productId)
         .single();
 
       if (productError || !product) {
-        console.error("Error fetching product:", productError?.message);
-        return {
-          success: false,
-          message: "L'identifiant du produit est incorrect",
-        };
+        return { success: false, message: "Produit introuvable." };
       }
 
       if (product.storeId !== storeId) {
-        return {
-          success: false,
-          message: "Vous n'êtes pas autorisé de modifier ce produit",
-        };
+        return { success: false, message: "Accès refusé au produit." };
       }
 
-      if (
-        (validatedData.type === "sale" || validatedData.type === "credit") &&
-        product.stock < validatedData.quantity
-      ) {
-        return {
-          success: false,
-          message: `Stock insuffisant. Stock: ${product.stock}, Quantité demandée: ${validatedData.quantity}`,
-        };
+      if ((validatedData.type === "sale" || validatedData.type === "credit") && product.stock < validatedData.quantity) {
+        return { success: false, message: `Stock insuffisant : ${product.stock} disponible.` };
       }
 
       unitPrice = product.unitPrice;
@@ -835,19 +860,18 @@ export async function addTransactionAction(formData: TransactionFormData) {
           .eq("productId", validatedData.productId);
 
         if (stockError) {
-          console.error("Error updating product stock:", stockError.message);
-          return { success: false, message: "Echec de mise à jour du stock" };
+          console.error("Stock update error:", stockError);
+          return { success: false, message: "Échec mise à jour stock." };
         }
       }
     }
 
-    const { error } = await supabase.from("transactions").insert({
+    // === 5. INSERT TRANSACTION ===
+    const { error: insertError } = await supabase.from("transactions").insert({
       storeId,
       userId: user.id,
-      productId:
-        validatedData.productId === "none" ? null : validatedData.productId,
-      productName:
-        validatedData.productName === "none" ? null : validatedData.productName,
+      productId: validatedData.productId === "none" ? null : validatedData.productId,
+      productName: validatedData.productName === "none" ? null : validatedData.productName,
       unitPrice,
       totalPrice,
       quantity: validatedData.quantity,
@@ -855,21 +879,18 @@ export async function addTransactionAction(formData: TransactionFormData) {
       created_at: new Date().toISOString(),
     });
 
-    if (error) {
-      console.error("Error creating transaction:", error.message);
-      return {
-        success: false,
-        message: "Echec durant la création de la transaction",
-      };
+    if (insertError) {
+      console.error("Insert error:", insertError);
+      return { success: false, message: "Échec création transaction." };
     }
 
-    return { success: true, message: "La transaction a bien été ajoutée" };
+    return { success: true, message: "Transaction ajoutée avec succès." };
   } catch (error) {
-    console.error("Unexpected error during transaction creation:", error);
+    console.error("Unexpected error:", error);
     if (error instanceof z.ZodError) {
       return { success: false, message: error.errors[0].message };
     }
-    return { success: false, message: "Une erreur s'est produite" };
+    return { success: false, message: "Erreur inattendue." };
   }
 }
 
@@ -2377,46 +2398,124 @@ async function isUserAdmin(userId: string): Promise<boolean> {
 }
 
 // Schema for employee creation
-const createEmployeeFormSchema = z
-  .object({
-    name: z
-      .string()
-      .min(2, { message: "Le nom doit avoir au moins 2 caractères." })
-      .max(50, { message: "Le nom doit comporter au maximum 50 caractères." }),
-    email: z
-      .string()
-      .min(7, { message: "L'email doit avoir au moins 7 caractères." })
-      .max(50)
-      .email({ message: "Veuillez entrer une adresse email valide." }),
-    phone: z
-      .string()
-      .min(10, {
-        message: "Le numéro de téléphone doit avoir au moins 10 chiffres.",
-      })
-      .max(15, {
-        message: "Le numéro de téléphone doit avoir au maximum 15 chiffres.",
-      })
-      .regex(/^\+?\d+$/, {
-        message:
-          "Le numéro de téléphone doit contenir uniquement des chiffres et un signe plus (+) au début.",
-      }),
-    password: z
-      .string()
-      .min(8, { message: "Le mot de passe doit avoir au moins 8 caractères." })
-      .max(50),
-    confirmPassword: z
-      .string()
-      .min(8, { message: "Le mot de passe doit avoir au moins 8 caractères." })
-      .max(50),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Les mots de passe ne correspondent pas.",
-    path: ["confirmPassword"],
-  });
+// app/actions.ts
+ 
+
+const createEmployeeFormSchema = z.object({
+  name: z.string().min(2).max(50),
+  email: z.string().email(),
+  phone: z.string().regex(/^\+?\d+$/).min(10).max(15),
+  password: z.string().min(8).max(50),
+  confirmPassword: z.string().min(8).max(50),
+}).refine((d) => d.password === d.confirmPassword, {
+  message: "Les mots de passe ne correspondent pas.",
+  path: ["confirmPassword"],
+});
+
+
+// app/actions.ts
+export async function toggleEmployeeStatus(formData: FormData) {
+  const employeeId = formData.get("employeeId") as string;
+  const activate = formData.get("activate") === "true";
+
+  const supabase = createSupabaseServerClient();
+
+  // === 1. AUTH & ADMIN CHECK ===
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, message: "Non autorisé" };
+
+  const isAdmin = await isUserAdmin(user.id);
+  if (!isAdmin) return { success: false, message: "Admin requis." };
+
+  // === 2. GET ADMIN INFO ===
+  const { data: adminProfile } = await supabase
+    .from("profiles")
+    .select("storeId, subscriptionId")
+    .eq("userId", user.id)
+    .single();
+
+  if (!adminProfile?.storeId || !adminProfile?.subscriptionId)
+    return { success: false, message: "Profil admin incomplet." };
+
+  // === 3. GET EMPLOYEE FROM `employees` TABLE USING `employeeId` ===
+  const { data: employeeRecord, error: empError } = await supabase
+    .from("employees")
+    .select("employeeId, isActive, storeId")
+    .eq("employeeId", employeeId)  // ← USE employeeId (PK)
+    .single();
+
+  if (empError || !employeeRecord)
+    return { success: false, message: "Employé introuvable dans le magasin." };
+
+  if (employeeRecord.storeId !== adminProfile.storeId)
+    return { success: false, message: "Accès refusé : employé d'un autre magasin." };
+
+  const targetUserId = employeeRecord.employeeId;
+
+  // === 4. GET SUBSCRIPTION PLAN LIMIT ===
+  const { data: sub } = await supabase
+    .from("subscriptions")
+    .select("planId, endAt")
+    .eq("subscriptionId", adminProfile.subscriptionId)
+    .single();
+
+  if (!sub) return { success: false, message: "Abonnement introuvable." };
+
+  const { data: plan } = await supabase
+    .from("plans")
+    .select("numberOfUsers")
+    .eq("planId", sub.planId)
+    .single();
+
+  const daysLeft = Math.floor((new Date(sub.endAt).getTime() - Date.now()) / 86400000);
+
+  // === 5. BLOCK ACTIVATION IF < 20 DAYS LEFT ===
+  if (activate && daysLeft <= 20)
+    return { success: false, message: "Activation impossible : moins de 20 jours restants." };
+
+  // === 6. CHECK PLAN LIMIT BEFORE ACTIVATING ===
+  if (activate) {
+    const { count } = await supabase
+      .from("profiles")
+      .select("*", { count: "exact" })
+      .eq("storeId", adminProfile.storeId)
+      .eq("isActive", true);
+
+    const activeCount = count ?? 0;
+    const maxUsers = plan?.numberOfUsers ?? 0;
+
+    if (activeCount >= maxUsers)
+      return { success: false, message: `Limite atteinte : ${maxUsers} utilisateurs max.` };
+  }
+
+  // === 7. UPDATE BOTH TABLES ===
+  const updatePayload = { isActive: activate };
+
+  // Update `profiles`
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update(updatePayload)
+    .eq("userId", targetUserId);
+
+  // Update `employees`
+  const { error: employeeError } = await supabase
+    .from("employees")
+    .update(updatePayload)
+    .eq("employeeId", employeeId);  // ← USE employeeId
+
+  if (profileError || employeeError) {
+    console.log("Update error:", { profileError, employeeError });
+    return { success: false, message: `Échec de la mise à jour. ${profileError || employeeError}` };
+  }
+
+  return {
+    success: true,
+    message: activate ? "Employé activé avec succès." : "Employé désactivé avec succès."
+  };
+}
 
 export async function createEmployeeAction(formData: FormData) {
   try {
-    // Validate form data
     const validatedData = createEmployeeFormSchema.parse({
       name: formData.get("name"),
       email: formData.get("email"),
@@ -2426,126 +2525,85 @@ export async function createEmployeeAction(formData: FormData) {
     });
 
     const supabase = createSupabaseServerClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, message: "Non autorisé" };
 
-    if (authError || !user) {
-      return { success: false, message: "Non autorisé" };
-    }
-
-    // Check if user is admin
     const isAdmin = await isUserAdmin(user.id);
-    if (!isAdmin) {
-      return {
-        success: false,
-        message: "Seul un administrateur peut créer un employé.",
-      };
-    }
+    if (!isAdmin) return { success: false, message: "Seul un admin peut créer un employé." };
 
-    // Get admin's storeId
-    const { data: profileData, error: profileError } = await supabase
+    const { data: profile } = await supabase
       .from("profiles")
-      .select("storeId")
+      .select("storeId, subscriptionId")
       .eq("userId", user.id)
       .single();
 
-    if (profileError || !profileData?.storeId) {
-      console.error("Error fetching admin profile:", profileError?.message);
-      return {
-        success: false,
-        message: "Aucun magasin associé au compte administrateur.",
-      };
-    }
+    if (!profile?.storeId || !profile?.subscriptionId)
+      return { success: false, message: "Aucun magasin ou abonnement." };
 
-    const storeId = profileData.storeId;
+    // GET SUBSCRIPTION + PLAN
+    const { data: sub } = await supabase
+      .from("subscriptions")
+      .select("planId, endAt")
+      .eq("subscriptionId", profile.subscriptionId)
+      .single();
 
-    // Check if subscription is active
-    const isSubscriptionActive = await isUserSubscriptionActive(storeId);
-    if (!isSubscriptionActive) {
-      return {
-        success: false,
-        message: "Ta souscription a expiré, veuillez la renouveler.",
-      };
-    }
+    if (!sub) return { success: false, message: "Abonnement introuvable." };
 
-    console.log("Checkpoint 1");
-    // Create employee in Supabase Auth
+    const { data: plan } = await supabase
+      .from("plans")
+      .select("numberOfUsers")
+      .eq("planId", sub.planId)
+      .single();
+
+    if (!plan) return { success: false, message: "Plan introuvable." };
+
+    const maxUsers = plan.numberOfUsers;
+    const daysLeft = Math.floor((new Date(sub.endAt).getTime() - Date.now()) / 86400000);
+
+    if (daysLeft <= 0)
+      return { success: false, message: "Votre abonnement a expiré." };
+
+    // COUNT ACTIVE USERS (owner + active employees)
+        const { count: activeCountRaw } = await supabase
+          .from("profiles")
+          .select("*", { count: "exact" })
+          .eq("storeId", profile.storeId)
+          .eq("isActive", true);
+    
+        const activeCount = activeCountRaw ?? 0;
+    
+        if (activeCount >= maxUsers)
+          return { success: false, message: `Limite atteinte : ${maxUsers} utilisateurs max.` };
+
+    // CREATE EMPLOYEE
     const { data: authData, error: signUpError } = await supabase.auth.signUp({
       email: validatedData.email,
       password: validatedData.password,
     });
 
-    if (signUpError || !authData.user) {
-      console.error("Error creating employee auth:", signUpError?.message);
-      return {
-        success: false,
-        message: signUpError?.message.includes("already registered")
-          ? "L'email est déjà enregistré."
-          : signUpError?.message || "Échec de la création du compte employé.",
-      };
-    }
+    if (signUpError || !authData.user)
+      return { success: false, message: signUpError?.message.includes("already registered")
+        ? "Email déjà utilisé." : "Échec création compte." };
 
-    // Insert into profiles table
-    const { error: profileInsertError } = await supabase
-      .from("profiles")
-      .insert({
-        userId: authData.user.id,
-        name: validatedData.name,
-        phoneNumber: validatedData.phone,
-        email: validatedData.email,
-        storeId: storeId,
-        role: "employee",
-        created_at: new Date().toISOString(),
-      });
+    await supabase.from("profiles").insert({
+      userId: authData.user.id,
+      name: validatedData.name,
+      phoneNumber: validatedData.phone,
+      email: validatedData.email,
+      storeId: profile.storeId,
+      role: "employee",
+      isActive: true,
+      created_at: new Date().toISOString(),
+    });
 
-    if (profileInsertError) {
-      console.error(
-        "Error inserting employee profile:",
-        profileInsertError.message
-      );
-      return {
-        success: false,
-        message: "Échec de la création du profil employé.",
-      };
-    }
-
-    console.log("Check point 2");
-    // Insert into employees table
-    const { error: employeeInsertError } = await supabase
-      .from("employees")
-      .insert({
-        employeeId: authData.user.id,
-
-        storeId: storeId,
-        createdAt: new Date().toISOString(),
-      });
-
-    if (employeeInsertError) {
-      console.error(
-        "Error inserting employee record:",
-        employeeInsertError.message
-      );
-      return {
-        success: false,
-        message: "Échec de la création de l'enregistrement employé.",
-      };
-    }
-
-    return {
-      success: true,
-      message: "Compte employé créé avec succès.",
-    };
+    return { success: true, message: "Employé créé avec succès." };
   } catch (error) {
-    console.error("Unexpected error during employee creation:", error);
-    if (error instanceof z.ZodError) {
-      return { success: false, message: error.errors[0].message };
-    }
-    return { success: false, message: "Une erreur s'est produite." };
+    if (error instanceof z.ZodError) return { success: false, message: error.errors[0].message };
+    return { success: false, message: "Erreur serveur." };
   }
 }
 
+// app/actions.ts
 export async function getEmployeesByStore() {
   try {
     const supabase = createSupabaseServerClient();
@@ -2558,7 +2616,6 @@ export async function getEmployeesByStore() {
       return { success: false, message: "Non autorisé", employees: [] };
     }
 
-    // Check if user is admin
     const isAdmin = await isUserAdmin(user.id);
     if (!isAdmin) {
       return {
@@ -2568,7 +2625,6 @@ export async function getEmployeesByStore() {
       };
     }
 
-    // Get admin's storeId
     const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .select("storeId")
@@ -2576,20 +2632,19 @@ export async function getEmployeesByStore() {
       .single();
 
     if (profileError || !profileData?.storeId) {
-      console.error("Error fetching admin profile:", profileError?.message);
       return {
         success: false,
-        message: "Aucun magasin associé au compte administrateur.",
+        message: "Aucun magasin associé.",
         employees: [],
       };
     }
 
     const storeId = profileData.storeId;
 
-    // Fetch employees from profiles table (role: employee, matching storeId)
+    // Fetch employees with isActive
     const { data: employeesData, error: employeesError } = await supabase
       .from("profiles")
-      .select("userId, name, email, phoneNumber, created_at")
+      .select("userId, name, email, phoneNumber, created_at, isActive")
       .eq("storeId", storeId)
       .eq("role", "employee")
       .order("created_at", { ascending: false });
@@ -2598,19 +2653,19 @@ export async function getEmployeesByStore() {
       console.error("Error fetching employees:", employeesError.message);
       return {
         success: false,
-        message: "Échec durant la recherche des employés.",
+        message: "Échec lors de la récupération des employés.",
         employees: [],
       };
     }
 
-    // Map employees data for the table
     const employees = employeesData.map((emp, index) => ({
-      id: index + 1, // 1-based Sr No for table
+      id: index + 1,
       userId: emp.userId,
-      name: emp.name,
+      name: emp.name || "Inconnu",
       email: emp.email,
-      phone: emp.phoneNumber,
+      phone: emp.phoneNumber || "N/A",
       created_at: new Date(emp.created_at).toLocaleDateString("fr-FR"),
+      isActive: emp.isActive ?? true,
     }));
 
     return {
@@ -2619,7 +2674,7 @@ export async function getEmployeesByStore() {
       employees,
     };
   } catch (error) {
-    console.error("Unexpected error fetching employees:", error);
+    console.error("Unexpected error:", error);
     return {
       success: false,
       message: "Une erreur s'est produite.",
@@ -2831,111 +2886,166 @@ export async function getStore() {
 
 // Managing Subscriptions by the admin
 
-const updateSubscriptionSchema = z.object({
-  subscriptionId: z.string().min(1, "Subscription ID is required"),
-  months: z
-    .number()
-    .min(1, "At least 1 month is required")
-    .max(12, "Maximum 12 months"),
-});
+// app/actions.ts (or wherever you have the schema)
 
+
+
+
+// app/actions.ts → updateSubscription function
+// app/actions.ts
+// app/actions.ts
+// app/actions/updateSubscription.ts
 export async function updateSubscription(formData: FormData) {
-  console.log("Starting updateSubscription:", new Date().toISOString());
-
   const supabase = createSupabaseServerClient();
+
   try {
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) {
-      console.error("Auth error:", authError);
-      return { success: false, message: "Unauthorized" };
-    }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, message: 'Non autorisé' };
 
-    console.log("User authenticated:", user.id);
-
-    // Verify admin role
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("userId", user.id)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, storeId, subscriptionId')
+      .eq('userId', user.id)
       .single();
 
-    if (profileError || profile?.role !== "admin") {
-      console.error("Profile error or not admin:", profileError);
-      return { success: false, message: "Admin access required" };
-    }
+    if (profile?.role !== 'admin')
+      return { success: false, message: 'Accès admin requis' };
 
-    console.log("Admin role verified");
+    const subscriptionId = formData.get('subscriptionId') as string;
+    const months = Number(formData.get('months'));
+    const planId = Number(formData.get('planId'));
 
-    const validated = updateSubscriptionSchema.safeParse({
-      subscriptionId: formData.get("subscriptionId"),
-      months: Number(formData.get("months")),
-    });
+    if (!subscriptionId || !months || !planId)
+      return { success: false, message: 'Données manquantes' };
 
-    if (!validated.success) {
-      console.error("Validation error:", validated.error.errors);
-      return { success: false, message: validated.error.errors[0].message };
-    }
-
-    const { subscriptionId, months } = validated.data;
-    console.log("Validated data:", { subscriptionId, months });
-
-    // Fetch current endAt with timeout
-    const subscriptionPromise = supabase
-      .from("subscriptions")
-      .select("endAt")
-      .eq("subscriptionId", subscriptionId)
+    // Validate new plan
+    const { data: newPlan } = await supabase
+      .from('plans')
+      .select('planId, numberOfUsers')
+      .eq('planId', planId)
       .single();
 
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Subscription fetch timeout")), 5000)
-    );
+    if (!newPlan)
+      return { success: false, message: 'Plan invalide' };
 
-    const subscriptionResult = (await Promise.race([
-      subscriptionPromise,
-      timeoutPromise,
-    ])) as { data: { endAt: string } | null };
+    // Get current subscription
+    const { data: currentSub } = await supabase
+      .from('subscriptions')
+      .select('planId, endAt, storeId')
+      .eq('subscriptionId', subscriptionId)
+      .single();
 
-    const subscription = subscriptionResult.data;
+    if (!currentSub)
+      return { success: false, message: 'Abonnement introuvable' };
 
-    if (!subscription) {
-      console.error("Subscription not found for ID:", subscriptionId);
-      return { success: false, message: "Subscription not found" };
+    // Get current plan
+    const { data: currentPlan } = await supabase
+      .from('plans')
+      .select('numberOfUsers')
+      .eq('planId', currentSub.planId)
+      .single();
+
+    // Calculate new end date
+    const baseDate = new Date(currentSub.endAt || new Date());
+    const newEndAt = new Date(baseDate);
+    newEndAt.setDate(baseDate.getDate() + months * 30);
+
+    // === DOWNGRADE: DEACTIVATE EXCESS EMPLOYEES ===
+    if (newPlan.numberOfUsers < (currentPlan?.numberOfUsers ?? 0)) {
+      const { count } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact' })
+        .eq('storeId', currentSub.storeId)
+        .eq('isActive', true);
+
+      const activeCount = count ?? 0;
+
+      if (activeCount > newPlan.numberOfUsers) {
+        const toDeactivate = activeCount - newPlan.numberOfUsers;
+
+        // Get oldest active employees (from profiles)
+        const { data: excessProfiles } = await supabase
+          .from('profiles')
+          .select('userId')
+          .eq('storeId', currentSub.storeId)
+          .eq('role', 'employee')
+          .eq('isActive', true)
+          .order('created_at', { ascending: true })
+          .limit(toDeactivate);
+
+        if (excessProfiles?.length) {
+          const userIds = excessProfiles.map(p => p.userId);
+
+          // UPDATE profiles
+          await supabase
+            .from('profiles')
+            .update({ isActive: false })
+            .in('userId', userIds);
+
+          
+          await supabase
+            .from('employees')
+            .update({ isActive: false })
+            .in('employeeId', userIds);  // ← CORRECT: use `employeeId`
+        }
+      }
     }
 
-    console.log("Current endAt:", subscription.endAt);
+    // === UPGRADE: REACTIVATE DEACTIVATED EMPLOYEES ===
+    if (newPlan.numberOfUsers > (currentPlan?.numberOfUsers ?? 0)) {
+      const { count } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact' })
+        .eq('storeId', currentSub.storeId)
+        .eq('isActive', true);
 
-    // Calculate new endAt
-    const now = new Date();
-const currentEndAt = new Date(subscription.endAt || now);
+      const activeCount = count ?? 0;
+      const needed = newPlan.numberOfUsers - activeCount;
 
-// If the subscription already expired, start from now
-const baseDate = currentEndAt > now ? currentEndAt : now;
+      if (needed > 0) {
+        const { data: inactiveProfiles } = await supabase
+          .from('profiles')
+          .select('userId')
+          .eq('storeId', currentSub.storeId)
+          .eq('role', 'employee')
+          .eq('isActive', false)
+          .order('created_at', { ascending: true })
+          .limit(needed);
 
-const newEndAt = new Date(baseDate);
-newEndAt.setDate(baseDate.getDate() + months * 30);
+        if (inactiveProfiles?.length) {
+          const userIds = inactiveProfiles.map(p => p.userId);
 
-    console.log("New endAt:", newEndAt.toISOString());
+          await supabase
+            .from('profiles')
+            .update({ isActive: true })
+            .in('userId', userIds);
 
-    const { error: updateError } = await supabase
-      .from("subscriptions")
+          await supabase
+            .from('employees')
+            .update({ isActive: true })
+            .in('employeeId', userIds);  // ← CORRECT
+        }
+      }
+    }
+
+    // Update subscription
+    const { error } = await supabase
+      .from('subscriptions')
       .update({
+        planId,
         endAt: newEndAt.toISOString(),
         updatedAt: new Date().toISOString(),
       })
-      .eq("subscriptionId", subscriptionId);
+      .eq('subscriptionId', subscriptionId);
 
-    if (updateError) {
-      console.error("Update subscription error:", updateError);
-      return { success: false, message: "Failed to update subscription" };
+    if (error) {
+      console.error(error);
+      return { success: false, message: 'Échec de la mise à jour' };
     }
 
-    console.log("Subscription updated successfully");
-    return { success: true, message: "Subscription updated successfully" };
+    return { success: true, message: 'Abonnement mis à jour avec succès !' };
   } catch (error) {
-    console.error("Update subscription exception:", error);
-    return { success: false, message: "Une erreur s'est produite" };
+    console.error('Update subscription error:', error);
+    return { success: false, message: 'Erreur serveur' };
   }
 }

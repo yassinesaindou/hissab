@@ -1,95 +1,71 @@
-import React from "react";
-import Dashboard from "../../../components/Card";
-import Graph from "../../../components/Graph";
-import RecentTransactionTable from "../../../components/RecentTransactionTable";
-import RecentCredits from "../../../components/RecentCredits";
-import SubNavbar from "../../../components/SubNavbar";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import {
-  getRecentTransactions,
-  getRecentCredits,
-  getDashboardData,
-  getYearlyOverview,
-} from "@/app/actions";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// app/dashboard/page.tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createSupabaseClient } from '@/lib/supabase/client';
+import Dashboard from '@/app/components/Card';
 
-export default async function HomePage() {
-  const supabase = createSupabaseServerClient();
+import RecentTransactionTable from '@/app/components/RecentTransactionTable';
+import RecentCredits from '@/app/components/RecentCredits';
+import SubNavbar from '@/app/components/SubNavbar';
+import Graph from '@/app/components/Graph';
+import { Loader2 } from 'lucide-react';
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+export default function DashboardPage() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const supabase = createSupabaseClient();
 
-  if (!session) {
-    redirect("/login");
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) router.replace('/login');
+    });
+  }, [supabase, router]);
+
+  useEffect(() => {
+    async function load() {
+      const [d, y, t, c] = await Promise.all([
+        fetch('/api/dashboard/data').then(r => r.json()),
+        fetch('/api/dashboard/yearly').then(r => r.json()),
+        fetch('/api/dashboard/recent-transactions').then(r => r.json()),
+        fetch('/api/dashboard/recent-credits').then(r => r.json()),
+      ]);
+
+      setData({ dashboard: d, yearly: y, transactions: t, credits: c });
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+   if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-lg text-gray-600">Chargement...</span>
+      </div>
+    );
   }
 
-  // Get the user
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("userId", session?.user?.id)
-    .single();
-
-  console.log(error);
-  console.log("data", data?.role);
-
-  // Fetch recent transactions
-  const {
-    success: transactionsSuccess,
-    transactions,
-    message: transactionsMessage,
-  } = await getRecentTransactions();
-  if (!transactionsSuccess) {
-    console.error("Error fetching transactions:", transactionsMessage);
-  }
-
-  // Fetch recent credits
-  const {
-    success: creditsSuccess,
-    credits,
-    message: creditsMessage,
-  } = await getRecentCredits();
-  if (!creditsSuccess) {
-    console.error("Error fetching credits:", creditsMessage);
-  }
-
-  // Fetch dashboard data
-  const {
-    success: dashboardSuccess,
-    data: dashboardData,
-    message: dashboardMessage,
-  } = await getDashboardData();
-  if (!dashboardSuccess) {
-    console.error("Error fetching dashboard data:", dashboardMessage);
-  }
-
-  // Fetch yearly overview
-  const {
-    success: yearlySuccess,
-    data: yearlyData,
-    message: yearlyMessage,
-  } = await getYearlyOverview();
-  if (!yearlySuccess) {
-    console.error("Error fetching yearly data:", yearlyMessage);
-  }
+  const { dashboard, yearly, transactions, credits } = data;
 
   return (
-    <div className="h-screen p-4 text-gray-700 font-normal text-lg">
+    <div className="min-h-screen p-4 bg-gray-50">
       <SubNavbar />
-      {
+      {dashboard.success && (
         <Dashboard
-          sales={dashboardData?.sales || { total: 0, data: [] }}
-          expenses={dashboardData?.expenses || { total: 0, data: [] }}
-          credits={dashboardData?.credits || { total: 0, data: [] }}
-          revenue={dashboardData?.revenue || { total: 0, data: [] }}
+          sales={dashboard.data.sales}
+          expenses={dashboard.data.expenses}
+          credits={dashboard.data.credits}
+          revenue={dashboard.data.revenue}
         />
-      }
-      <Graph data={yearlyData || []} />
+      )}
+      <Graph data={yearly.data || []} />
       <div className="flex gap-4 mt-10 flex-col lg:flex-row">
-        <RecentTransactionTable transactions={transactions || []} />
-        <RecentCredits credits={credits || []} />
+        <RecentTransactionTable transactions={transactions.transactions || []} />
+        <RecentCredits credits={credits.credits || []} />
       </div>
     </div>
   );

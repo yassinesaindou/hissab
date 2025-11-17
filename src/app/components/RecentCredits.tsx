@@ -25,7 +25,7 @@ interface RecentCreditsProps {
 export default function RecentCredits({ credits }: RecentCreditsProps) {
   return (
     <div className="p-4 border h-fit text-gray-600 rounded-2xl shadow-lg flex-1 mb-10">
-      <h2 className="text-xl font-semibold text-gray-700">Recents Crédits</h2>
+      <h2 className="text-xl font-semibold text-gray-700">Crédits récents</h2>
 
       <Table className="mt-6">
         <TableCaption>Une liste de vos crédits récents</TableCaption>
@@ -45,7 +45,7 @@ export default function RecentCredits({ credits }: RecentCreditsProps) {
                 <TableCell>{credit.name}</TableCell>
                 <TableCell>{credit.phone}</TableCell>
                 <TableCell className="font-medium text-gray-700 text-right">
-                  ${credit.amount}
+                 {credit.amount} KMF
                 </TableCell>
               </TableRow>
             ))

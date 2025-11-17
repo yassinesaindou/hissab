@@ -1,3 +1,4 @@
+// app/login/page.tsx
 "use client";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,7 +15,6 @@ import {
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { useState } from "react";
-import { loginAction } from "@/app/actions";
 import { useRouter } from "next/navigation";
 
 const formSchema = z.object({
@@ -45,12 +45,26 @@ export default function LoginPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsPending(true);
     setMessage(null);
-    const result = await loginAction(values);
-    setMessage(result.message);
-    setIsPending(false);
-    if (result.success) {
-      form.reset();
-      router.push("/dashboard"); // Redirect to dashboard
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      });
+
+      const data = await res.json();
+
+      setMessage(data.message);
+      if (data.success) {
+        form.reset();
+        router.push("/dashboard");
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage("Une erreur réseau s'est produite");
+    } finally {
+      setIsPending(false);
     }
   }
 

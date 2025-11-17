@@ -1,46 +1,90 @@
+// app/settings/page.tsx
+'use client';
 
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createSupabaseClient } from '@/lib/supabase/client';
+import SettingsForm from '@/components/SettingsForm';
+import { Settings, Store, Loader2 } from 'lucide-react';
 
-import SettingsForm from "@/components/SettingsForm";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
- 
+type Profile = {
+  name: string;
+  phoneNumber: string;
+  storeId: string | null;
+};
 
-export default async function SettingsPage() {
-  const supabase = createSupabaseServerClient();
-  const {
-    data: {user },
-  } = await supabase.auth.getUser();
+type Store = {
+  storeName: string;
+  storeAddress: string;
+  storePhoneNumber: string;
+};
 
+export default function SettingsPage() {
+  const [profile, setProfile] = useState<Profile>({ name: '', phoneNumber: '', storeId: null });
+  const [store, setStore] = useState<Store>({ storeName: '', storeAddress: '', storePhoneNumber: '' });
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const supabase = createSupabaseClient();
 
-  if (!user) {
-    redirect("/login");
-  }
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) router.replace('/login');
+    });
+  }, [supabase, router]);
 
-  // Fetch profile
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("name, phoneNumber, storeId")
-    .eq("userId", user.id)
-    .single();
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const res = await fetch('/api/settings/data');
+        if (!res.ok) {
+          if (res.status === 401) router.replace('/login');
+          return;
+        }
+        const data = await res.json();
+        setProfile(data.profile);
+        setStore(data.store);
+      } catch (err) {
+        console.error('Failed to load settings:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, [router]);
 
-  // Fetch store if storeId exists
-  let store = null;
-  if (profile?.storeId) {
-    const { data } = await supabase
-      .from("stores")
-      .select("storeName, storeAddress, storePhoneNumber")
-      .eq("storeId", profile.storeId)
-      .single();
-    store = data;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-lg text-gray-600">Chargement...</span>
+      </div>
+    );
   }
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-green-100 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Settings</h1>
-      <SettingsForm
-        profile={profile || { name: "", phoneNumber: "", storeId: null }}
-        store={store || { storeName: "", storeAddress: "", storePhoneNumber: "" }}
-      />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 md:p-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-800 flex items-center justify-center gap-3">
+            <Settings className="h-9 w-9 text-blue-600" />
+            Paramètres
+          </h1>
+          <p className="text-gray-600 mt-2">Gérez vos informations personnelles et votre boutique</p>
+        </div>
+
+        {/* Settings Form */}
+        <div className="bg-white/80 backdrop-blur-lg border border-white/30 rounded-3xl shadow-xl p-6 md:p-8">
+          <SettingsForm profile={profile} store={store} />
+        </div>
+
+        {/* Fixed Footer */}
+        <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-yellow-400 to-amber-500 text-white py-4 px-6 shadow-lg">
+          <p className="text-center font-medium text-sm md:text-base">
+            Effectuez votre paiement à <strong>4107958</strong> via <strong>Mvola</strong>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

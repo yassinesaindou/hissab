@@ -57,14 +57,14 @@ export default function RecentTransactionTable({ transactions }: RecentTransacti
                     <p>{transaction.type}</p>
                   </div>
                 </TableCell>
-                <TableCell className="text-right">${transaction.amount.toFixed(2)}</TableCell>
+                <TableCell className="text-right">{transaction.amount.toFixed(0)} KMF</TableCell>
                 <TableCell className="pl-5 text-right">{transaction.description}</TableCell>
               </TableRow>
             ))
           ) : (
             <TableRow>
               <TableCell colSpan={5} className="text-center">
-                Aucune transaction récente trouvée
+                Aucune  récente transaction trouvée
               </TableCell>
             </TableRow>
           )}

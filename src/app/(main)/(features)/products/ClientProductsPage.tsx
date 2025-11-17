@@ -13,6 +13,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { productColumns, ProductInterface } from "./ProductsColumns.tsx";
+import { PlusCircle } from "lucide-react";
  
 
 interface ClientProductsPageProps {
@@ -54,6 +55,7 @@ export default function ClientProductsPage({ products: initialProducts }: Client
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-blue-600 hover:bg-blue-700">
+              <PlusCircle className="mr-1 font-medium" />
               Ajouter un article
             </Button>
           </DialogTrigger>

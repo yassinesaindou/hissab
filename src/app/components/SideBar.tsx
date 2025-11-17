@@ -2,7 +2,7 @@
 "use client";
 import { logoutAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
-import { supabaseClient } from "@/lib/supabase/client";
+import { createSupabaseClient } from "@/lib/supabase/client";
 import {
   Banknote,
   ChartBar,
@@ -12,7 +12,7 @@ import {
   Settings,
   UserRoundMinus,
   Users,
-  X
+  X,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -57,14 +57,15 @@ export default function SidebarComponent({
 }: {
   isOpen: boolean;
   closeSidebar: () => void;
-  }) {
-  
+}) {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     async function checkAdmin() {
-      const supabase = supabaseClient;
-      const { data: { user } } = await supabase.auth.getUser();
+      const supabase = createSupabaseClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (user) {
         const { data } = await supabase
           .from("profiles")
@@ -76,7 +77,7 @@ export default function SidebarComponent({
     }
     checkAdmin();
   }, []);
-  
+
   return (
     <>
       {isOpen && (
@@ -91,7 +92,7 @@ export default function SidebarComponent({
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}>
         <div className="flex items-center justify-between text-3xl font-bold text-center py-5 px-4 border-b border-blue-600">
-          <Image src={"/hissabw.png"} alt="Logo" width={170} height={'45'} />
+          <Image src={"/hissabw.png"} alt="Logo" width={170} height={"45"} />
           <button onClick={closeSidebar} className="md:hidden text-white">
             <X size={24} />
           </button>
@@ -117,12 +118,14 @@ export default function SidebarComponent({
               href="/transactions"
               onClick={closeSidebar}
             />
-           {isAdmin && <NavItem
-              icon={<UserRoundMinus size={20} />}
-              label="Crédits"
-              href="/credits"
-              onClick={closeSidebar}
-            />}
+            {isAdmin && (
+              <NavItem
+                icon={<UserRoundMinus size={20} />}
+                label="Crédits"
+                href="/credits"
+                onClick={closeSidebar}
+              />
+            )}
             <NavItem
               icon={<Package size={20} />}
               label="Articles"
@@ -135,12 +138,14 @@ export default function SidebarComponent({
               href="/invoices"
               onClick={closeSidebar}
             />
-           {isAdmin && <NavItem
-              icon={<Users size={20} />}
-              label="Employés"
-              href="/employees"
-              onClick={closeSidebar}
-            />}
+            {isAdmin && (
+              <NavItem
+                icon={<Users size={20} />}
+                label="Employés"
+                href="/employees"
+                onClick={closeSidebar}
+              />
+            )}
           </ul>
 
           <div className="list-none px-2 py-4 border-t border-blue-600 space-y-1">

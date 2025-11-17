@@ -52,7 +52,7 @@ export default function ClientCreditsPage({ credits, products }: ClientCreditsPa
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogTrigger asChild>
           <Button className="self-end bg-blue-600 hover:bg-blue-700">
-            Add New Credit
+            Ajouter un Crédit
           </Button>
         </DialogTrigger>
         <DialogContent>

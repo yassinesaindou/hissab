@@ -1,49 +1,86 @@
 // app/credits/page.tsx
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import ClientCreditsPage from "./ClientCreditsPage";
+'use client';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createSupabaseClient } from '@/lib/supabase/client';
+import ClientCreditsPage from './ClientCreditsPage';
+import { Loader2 } from 'lucide-react';
 
-export default async function CreditsPage() {
-  const supabase = createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+type Credit = {
+  creditId: string;
+  customerName: string;
+  customerPhone: string;
+  amount: number;
+  status: string;
+  description: string | null;
+  productId: string | null;
+  created_at: string;
+};
 
-  if (!user) {
-    redirect("/login");
+type Product = {
+  productId: string;
+  name: string;
+  unitPrice: number;
+  stock: number;
+};
+
+export default function CreditsPage() {
+  const [credits, setCredits] = useState<Credit[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const supabase = createSupabaseClient();
+
+  useEffect(() => {
+    // Auth guard
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        router.replace('/login');
+      }
+    });
+  }, [supabase, router]);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const res = await fetch('/api/credits/data');
+        if (!res.ok) {
+          if (res.status === 401) {
+            router.replace('/login');
+          }
+          return;
+        }
+
+        const data = await res.json();
+
+        // Handle employee redirect
+        if (data.redirect) {
+          router.replace(data.redirect);
+          return;
+        }
+
+        setCredits(data.credits || []);
+        setProducts(data.products || []);
+      } catch (err) {
+        console.error('Failed to load credits', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-lg text-gray-600">Chargement...</span>
+      </div>
+    );
   }
 
-  const { data: credits, error: creditsError } = await supabase
-    .from("credits")
-    .select(
-      "creditId, customerName, customerPhone, amount, status, description, productId, created_at"
-    )
-    .eq("userId", user.id);
-
-  const { data: profile, error: profileError } = await supabase.from('profiles').select('role').eq('userId', user.id).single();
-
-  if (profileError) {
-    console.error("Error fetching profile:", profileError.message);
-  }
-
-  if(profile?.role === 'employee'){
-    redirect('/')
-  }
-
-
-  const { data: products, error: productsError } = await supabase
-    .from("products")
-    .select("productId, name, unitPrice, stock")
-    .eq("userId", user.id);
-
-  if (creditsError) {
-    console.error("Error fetching credits:", creditsError.message);
-  }
-  if (productsError) {
-    console.error("Error fetching products:", productsError.message);
-  }
 
   return (
-    <ClientCreditsPage credits={credits || []} products={products || []} />
+    <ClientCreditsPage credits={credits} products={products} />
   );
 }

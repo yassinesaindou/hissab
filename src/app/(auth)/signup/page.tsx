@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+// app/signup/page.tsx
 'use client';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,7 +16,6 @@ import {
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { useState } from 'react';
-import { signupAction } from '@/app/actions';
 
 const formSchema = z
   .object({
@@ -24,7 +25,7 @@ const formSchema = z
       .max(50, { message: 'Le nom doit comporter au maximum 50 caractères. ' }),
     email: z
       .string()
-      .min(7, { message: 'L\'email doit avoir au moins 7 caractères.' })
+      .min(7, { message: "L'email doit avoir au moins 7 caractères." })
       .max(50)
       .email({ message: 'Veuillez entrer une adresse email valide.' }),
     phone: z
@@ -44,7 +45,7 @@ const formSchema = z
       .max(50),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: 'Passwords do not match.',
+    message: 'Les mots de passe ne correspondent pas.',
     path: ['confirmPassword'],
   });
 
@@ -66,11 +67,24 @@ export default function SignupPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsPending(true);
     setMessage(null);
-    const result = await signupAction(values);
-    setMessage(result.message);
-    setIsPending(false);
-    if (result.success) {
-      form.reset();
+
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      });
+
+      const data = await res.json();
+      setMessage(data.message);
+
+      if (data.success) {
+        form.reset();
+      }
+    } catch (err) {
+      setMessage("Erreur réseau. Veuillez réessayer.");
+    } finally {
+      setIsPending(false);
     }
   }
 
@@ -81,7 +95,7 @@ export default function SignupPage() {
         {message && (
           <div
             className={`mb-4 p-3 rounded text-sm ${
-              message.includes('successful')
+              message.includes('réussie') || message.includes('successful')
                 ? 'bg-green-100 text-green-700'
                 : 'bg-red-100 text-red-700'
             }`}
@@ -130,7 +144,7 @@ export default function SignupPage() {
               name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Numéro de telephone</FormLabel>
+                  <FormLabel>Numéro de téléphone</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="+1234567890"
@@ -165,11 +179,11 @@ export default function SignupPage() {
               name="confirmPassword"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Comfirmer le mot de passe</FormLabel>
+                  <FormLabel>Confirmer le mot de passe</FormLabel>
                   <FormControl>
                     <Input
                       type="password"
-                      placeholder="Confimez votre mot de passe"
+                      placeholder="Confirmez votre mot de passe"
                       className="border-gray-300 focus:ring-blue-600 focus:border-blue-600"
                       {...field}
                     />
@@ -183,12 +197,12 @@ export default function SignupPage() {
               className="w-full bg-blue-600 hover:bg-blue-700 text-white"
               disabled={isPending}
             >
-              {isPending ? 'Enregisterement...' : 'S\'inscrire'}
+              {isPending ? 'Enregistrement...' : "S'inscrire"}
             </Button>
           </form>
         </Form>
         <p className="mt-4 text-center text-sm text-gray-600">
-          J&apos;ai deja un compte?{' '}
+          J&apos;ai déjà un compte ?{' '}
           <Link href="/login" className="text-blue-600 hover:underline">
             Se connecter
           </Link>

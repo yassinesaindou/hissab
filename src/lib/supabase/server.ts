@@ -33,17 +33,26 @@ export const createSupabaseServerClient = () => {
 };
 
 // Create subscription
-export async function createSubscription(userId: string, planType: string = 'pro', storeId:string) {
+// app/actions.ts or wherever
+export async function createSubscription(
+  userId: string,
+  planId: number = 2, // default = Pro
+  storeId: string
+) {
   const supabase = createSupabaseServerClient();
+
+  const endAt = new Date();
+  endAt.setDate(endAt.getDate() + 7); // 7-day trial
+
   const { data, error } = await supabase
     .from('subscriptions')
     .insert({
       userId,
-      planType,
-      created_at: new Date().toISOString(),
-      endAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
-      updatedAt: new Date().toISOString(),
+      planId, // ← integer ID
       storeId,
+      created_at: new Date().toISOString(),
+      endAt: endAt.toISOString(),
+      updatedAt: new Date().toISOString(),
     })
     .select()
     .single();
@@ -55,7 +64,6 @@ export async function createSubscription(userId: string, planType: string = 'pro
 
   return data;
 }
-
 
 export async function createStore(userId: string) {
   const supabase = createSupabaseServerClient();

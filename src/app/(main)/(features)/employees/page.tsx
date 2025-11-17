@@ -1,143 +1,142 @@
-import { getEmployeesByStore } from "@/app/actions";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+// app/employees/page.tsx
+'use client';
+import { useEffect, useState } from 'react';
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import CreateEmployeeForm from './createEmployeeForm';
+import { Loader2, PlusCircle, UserCheck, UserX } from 'lucide-react';
 
-import CreateEmployeeForm from "./createEmployeeForm";
+type Employee = {
+  id: number;
+  userId: string;
+  name: string;
+  email: string;
+  phone: string;
+  created_at: string;
+  isActive: boolean;
+};
 
-import clsx from "clsx"; // for conditional classNames
-
-// Helper to pick a color based on first letter
-function getAvatarColor(letter: string) {
-  const colors = [
-    "bg-red-500",
-    "bg-green-500",
-    "bg-blue-500",
-    "bg-yellow-500",
-    "bg-purple-500",
-    "bg-pink-500",
-    "bg-indigo-500",
-    "bg-teal-500",
-    "bg-orange-500",
-  ];
-  const index = letter.charCodeAt(0) % colors.length;
-  return colors[index];
-}
-
-export default async function EmployeesPage() {
-  const supabase = createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, storeId")
-    .eq("userId", user.id)
-    .single();
-
+export default function EmployeesPage() {
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Employee | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
-  console.log("This is the profile's role",profile?.role)
-  if (profile?.role !== "user" && profile?.role !== "admin") {
-    redirect("/dashboard");
-  }
 
-  const { success, message, employees } = await getEmployeesByStore();
+  useEffect(() => { /* auth guard */ }, []);
 
-  if (!success) {
+  useEffect(() => {
+    async function load() {
+      const res = await fetch('/api/employees/data');
+      if (!res.ok) { /* redirect */ return; }
+      const data = await res.json();
+      setEmployees(data.employees);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  const toggleStatus = async () => {
+    if (!selected) return;
+    const formData = new FormData();
+    formData.append("employeeId", selected.userId);
+    formData.append("activate", (!selected.isActive).toString());
+
+    const res = await fetch("/api/employees/toggle", {
+      method: "POST",
+      body: formData,
+    });
+    const result = await res.json();
+
+    if (result.success) {
+      setEmployees(emps => emps.map(e =>
+        e.userId === selected.userId ? { ...e, isActive: !e.isActive } : e
+      ));
+      setIsModalOpen(false);
+    } else {
+      alert(result.message);
+    }
+  };
+
+   if (loading) {
     return (
-      <div className="p-4">
-        <p className="text-red-500">{message}</p>
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-lg text-gray-600">Chargement...</span>
       </div>
     );
   }
 
+
   return (
-    <div className="p-4 max-w-7xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Employés</h1>
+        <h1 className="text-3xl font-bold text-gray-800">Employés</h1>
         <Dialog>
           <DialogTrigger asChild>
-            <Button variant="default" className="bg-blue-600 hover:bg-blue-700">
-              Ajouter un employé
+            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600">
+              <PlusCircle className="mr-2 h-5 w-5" /> Ajouter
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Créer un compte employé</DialogTitle>
-            </DialogHeader>
-            <CreateEmployeeForm />
-          </DialogContent>
+          <DialogContent><CreateEmployeeForm /></DialogContent>
         </Dialog>
       </div>
-      <div className="border rounded-md">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>N°</TableHead>
-              <TableHead>Avatar</TableHead>
-              <TableHead>Nom</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Téléphone</TableHead>
-              <TableHead>Date de création</TableHead>
+
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>N°</TableHead>
+            <TableHead>Nom</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Statut</TableHead>
+            <TableHead>Action</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {employees.map((emp) => (
+            <TableRow key={emp.userId} className="cursor-pointer hover:bg-gray-50" onClick={() => { setSelected(emp); setIsModalOpen(true); }}>
+              <TableCell>{emp.id}</TableCell>
+              <TableCell className="font-medium">{emp.name}</TableCell>
+              <TableCell>{emp.email}</TableCell>
+              <TableCell>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${emp.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  {emp.isActive ? 'Actif' : 'Inactif'}
+                </span>
+              </TableCell>
+              <TableCell>
+                {emp.isActive ? <UserCheck className="h-5 w-5 text-green-600" /> : <UserX className="h-5 w-5 text-red-600" />}
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {employees.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center">
-                  Aucun employé trouvé.
-                </TableCell>
-              </TableRow>
-            ) : (
-              employees.map((employee) => {
-                const firstLetter = employee.name
-                  ? employee.name.charAt(0).toUpperCase()
-                  : "?";
-                const colorClass = getAvatarColor(firstLetter);
-                return (
-                  <TableRow key={employee.userId}>
-                    <TableCell>{employee.id}</TableCell>
-                    <TableCell>
-                      <div
-                        className={clsx(
-                          "w-8 h-8 flex items-center justify-center rounded-full text-white font-bold",
-                          colorClass
-                        )}>
-                        {firstLetter}
-                      </div>
-                    </TableCell>
-                    <TableCell>{employee.name}</TableCell>
-                    <TableCell>{employee.email}</TableCell>
-                    <TableCell>{employee.phone}</TableCell>
-                    <TableCell>{employee.created_at}</TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+          ))}
+        </TableBody>
+      </Table>
+
+      {/* Toggle Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gérer l&apos;employé</DialogTitle>
+          </DialogHeader>
+          {selected && (
+            <div className="space-y-4">
+              <p><strong>Nom:</strong> {selected.name}</p>
+              <p><strong>Email:</strong> {selected.email}</p>
+              <p><strong>Statut:</strong> <span className={selected.isActive ? 'text-green-600' : 'text-red-600'}>{selected.isActive ? 'Actif' : 'Inactif'}</span></p>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsModalOpen(false)}>Annuler</Button>
+                <Button
+                  onClick={toggleStatus}
+                  className={selected.isActive ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}
+                >
+                  {selected.isActive ? 'Désactiver' : 'Activer'}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

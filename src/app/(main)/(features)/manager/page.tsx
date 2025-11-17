@@ -1,74 +1,81 @@
- 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import ManagerDashboard from "./ManagerDashboard";
+// app/manager/page.tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createSupabaseClient } from '@/lib/supabase/client';
+import ManagerDashboard from './ManagerDashboard';
+import { ProfileWithSubscription } from '@/lib/types';
+import { Loader2 } from 'lucide-react';
+// ← IMPORT
 
-type ProfileWithSubscription = {
-  userId: string;
-  name: string | null;
-  phoneNumber: string | null;
-  subscriptionId: string | null;
-  created_at: string | null;
-  updatedAt: string | null;
-  endAt: string | null;
-  daysLeft: number;
-};
+export default function ManagerPage() {
+  const [profiles, setProfiles] = useState<ProfileWithSubscription[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const supabase = createSupabaseClient();
 
-export default async function ManagerPage() {
-  const supabase = createSupabaseServerClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        router.replace('/login');
+      }
+    });
+  }, [supabase, router]);
 
-  if (authError || !user) {
-    return <div className="p-6 text-red-600">Unauthorized</div>;
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const res = await fetch('/api/manager/data');
+        if (!res.ok) {
+          const json = await res.json();
+          if (res.status === 401) {
+            router.replace('/login');
+          } else if (res.status === 403) {
+            setError('Accès administrateur requis');
+          } else {
+            setError(json.error || 'Erreur serveur');
+          }
+          return;
+        }
+
+        const data = await res.json();
+        setProfiles(data.profiles || []);
+      } catch (err) {
+        console.error('Failed to load manager data:', err);
+        setError('Erreur de chargement');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+  }, [router]);
+
+   if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-lg text-gray-600">Chargement...</span>
+      </div>
+    );
   }
 
-  // Verify admin role
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("userId", user.id)
-    .single();
 
-  if (profile?.role !== "admin") {
-    return <div className="p-6 text-red-600">Admin access required</div>;
+  if (error) {
+    return (
+      <div className="p-6 mx-auto max-w-4xl">
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg">
+          {error}
+        </div>
+      </div>
+    );
   }
-
-  // Fetch profiles and subscriptions
-  const { data: profiles } = await supabase
-    .from("profiles")
-    .select("userId, name, phoneNumber, subscriptionId").in("role", ['user', 'admin'])
-
-  const { data: subscriptions } = await supabase
-    .from("subscriptions")
-    .select("subscriptionId, created_at, updatedAt, endAt");
-
-  // Combine data
-  const profilesWithSubscriptions: ProfileWithSubscription[] = (profiles || []).map((p) => {
-    const sub = subscriptions?.find((s) => s.subscriptionId === p.subscriptionId);
-    const endAt = sub?.endAt ? new Date(sub.endAt) : null;
-    const today = new Date();
-    const daysLeft = endAt
-      ? Math.max(0, Math.floor((endAt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)))
-      : 0;
-
-    return {
-      userId: p.userId,
-      name: p.name,
-      phoneNumber: p.phoneNumber,
-      subscriptionId: p.subscriptionId,
-      created_at: sub?.created_at,
-      updatedAt: sub?.updatedAt,
-      endAt: sub?.endAt,
-      daysLeft,
-    };
-  });
-
-  // Debug: Log profiles
-  console.log("Profiles with subscriptions:", profilesWithSubscriptions);
 
   return (
-    <div className="p-6  mx-auto space-y-6">
+    <div className="p-6 mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Admin Dashboard</h1>
-      <ManagerDashboard profiles={profilesWithSubscriptions} />
+      <ManagerDashboard profiles={profiles} />
     </div>
   );
 }

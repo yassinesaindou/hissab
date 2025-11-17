@@ -1,74 +1,62 @@
- 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
-import ClientTransactionsPage from "./ClientTransactionsPage";
+// app/transactions/page.tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createSupabaseClient } from '@/lib/supabase/client';
+import ClientTransactionsPage from './ClientTransactionsPage';
+import { Product, Transaction } from '@/lib/types';
+import { Loader2 } from 'lucide-react';
+ // ← IMPORT
 
-export default async function TransactionsPage() {
-  try {
-    const supabase = createSupabaseServerClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+export default function TransactionsPage() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const supabase = createSupabaseClient();
 
-    if (authError || !user) {
-      console.error("Auth error:", authError?.message);
-      redirect("/login");
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        router.replace('/login');
+      }
+    });
+  }, [supabase, router]);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const res = await fetch('/api/transactions/data');
+        if (!res.ok) {
+          if (res.status === 401) router.replace('/login');
+          return;
+        }
+        const data = await res.json();
+        setTransactions(data.transactions || []);
+        setProducts(data.products || []);
+      } catch (err) {
+        console.error('Failed to load transactions', err);
+      } finally {
+        setLoading(false);
+      }
     }
+    loadData();
+  }, [router]);
 
-    const { data: profile } = await supabase
-    .from("profiles")
-    .select("userId,name,storeId , role")
-    .eq("userId", user.id)
-    .single();
-
-  
-    
-    const modifiedStoreId = profile?.role === 'employee' ? user.id : profile?.storeId;
-
-    const comparisonColumn = profile?.role === 'employee' ? 'userId' : 'storeId';
-    
-    const { data: transactions, error: transactionsError } = await supabase
-      .from("transactions")
-      .select(
-        "transactionId, created_at, userId, productId, productName, unitPrice, totalPrice, quantity, type"
-      )
-      .eq(comparisonColumn,  modifiedStoreId);
-    
-   console.log('Trnsation from emp', transactions);
-
-    const { data: products, error: productsError } = await supabase
-      .from("products")
-      .select("productId, name, unitPrice, stock")
-      .eq("storeId",profile?.storeId);
-    
-   
-
-    if (transactionsError) {
-      console.error("Transactions error:", transactionsError.message);
-    }
-    if (productsError) {
-      console.error("Products error:", productsError.message);
-    }
-
-    // Map product names to transactions
-    const productMap = new Map(products?.map(p => [p.productId, p.name]) || []);
-    const enrichedTransactions = transactions?.map(t => ({
-      ...t,
-      productName: t.productName || (t.productId ? productMap.get(t.productId) : null) || null,
-    })) || [];
-
-    
-
+   if (loading) {
     return (
-      <ClientTransactionsPage
-        transactions={enrichedTransactions}
-        products={products ?? []}
-      />
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <span className="ml-3 text-lg text-gray-600">Chargement...</span>
+      </div>
     );
-  } catch (error) {
-    console.error("Unexpected error:", error);
-    redirect("/login");
   }
+
+
+  return (
+    <ClientTransactionsPage
+      transactions={transactions}
+      products={products}
+    />
+  );
 }
- 

@@ -1,58 +1,53 @@
-"use client";
-import { useEffect, useState } from "react";
-import Navbar from "../../components/Navbar";
+import SideBarExample from "@/app/components/ShadSideBar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import Navbar from "@/app/components/Navbar";
 
-import SidebarComponent from "../../components/SideBar";
-import { supabaseClient } from "@/lib/supabase/client";
-import { SyncLoader } from "react-spinners";
-
-export default function MainLayout({
+export default async function MainLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const supabase = createSupabaseServerClient();
 
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) redirect("/login");
 
-  useEffect(() => {
-    async function fetchSession() {
-      const session = await supabaseClient.auth.getSession();
-      if (!session.data.session) {
-        window.location.href = "/login";
-        console.log("No active session, redirecting to login.");
-      } else {
-        setIsLoading(false);
-      }
-    }
-    fetchSession();
-  }, []);
+  const user = session.user;
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
-        <SyncLoader
-          color="#2563eb"
-          loading={true}
-          size={15}
-          aria-label="Loading Spinner"
-          data-testid="loader"
-          className="mx-auto "
-        />
-      </div>
-    );
+  // Check if user is an employee and get activation status
+  const { data: employee, } = await supabase
+    .from("employees")
+    .select("isActive")
+    .eq("employeeId", user.id)
+    .single();
+
+  // If employee exists and is deactivated → redirect
+  if (employee && !employee.isActive) {
+    redirect("/deactivated");
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <SidebarComponent
-        isOpen={isSidebarOpen}
-        closeSidebar={() => setIsSidebarOpen(false)}
-      />
-      <div className="flex-1 flex flex-col w-full overflow-auto">
-        <Navbar toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
-        <div className="flex-1 p-4">{children}</div>
+    <SidebarProvider>
+      <div className="flex w-screen h-screen overflow-hidden">
+        {/* Sidebar */}
+        <SideBarExample />
+
+        {/* Right section */}
+        <div className="flex flex-col flex-1 min-w-0">
+          {/* Header */}
+          <header className="flex h-16 items-center border-b px-4 shrink-0">
+            <SidebarTrigger />
+            <Separator orientation="vertical" className="mx-2 h-4" />
+            <Navbar />
+          </header>
+
+          {/* Main Content - Takes remaining height */}
+          <main className="flex-1 overflow-auto p-4">{children}</main>
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }

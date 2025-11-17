@@ -1,4 +1,4 @@
-import {  Plus_Jakarta_Sans} from "next/font/google";
+import {  Inter} from "next/font/google";
 import "./globals.css";
  
 
@@ -6,7 +6,7 @@ import "./globals.css";
 //   weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
 //   subsets: ["latin"],
 // });
-const jakartaSans = Plus_Jakarta_Sans({
+const jakartaSans = Inter({
   weight: [  "200", "300", "400", "500", "600", "700", "800", ],
   subsets: ["latin"],
 });
@@ -21,7 +21,7 @@ export default async function RootLayout({
       <head>
         <link rel="preload" href="/favicon.ico" as="image" />
       </head>
-      <body className={`${jakartaSans.className} antialiased font-medium`}>{children}</body>
+      <body className={`${jakartaSans.className} antialiased font-normal`}>{children}</body>
     </html>
   );
 }

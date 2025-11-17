@@ -1,46 +1,58 @@
 // components/SubNavbar.tsx
+'use client';
+import { useEffect, useState } from 'react';
+import { ClientAddTransactionForm } from '@/app/(main)/(features)/transactions/ClientTransactionsPage';
+import { createSupabaseClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+type SubNavbarData = {
+  userName: string;
+  products: Array<{
+    productId: string;
+    name: string;
+    unitPrice: number;
+    stock: number;
+  }>;
+};
 
-import { ClientAddTransactionForm } from "../(main)/(features)/transactions/ClientTransactionsPage";
+export default function SubNavbar() {
+  const [data, setData] = useState<SubNavbarData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const supabase = createSupabaseClient();
 
-export default async function SubNavbar() {
-  const supabase = createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  useEffect(() => {
+    // Check auth
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        router.replace('/login');
+      }
+    });
+  }, [supabase, router]);
 
-  if (!user) {
-    redirect("/login");
-  }
+  useEffect(() => {
+    async function load() {
+      const res = await fetch('/api/user/profile');
+      if (!res.ok) {
+        router.replace('/login');
+        return;
+      }
+      const json = await res.json();
+      setData(json);
+      setLoading(false);
+    }
+    load();
+  }, [router]);
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("name,storeId")
-    .eq("userId", user.id)
-    .single();
-
-  const userName = profile?.name || "User";
-
-  const { data: products, error: productsError } = await supabase
-    .from("products")
-    .select("productId, name, unitPrice, stock")
-    .eq("storeId", profile?.storeId);
-
-  if (productsError) {
-    console.error("Products error:", productsError.message);
-  }
-
-  // Map product names to transactions
+  if (loading) return <div className="pb-3 border-b">Chargement...</div>;
 
   return (
     <div className="w-full pb-3 border-b space-x-2 flex flex-col md:flex-row justify-between">
       <div className="min-w-fit">
-        <h2>Mes Salutations, {userName}</h2>
+        <h2>Mes Salutations, {data?.userName}</h2>
       </div>
       <div className="flex justify-end items-center w-full mt-3 md:mt-0 space-x-2">
-        <ClientAddTransactionForm products={products ?? []} />
+        <ClientAddTransactionForm products={data?.products ?? []} />
       </div>
     </div>
   );
