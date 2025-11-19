@@ -1,9 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// app/dashboard/page.tsx
+// app/(main)/(features)/dashboard/page.tsx
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import Dashboard from "@/app/components/Card";
 import RecentTransactionTable from "@/app/components/RecentTransactionTable";
@@ -13,119 +12,189 @@ import Graph from "@/app/components/Graph";
 import { Loader2 } from "lucide-react";
 
 export default function DashboardPage() {
-  const [data, setData] = useState<any>(null);
+  const [stats, setStats] = useState({
+    sales: 0,
+    expenses: 0,
+    credits: 0,
+    revenue: 0,
+  });
 
-  // first load spinner only
+  const [yearlyData, setYearlyData] = useState<Array<{ name: string; sales: number; expenses: number; credits: number; revenue: number }>>([]);
+  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [recentCredits, setRecentCredits] = useState<any[]>([]);
+
   const [loading, setLoading] = useState(true);
-
-  // silent background refresh indicator
   const [refreshing, setRefreshing] = useState(false);
 
-  const router = useRouter();
   const supabase = createSupabaseClient();
+  const loadDataRef = useRef<(() => void) | undefined>(undefined);
 
-  // keep a ref to the latest loadData so the event handler can call it
-  const loadDataRef = useRef<(opts?: { showLoading?: boolean }) => Promise<void> | null>(null);
+  const loadData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    else setRefreshing(true);
 
-  // auth check
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) router.replace("/login");
-    });
-  }, [supabase, router]);
-
-  // core loader
-  const loadData = useCallback(async ({ showLoading = true } = {}) => {
     try {
-      if (showLoading) {
-        setLoading(true);
-      } else {
-        setRefreshing(true);
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-      // debug
-      console.debug("[Dashboard] loadData() start. showLoading=", showLoading);
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("storeId, role")
+        .eq("userId", user.id)
+        .single();
 
-      const [d, y, t, c] = await Promise.all([
-        fetch("/api/dashboard/data").then((r) => r.json()),
-        fetch("/api/dashboard/yearly").then((r) => r.json()),
-        fetch("/api/dashboard/recent-transactions").then((r) => r.json()),
-        fetch("/api/dashboard/recent-credits").then((r) => r.json()),
-      ]);
+      if (!profile) return;
 
-      setData({
-        dashboard: d,
-        yearly: y,
-        transactions: t,
-        credits: c,
+      const isEmployee = profile.role === "employee";
+      const filterKey = isEmployee ? "userId" : "storeId";
+      const filterValue = isEmployee ? user.id : profile.storeId;
+
+      // Recent Transactions
+      const { data: txns } = await supabase
+        .from("transactions")
+        .select("created_at, type, totalPrice, productName")
+        .eq(filterKey, filterValue)
+        .in("type", ["sale", "expense"])
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      const formattedTxns = (txns || []).map((t: any, i: number) => ({
+        id: i + 1,
+        date: new Date(t.created_at).toISOString().split("T")[0],
+        type: t.type === "sale" ? "Vente" : "Dépense",
+        amount: t.totalPrice || 0,
+        description: t.productName || "N/A",
+      }));
+
+      // Recent Credits
+      const { data: credits } = await supabase
+        .from("credits")
+        .select("customerName, customerPhone, amount")
+        .eq(filterKey, filterValue)
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      const formattedCredits = (credits || []).map((c: any, i: number) => ({
+        id: i + 1,
+        name: c.customerName || "Inconnu",
+        phone: c.customerPhone || "N/A",
+        amount: c.amount || 0,
+      }));
+
+      // Last 14 days stats
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+      const { data: recentTxns } = await supabase
+        .from("transactions")
+        .select("type, totalPrice")
+        .eq(filterKey, filterValue)
+        .in("type", ["sale", "expense"])
+        .gte("created_at", fourteenDaysAgo.toISOString());
+
+      const sales = (recentTxns || []).filter(t => t.type === "sale").reduce((s, t) => s + (t.totalPrice || 0), 0);
+      const expenses = (recentTxns || []).filter(t => t.type === "expense").reduce((s, t) => s + (t.totalPrice || 0), 0);
+
+      const { data: pendingCredits } = await supabase
+        .from("credits")
+        .select("amount")
+        .eq(filterKey, filterValue)
+        .eq("status", "pending")
+        .gte("created_at", fourteenDaysAgo.toISOString());
+
+      const totalPendingCredits = (pendingCredits || []).reduce((s, c) => s + (c.amount || 0), 0);
+      const revenue = sales - expenses;
+
+      // Yearly data
+      const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+      const { data: yearlyTxns } = await supabase
+        .from("transactions")
+        .select("created_at, type, totalPrice")
+        .eq(filterKey, filterValue)
+        .gte("created_at", startOfYear.toISOString());
+
+      const monthly = Array.from({ length: 12 }, (_, i) => {
+        const monthStart = new Date(new Date().getFullYear(), i, 1);
+        const monthEnd = new Date(new Date().getFullYear(), i + 1, 0);
+
+        const monthTxns = (yearlyTxns || []).filter((t: any) => {
+          const d = new Date(t.created_at);
+          return d >= monthStart && d <= monthEnd;
+        });
+
+        const monthSales = monthTxns.filter(t => t.type === "sale").reduce((s, t) => s + (t.totalPrice || 0), 0);
+        const monthExpenses = monthTxns.filter(t => t.type === "expense").reduce((s, t) => s + (t.totalPrice || 0), 0);
+
+        return {
+          name: monthStart.toLocaleString("default", { month: "short" }),
+          sales: monthSales,
+          expenses: monthExpenses,
+          credits: 0,
+          revenue: monthSales - monthExpenses,
+        };
       });
 
-      console.debug("[Dashboard] loadData() success", { d, y, t, c });
+      setStats({ sales, expenses, credits: totalPendingCredits, revenue });
+      setYearlyData(monthly);
+      setRecentTransactions(formattedTxns);
+      setRecentCredits(formattedCredits);
     } catch (err) {
-      console.error("[Dashboard] loadData error:", err);
+      console.error("Load failed:", err);
     } finally {
-      if (showLoading) setLoading(false);
-      else setRefreshing(false);
+      setLoading(false);
+      setRefreshing(false);
     }
-  }, []);
+  }, [supabase]);
 
-  // expose to ref so event handler always calls latest
-  loadDataRef.current = loadData;
-
-  // initial load
+  // THIS WAS THE BUG — it was outside useEffect
   useEffect(() => {
-    loadData({ showLoading: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    loadDataRef.current = () => loadData(true);
+  }, [loadData]);
 
-  // named event handler so removeEventListener works
+  // Initial load
   useEffect(() => {
-    function handleRefreshEvent(e: Event) {
-      console.debug("[Dashboard] received refresh-dashboard event", e);
-      // silent refresh (no full spinner)
-      loadDataRef.current?.({ showLoading: false });
-    }
+    loadData();
+  }, [loadData]);
 
-    window.addEventListener("refresh-dashboard", handleRefreshEvent);
-    console.debug("[Dashboard] registered refresh-dashboard listener");
-
-    return () => {
-      window.removeEventListener("refresh-dashboard", handleRefreshEvent);
-      console.debug("[Dashboard] removed refresh-dashboard listener");
-    };
+  // Refresh listener
+  useEffect(() => {
+    const handler = () => loadDataRef.current?.();
+    window.addEventListener("refresh-dashboard", handler);
+    return () => window.removeEventListener("refresh-dashboard", handler);
   }, []);
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-        <span className="ml-3 text-lg text-gray-600">Chargement...</span>
+        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+        <span className="ml-4 text-xl">Chargement...</span>
       </div>
     );
   }
 
-  const { dashboard, yearly, transactions, credits } = data;
-
   return (
-    <div className="min-h-screen p-4 bg-gray-50">
+    <div className="min-h-screen bg-gray-50">
       <SubNavbar />
+      {refreshing && <div className="text-center py-2 text-sm text-gray-500">Mise à jour...</div>}
 
-      {refreshing && <div className="text-xs text-gray-400 mb-2">Updating…</div>}
+      <Dashboard
+        sales={stats.sales}
+        expenses={stats.expenses}
+        credits={stats.credits}
+        revenue={stats.revenue}
+        salesData={yearlyData.map(d => ({ name: d.name, value: d.sales }))}
+        expensesData={yearlyData.map(d => ({ name: d.name, value: d.expenses }))}
+        creditsData={yearlyData.map(d => ({ name: d.name, value: 0 }))}
+        revenueData={yearlyData.map(d => ({ name: d.name, value: d.revenue }))}
+      />
 
-      {dashboard?.success && (
-        <Dashboard
-          sales={dashboard.data?.sales}
-          expenses={dashboard.data?.expenses}
-          credits={dashboard.data?.credits}
-          revenue={dashboard.data?.revenue}
-        />
-      )}
+      <div className="mt-8">
+        <Graph data={yearlyData} />
+      </div>
 
-      <Graph data={yearly?.data || []} />
-
-      <div className="flex gap-4 mt-10 flex-col lg:flex-row">
-        <RecentTransactionTable transactions={transactions?.transactions || []} />
-        <RecentCredits credits={credits?.credits || []} />
+      <div className="mt-10 grid gap-8 lg:grid-cols-2">
+        <RecentTransactionTable transactions={recentTransactions} />
+        <RecentCredits credits={recentCredits} />
       </div>
     </div>
   );

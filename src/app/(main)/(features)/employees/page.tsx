@@ -1,12 +1,16 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/employees/page.tsx
-'use client';
-import { useEffect, useState } from 'react';
+"use client";
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import CreateEmployeeForm from './createEmployeeForm';
-import { Loader2, PlusCircle, UserCheck, UserX } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createSupabaseClient } from "@/lib/supabase/client";
+
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import CreateEmployeeForm from "./createEmployeeForm";
+import { Loader2, PlusCircle, UserCheck, UserX } from "lucide-react";
 
 type Employee = {
   id: number;
@@ -23,52 +27,111 @@ export default function EmployeesPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Employee | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
 
-  useEffect(() => { /* auth guard */ }, []);
+  const router = useRouter();
+  const supabase = createSupabaseClient();
 
+  // === AUTH + ADMIN CHECK ===
   useEffect(() => {
-    async function load() {
-      const res = await fetch('/api/employees/data');
-      if (!res.ok) { /* redirect */ return; }
-      const data = await res.json();
-      setEmployees(data.employees);
-      setLoading(false);
-    }
-    load();
-  }, []);
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
 
+      supabase
+        .from("profiles")
+        .select("role")
+        .eq("userId", user.id)
+        .single()
+        .then(({ data }) => {
+          if (!data || !["user", "admin"].includes(data.role)) {
+            router.replace("/dashboard");
+          }
+        });
+    });
+  }, [supabase, router]);
+
+  // === LOAD EMPLOYEES ===
+  useEffect(() => {
+    async function loadEmployees() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("storeId")
+          .eq("userId", user.id)
+          .single();
+
+        if (!profile?.storeId) {
+          setLoading(false);
+          return;
+        }
+
+        const { data: employeesData } = await supabase
+          .from("profiles")
+          .select("userId, name, email, phoneNumber, created_at, isActive")
+          .eq("storeId", profile.storeId)
+          .eq("role", "employee")
+          .order("created_at", { ascending: false });
+
+        const formatted = (employeesData || []).map((emp, i) => ({
+          id: i + 1,
+          userId: emp.userId,
+          name: emp.name || "Inconnu",
+          email: emp.email || "",
+          phone: emp.phoneNumber || "N/A",
+          created_at: new Date(emp.created_at).toLocaleDateString("fr-FR"),
+          isActive: emp.isActive ?? true,
+        }));
+
+        setEmployees(formatted);
+      } catch (err) {
+        console.error("Failed to load employees:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadEmployees();
+  }, [supabase]);
+
+  // === TOGGLE STATUS (client-side + direct Supabase update) ===
   const toggleStatus = async () => {
     if (!selected) return;
-    const formData = new FormData();
-    formData.append("employeeId", selected.userId);
-    formData.append("activate", (!selected.isActive).toString());
 
-    const res = await fetch("/api/employees/toggle", {
-      method: "POST",
-      body: formData,
-    });
-    const result = await res.json();
+    const newStatus = !selected.isActive;
 
-    if (result.success) {
-      setEmployees(emps => emps.map(e =>
-        e.userId === selected.userId ? { ...e, isActive: !e.isActive } : e
-      ));
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ isActive: newStatus })
+        .eq("userId", selected.userId);
+
+      if (error) throw error;
+
+      setEmployees(prev =>
+        prev.map(e =>
+          e.userId === selected.userId ? { ...e, isActive: newStatus } : e
+        )
+      );
+
       setIsModalOpen(false);
-    } else {
-      alert(result.message);
+    } catch (err: any) {
+      alert(err.message || "Échec de la mise à jour du statut");
     }
   };
 
-   if (loading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-        <span className="ml-3 text-lg text-gray-600">Chargement...</span>
+        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+        <span className="ml-4 text-lg font-medium text-gray-700">Chargement des employés...</span>
       </div>
     );
   }
-
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -80,7 +143,9 @@ export default function EmployeesPage() {
               <PlusCircle className="mr-2 h-5 w-5" /> Ajouter
             </Button>
           </DialogTrigger>
-          <DialogContent><CreateEmployeeForm /></DialogContent>
+          <DialogContent>
+            <CreateEmployeeForm />
+          </DialogContent>
         </Dialog>
       </div>
 
@@ -96,17 +161,34 @@ export default function EmployeesPage() {
         </TableHeader>
         <TableBody>
           {employees.map((emp) => (
-            <TableRow key={emp.userId} className="cursor-pointer hover:bg-gray-50" onClick={() => { setSelected(emp); setIsModalOpen(true); }}>
+            <TableRow
+              key={emp.userId}
+              className="cursor-pointer hover:bg-gray-50"
+              onClick={() => {
+                setSelected(emp);
+                setIsModalOpen(true);
+              }}
+            >
               <TableCell>{emp.id}</TableCell>
               <TableCell className="font-medium">{emp.name}</TableCell>
               <TableCell>{emp.email}</TableCell>
               <TableCell>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${emp.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                  {emp.isActive ? 'Actif' : 'Inactif'}
+                <span
+                  className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    emp.isActive
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-700"
+                  }`}
+                >
+                  {emp.isActive ? "Actif" : "Inactif"}
                 </span>
               </TableCell>
               <TableCell>
-                {emp.isActive ? <UserCheck className="h-5 w-5 text-green-600" /> : <UserX className="h-5 w-5 text-red-600" />}
+                {emp.isActive ? (
+                  <UserCheck className="h-5 w-5 text-green-600" />
+                ) : (
+                  <UserX className="h-5 w-5 text-red-600" />
+                )}
               </TableCell>
             </TableRow>
           ))}
@@ -123,14 +205,21 @@ export default function EmployeesPage() {
             <div className="space-y-4">
               <p><strong>Nom:</strong> {selected.name}</p>
               <p><strong>Email:</strong> {selected.email}</p>
-              <p><strong>Statut:</strong> <span className={selected.isActive ? 'text-green-600' : 'text-red-600'}>{selected.isActive ? 'Actif' : 'Inactif'}</span></p>
+              <p>
+                <strong>Statut:</strong>{" "}
+                <span className={selected.isActive ? "text-green-600" : "text-red-600"}>
+                  {selected.isActive ? "Actif" : "Inactif"}
+                </span>
+              </p>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsModalOpen(false)}>Annuler</Button>
+                <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+                  Annuler
+                </Button>
                 <Button
                   onClick={toggleStatus}
-                  className={selected.isActive ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}
+                  className={selected.isActive ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"}
                 >
-                  {selected.isActive ? 'Désactiver' : 'Activer'}
+                  {selected.isActive ? "Désactiver" : "Activer"}
                 </Button>
               </DialogFooter>
             </div>

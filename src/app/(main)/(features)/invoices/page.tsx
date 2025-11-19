@@ -1,11 +1,12 @@
 // app/invoice/page.tsx
-'use client';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { createSupabaseClient } from '@/lib/supabase/client';
-import InvoiceForm from '@/components/InvoiceForm';
-import { Loader2 } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createSupabaseClient } from "@/lib/supabase/client";
+import InvoiceForm from "@/components/InvoiceForm";
+import { Loader2 } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 type Product = { productId: string; name: string; unitPrice: number; stock: number };
 type Store = { storeName: string; storeAddress: string; storePhoneNumber: string };
@@ -14,34 +15,61 @@ export default function InvoicePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [store, setStore] = useState<Store | null>(null);
   const [loading, setLoading] = useState(true);
+
   const router = useRouter();
   const supabase = createSupabaseClient();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) router.replace('/login');
-    });
-  }, [supabase, router]);
-
-  useEffect(() => {
     async function loadData() {
       try {
-        const res = await fetch('/api/invoice/data');
-        if (!res.ok) {
-          if (res.status === 401) router.replace('/login');
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          router.replace("/login");
           return;
         }
-        const data = await res.json();
-        setProducts(data.products || []);
-        setStore(data.store);
+
+        // Get profile → storeId
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("storeId")
+          .eq("userId", user.id)
+          .single();
+
+        if (!profile?.storeId) {
+          console.warn("No store found for user");
+          setLoading(false);
+          return;
+        }
+
+        // === FETCH PRODUCTS + STORE IN PARALLEL ===
+        const [
+          { data: productsData },
+          { data: storeData }
+        ] = await Promise.all([
+          supabase
+            .from("products")
+            .select("productId, name, unitPrice, stock")
+            .eq("storeId", profile.storeId)
+            .order("name", { ascending: true }),
+
+          supabase
+            .from("stores")
+            .select("storeName, storeAddress, storePhoneNumber")
+            .eq("storeId", profile.storeId)
+            .single()
+        ]);
+
+        setProducts(productsData || []);
+        setStore(storeData || null);
       } catch (err) {
-        console.error('Failed to load invoice data:', err);
+        console.error("Failed to load invoice data:", err);
       } finally {
         setLoading(false);
       }
     }
+
     loadData();
-  }, [router]);
+  }, [supabase, router]);
 
   if (loading) {
     return (
@@ -60,7 +88,6 @@ export default function InvoicePage() {
         <Card className="border-0 shadow-2xl bg-white/90 backdrop-blur-lg">
           <CardHeader className="bg-gradient-to-r from-rose-600 to-indigo-700 text-white rounded-t-xl py-4">
             <CardTitle className="text-2xl md:text-3xl font-bold flex items-center gap-3">
-              
               Créer une facture
             </CardTitle>
             <CardDescription className="text-white/90 mt-2">
