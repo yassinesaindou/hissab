@@ -2,15 +2,15 @@
 // app/employees/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { createSupabaseClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { PlusCircle, UserCheck, UserX } from "lucide-react";
 import CreateEmployeeForm from "./createEmployeeForm";
-import { Loader2, PlusCircle, UserCheck, UserX } from "lucide-react";
 
 type Employee = {
   id: number;
@@ -124,14 +124,23 @@ export default function EmployeesPage() {
     }
   };
 
-  if (loading) {
+ if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
-        <span className="ml-4 text-lg font-medium text-gray-700">Chargement des employés...</span>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+        <div className="flex flex-col items-center gap-6">
+          <div className="relative">
+            <div className="h-16 w-16 rounded-full border-4 border-blue-200"></div>
+            <div className="absolute inset-0 h-16 w-16 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
+          </div>
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-gray-900">Chargement des employés</h3>
+            <p className="text-gray-600 mt-1">Récupération des données...</p>
+          </div>
+        </div>
       </div>
     );
   }
+
 
   return (
     <div className="p-6 max-w-7xl mx-auto">

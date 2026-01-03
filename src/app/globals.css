@@ -140,3 +140,74 @@
 html {
   scroll-behavior: smooth;
 }
+
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Fix for Shadcn dialogs */
+[data-radix-popper-content-wrapper] {
+  position: fixed !important;
+}
+
+
+
+
+
+.standalone-mode {
+  --safe-area-top: env(safe-area-inset-top);
+  --safe-area-bottom: env(safe-area-inset-bottom);
+  --safe-area-left: env(safe-area-inset-left);
+  --safe-area-right: env(safe-area-inset-right);
+}
+
+/* Fix for iOS standalone mode */
+@supports (padding: max(0px)) {
+  .standalone-mode body {
+    padding-top: max(env(safe-area-inset-top), 20px);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Animations */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.3s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* Offline-specific styles */
+.offline-mode {
+  filter: grayscale(20%);
+}
+
+/* Prevent text selection on buttons in PWA mode */
+.standalone-mode button {
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}

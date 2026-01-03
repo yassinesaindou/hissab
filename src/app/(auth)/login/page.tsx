@@ -16,6 +16,10 @@ import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { loginAction } from "./actions";
+import { performFullSync } from "@/lib/offline/fullSync";
+
+// Import the server action
 
 const formSchema = z.object({
   email: z
@@ -43,27 +47,53 @@ export default function LoginPage() {
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    console.log("🚀 Login form submitted:", values);
     setIsPending(true);
     setMessage(null);
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      });
+      console.log("📤 Calling loginAction...");
 
-      const data = await res.json();
+      // Add a timeout to prevent hanging
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Request timeout")), 10000)
+      );
 
-      setMessage(data.message);
-      if (data.success) {
-        form.reset();
-        router.push("/dashboard");
+      const result = await Promise.race([loginAction(values), timeoutPromise]);
+
+      console.log("✅ Login action result:", result);
+
+      setMessage(result.message);
+
+      if (result.success) {
+        setMessage("Connexion réussie ! Synchronisation en cours...");
+
+        // This downloads products, profile, store → everything for offline
+        const syncResult = await performFullSync();
+
+        if (syncResult.success) {
+          console.log("Full sync done, going to dashboard");
+          router.push("/dashboard");
+        } else {
+          console.log("Full sync failed, still going to dashboard");
+          // Still go to dashboard even if sync fails (offline mode will work)
+          router.push("/dashboard");
+        }
       }
     } catch (err) {
-      console.error(err);
-      setMessage("Une erreur réseau s'est produite");
+      console.error("❌ Login error details:", {
+        error: err,
+        name: (err as Error)?.name,
+        message: (err as Error)?.message,
+        stack: (err as Error)?.stack,
+      });
+      setMessage(
+        `Erreur: ${
+          (err as Error)?.message || "Une erreur réseau s'est produite"
+        }`
+      );
     } finally {
+      console.log("🏁 Login process finished");
       setIsPending(false);
     }
   }
@@ -77,7 +107,7 @@ export default function LoginPage() {
         {message && (
           <div
             className={`mb-4 p-3 rounded text-sm ${
-              message.includes("successful")
+              message.includes("successful") || message.includes("réussie")
                 ? "bg-green-100 text-green-700"
                 : "bg-red-100 text-red-700"
             }`}>

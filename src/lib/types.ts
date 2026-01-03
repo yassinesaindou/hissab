@@ -29,3 +29,5 @@ export type Product = {
   unitPrice: number;
   stock: number;
 };
+
+

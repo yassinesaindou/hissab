@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Navbar from "@/app/components/Navbar";
 import { Separator } from "@/components/ui/separator";
+import EmployeeDeactivationGuard from "@/app/components/EmployeeDeactivationGuard";
+import SyncBadge from "@/app/components/SyncBadge";
 
 export default async function MainLayout({
   children,
@@ -14,25 +16,40 @@ export default async function MainLayout({
 }) {
   const supabase = createSupabaseServerClient();
 
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) redirect("/login");
+  let session = null;
+  let employee = null;
 
-  const user = session.user;
+  try {
+    const { data } = await supabase.auth.getSession();
+    session = data.session;
 
-  const { data: employee } = await supabase
-    .from("employees")
-    .select("isActive")
-    .eq("employeeId", user.id)
-    .single();
+    if (session) {
+      const { data: emp } = await supabase
+        .from("employees")
+        .select("isActive")
+        .eq("employeeId", session.user.id)
+        .single();
 
-  if (employee && !employee.isActive) {
+      employee = emp;
+    }
+  } catch (err) {
+    // Offline or network error → session = null, employee = null
+    console.log("Offline or session error — allowing access for offline mode", err);
+  }
+  
+  if (session === null) {
+    // Do NOT redirect — could be offline
+    // Let client-side code handle it
+  } else if (employee && !employee.isActive) {
+     
     redirect("/deactivated");
   }
-
   return (
     <SidebarProvider>
+      <EmployeeDeactivationGuard />
+      <SyncBadge />
       {/* THIS LINE FIXES EVERYTHING */}
-      <AuthProvider session={session} />
+      <AuthProvider session={null} />
 
       <div className="flex w-screen h-screen overflow-hidden">
         <SideBarExample />
@@ -44,7 +61,7 @@ export default async function MainLayout({
             <Navbar />
           </header>
 
-          <main className="flex-1 overflow-auto p-4">{children}</main>
+          <main className="flex-1 overflow-auto  ">{children}</main>
         </div>
       </div>
     </SidebarProvider>

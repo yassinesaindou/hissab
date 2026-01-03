@@ -1,86 +1,139 @@
-"use client";
+'use client'
+/* eslint-disable react/no-unescaped-entities */
+// app/components/Navbar.tsx — add this inside the header div, next to subscription message
 
-import React, { useEffect, useState } from "react";
-
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Avatar } from "@/components/ui/avatar";
-import Link from "next/link";
-import { logoutAction } from "../actions";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { performFullSync } from "@/lib/offline/fullSync";
+import { getStoreInfo, getUserProfile } from "@/lib/offline/session";
+import { getPendingTransactions } from "@/lib/offline/transactions";
 import { createSupabaseClient } from "@/lib/supabase/client";
-import { User } from "lucide-react";
+import { AlertCircle, User } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 
 export default function Navbar() {
   const [subscriptionDays, setSubscriptionDays] = useState<number | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
+
   useEffect(() => {
-    async function fetchSubscriptionDays() {
-      const {
-        data: { user },
-      } = await createSupabaseClient().auth.getUser();
+    async function loadData() {
+      if (navigator.onLine) {
+        // === ONLINE ===
+        const supabase = createSupabaseClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        setUserEmail(user?.email || null);
 
-      console.log("User:", user);
-      const { data: subscriptionData, error } = await createSupabaseClient()
-        .from("subscriptions")
-        .select("endAt")
-        .eq("userId", user?.id)
-        .single();
+        if (user) {
+          const { data: subscriptionData } = await supabase
+            .from("subscriptions")
+            .select("endAt")
+            .eq("userId", user.id)
+            .single();
 
-      if (error) {
-        console.error("Error fetching subscription data:", error);
-        return;
-      }
-      if (subscriptionData && subscriptionData.endAt) {
-        const endAt = new Date(subscriptionData.endAt);
-        const today = new Date();
-        const diffTime = endAt.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-        console.log("Subscription days left:", diffDays);
-        setSubscriptionDays(diffDays);
+          if (subscriptionData?.endAt) {
+            const endAt = new Date(subscriptionData.endAt);
+            const today = new Date();
+            const diffDays = Math.ceil((endAt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+            setSubscriptionDays(diffDays);
+          }
+        }
       } else {
-        console.log("No subscription data found or endAt is null.");
+        // === OFFLINE ===
+        const profile = await getUserProfile();
+        setUserEmail(profile?.email || null);
+        setSubscriptionDays(profile?.subscriptionDaysLeft || null);
+      }
+
+      // Count pending transactions
+      const store = await getStoreInfo();
+      if (store?.storeId) {
+        const pending = await getPendingTransactions(store.storeId);
+        setPendingCount(pending.length);
       }
     }
-    fetchSubscriptionDays();
-  });
+
+    loadData();
+    const interval = setInterval(loadData, 15000); // update every 15s
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleSync = async () => {
+    if (!navigator.onLine) {
+      alert("Pas de connexion internet");
+      return;
+    }
+
+    setIsSyncing(true);
+    const result = await performFullSync();
+    setIsSyncing(false);
+
+    if (result.success) {
+      alert("Synchronisation réussie !");
+    } else {
+      alert("Échec de la synchronisation");
+    }
+  };
 
   return (
     <nav className="shadow px-4 py-3 w-full">
-      {/* Hamburger only on mobile */}
-      <div className="w-full bg-white  flex items-center justify-between gap-4">
-        <div>
-          {subscriptionDays && (
+      <div className="w-full bg-white flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          {subscriptionDays !== null && (
             <span
               className={`text-sm px-4 py-1 ${
                 subscriptionDays <= 7
                   ? "bg-red-100 text-red-700"
                   : "bg-green-100 text-green-700"
-              } hidden md:inline font-normal rounded-full text `}>
-              Votre abonnement expire dans {subscriptionDays} jours
+              } hidden md:inline font-normal rounded-full`}
+            >
+              Abonnement expire dans {subscriptionDays} jours
             </span>
           )}
+
+          {/* Sync Button */}
+          {pendingCount > 0 && (
+            <Button
+              onClick={handleSync}
+              disabled={isSyncing}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              {isSyncing ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
+                  Synchronisation...
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-4 w-4" />
+                  Synchroniser ({pendingCount})
+                </>
+              )}
+            </Button>
+          )}
         </div>
+
         <span className="hidden md:inline-block">
-          <UserMenu />
+          <UserMenu userEmail={userEmail} />
         </span>
       </div>
-      <div>
-        {subscriptionDays && (
+
+      {/* Mobile subscription message */}
+      <div className="mt-2">
+        {subscriptionDays !== null && (
           <div
             className={`text-sm px-4 py-1 ${
               subscriptionDays <= 7
                 ? "bg-red-100 text-red-700"
                 : "bg-green-100 text-green-700"
-            } md:hidden  font-normal rounded-full max-w-fit text mx-auto`}>
-            Il reste {subscriptionDays} jours avant l&apos;expiration de votre
-            abonnement.
+            } md:hidden font-normal rounded-full max-w-fit mx-auto`}
+          >
+            Il reste {subscriptionDays} jours avant l'expiration
           </div>
         )}
       </div>
@@ -88,35 +141,9 @@ export default function Navbar() {
   );
 }
 
-function UserMenu() {
-  const [userEmail, setUserEmail] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Check initial session
-    async function getInitialSession() {
-      const {
-        data: { session },
-        error,
-      } = await createSupabaseClient().auth.getSession();
-      console.log("Initial session:", session, "Error:", error);
-      setUserEmail(session?.user?.email || null);
-    }
-    getInitialSession();
 
-    // Listen for auth state changes
-    const {
-      data: { subscription },
-    } = createSupabaseClient().auth.onAuthStateChange((event, session) => {
-      console.log("Auth event:", event, "Session:", session);
-      setUserEmail(session?.user?.email || null);
-    });
-
-    // Cleanup subscription
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, []);
-
+function UserMenu({ userEmail }: { userEmail: string | null }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -127,20 +154,21 @@ function UserMenu() {
       <DropdownMenuContent>
         <DropdownMenuLabel>{userEmail || "Mon compte"}</DropdownMenuLabel>
         <DropdownMenuItem>
-          <Link
-            prefetch={false}
-            href="/settings"
-            className="flex items-center gap-2">
+          <Link prefetch={false} href="/settings" className="flex items-center gap-2">
             Modifier le compte
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem>
           <Button
-            onClick={logoutAction}
+            onClick={() => {
+              const supabase = createSupabaseClient();
+              supabase.auth.signOut();
+            }}
             className="flex items-center gap-2 w-full text-red-500"
-            variant={"outline"}>
-            Se déconnecter
+            variant="outline"
+          >
+            Se déconnecter
           </Button>
         </DropdownMenuItem>
       </DropdownMenuContent>

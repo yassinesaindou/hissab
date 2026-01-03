@@ -15,7 +15,7 @@ export const revalidate = 0;
 
 export default function LandingPage() {
   return (
-    <div>
+    <div className="min-h-screen">
       <HeroSection />
       <Features />
       <Steps />

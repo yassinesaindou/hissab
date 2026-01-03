@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 // app/signup/page.tsx
 'use client';
 import { z } from 'zod';
@@ -15,7 +14,10 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, startTransition } from 'react';
+import { useRouter } from 'next/navigation';
+import { signupAction } from '@/app/actions';
+ // Import the server action
 
 const formSchema = z
   .object({
@@ -52,6 +54,7 @@ const formSchema = z
 export default function SignupPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -68,24 +71,25 @@ export default function SignupPage() {
     setIsPending(true);
     setMessage(null);
 
-    try {
-      const res = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      });
-
-      const data = await res.json();
-      setMessage(data.message);
-
-      if (data.success) {
-        form.reset();
+    // Use startTransition for better UX
+    startTransition(async () => {
+      try {
+        // Call the server action directly
+        const result = await signupAction(values);
+        
+        setMessage(result.message);
+        
+        if (result.success) {
+          form.reset();
+          router.push('/login')
+        }
+      } catch (err) {
+        console.error(err);
+        setMessage("Une erreur s'est produite");
+      } finally {
+        setIsPending(false);
       }
-    } catch (err) {
-      setMessage("Erreur réseau. Veuillez réessayer.");
-    } finally {
-      setIsPending(false);
-    }
+    });
   }
 
   return (
@@ -95,7 +99,7 @@ export default function SignupPage() {
         {message && (
           <div
             className={`mb-4 p-3 rounded text-sm ${
-              message.includes('réussie') || message.includes('successful')
+              message.includes('réussie') || message.includes('successful') || message.includes('Inscription réussie')
                 ? 'bg-green-100 text-green-700'
                 : 'bg-red-100 text-red-700'
             }`}
@@ -147,7 +151,7 @@ export default function SignupPage() {
                   <FormLabel>Numéro de téléphone</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="+1234567890"
+                      placeholder="+261 34 00 000 00"
                       className="border-gray-300 focus:ring-blue-600 focus:border-blue-600"
                       {...field}
                     />

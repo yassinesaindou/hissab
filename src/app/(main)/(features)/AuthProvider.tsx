@@ -14,6 +14,8 @@ export default function AuthProvider({ session }: { session: Session | null }) {
       supabase.auth.setSession({
         access_token: session.access_token,
         refresh_token: session.refresh_token,
+      }).catch(err => {
+        console.log("Failed to restore session on client (offline?)", err);
       });
     }
   }, [session, supabase]);

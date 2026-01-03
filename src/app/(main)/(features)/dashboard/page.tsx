@@ -1,201 +1,582 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// app/(main)/(features)/dashboard/page.tsx
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import LowStockAlerts from "./components/LowStockAlerts";
+import PerformanceChart from "./components/PerformanceChart";
+import RecentTransactions from "./components/RecentTransactions";
+import StatsOverview from "./components/StatsOverview";
+import TopProducts from "./components/TopProducts";
+import { AlertTriangle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { createSupabaseClient } from "@/lib/supabase/client";
-import Dashboard from "@/app/components/Card";
-import RecentTransactionTable from "@/app/components/RecentTransactionTable";
-import RecentCredits from "@/app/components/RecentCredits";
-import SubNavbar from "@/app/components/SubNavbar";
-import Graph from "@/app/components/Graph";
-import { Loader2 } from "lucide-react";
+
+import QuickActionsButton from "./components/QuickActionsButton";
+import AddTransactionModal from "./components/AddTransactionModal";
+import { archiveOldTransactions } from "./actions/archiveOldTransactions";
+import InstallPrompt from "@/components/pwa/PWAInstallPromt";
+import { fetchDashboardDataOffline } from "@/lib/offline/dashboardOffline";
+import { getUserProfile } from "@/lib/offline/session";
+ 
+ 
+
+interface DashboardData {
+  monthlyData: {
+    name: string;
+    sales: number;
+    expenses: number;
+    revenue: number;
+  }[];
+  quarterlyData: {
+    name: string;
+    sales: number;
+    expenses: number;
+    revenue: number;
+  }[];
+  dailyData: {
+    name: string;
+    sales: number;
+    expenses: number;
+    revenue: number;
+  }[];
+  todaySales: number;
+  todayRevenue: number;
+  pendingCredits: number;
+  totalProducts: number;
+  lowStockCount: number;
+  recentTransactions: any[];
+  lowStockProducts: any[];
+  topProducts: any[];
+  chartData: any[];
+  availableProducts: any[];
+}
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState({
-    sales: 0,
-    expenses: 0,
-    credits: 0,
-    revenue: 0,
-  });
-
-  const [yearlyData, setYearlyData] = useState<Array<{ name: string; sales: number; expenses: number; credits: number; revenue: number }>>([]);
-  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
-  const [recentCredits, setRecentCredits] = useState<any[]>([]);
-
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
+  const [error, setError] = useState<string | null>(null);
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const router = useRouter();
   const supabase = createSupabaseClient();
-  const loadDataRef = useRef<(() => void) | undefined>(undefined);
 
-  const loadData = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    else setRefreshing(true);
+ useEffect(() => {
+  async function checkEmployeeStatus() {
+    if (!navigator.onLine) {
+      const profile = await getUserProfile();
+      if (profile?.role === 'employee' && !profile.isActive) {
+        router.push("/deactivated");
+      }
+    }
+  }
+  checkEmployeeStatus();
+}, []);
+ 
 
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  const refreshData = async () => {
+    await fetchDashboardData();
+  };
 
-      const { data: profile } = await supabase
+async function fetchDashboardData() {
+  try {
+    setLoading(true);
+    setError(null);
+
+    let profile: { storeId: string; role: string } | null = null;
+    let filterKey: string;
+    let filterValue: string;
+
+    if (navigator.onLine) {
+      // === ONLINE: Fetch user and profile from Supabase ===
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setError("Non autorisé");
+        router.push("/login");
+        return;
+      }
+
+      const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("storeId, role")
         .eq("userId", user.id)
         .single();
 
-      if (!profile) return;
+      if (profileError || !profileData?.storeId) {
+        setError("Aucun magasin associé");
+        return;
+      }
 
-      const isEmployee = profile.role === "employee";
-      const filterKey = isEmployee ? "userId" : "storeId";
-      const filterValue = isEmployee ? user.id : profile.storeId;
+      profile = profileData;
+    } else {
+      // === OFFLINE: Use local profile from IndexedDB ===
+      const localProfile = await getUserProfile();
+      if (!localProfile || !localProfile.storeId) {
+        setError("Pas de données locales. Connectez-vous avec internet pour synchroniser.");
+        return;
+      }
 
-      // Recent Transactions
-      const { data: txns } = await supabase
-        .from("transactions")
-        .select("created_at, type, totalPrice, productName")
-        .eq(filterKey, filterValue)
-        .in("type", ["sale", "expense"])
-        .order("created_at", { ascending: false })
-        .limit(10);
+      profile = {
+        storeId: localProfile.storeId,
+        role: localProfile.role || "user",
+      };
+    }
 
-      const formattedTxns = (txns || []).map((t: any, i: number) => ({
-        id: i + 1,
-        date: new Date(t.created_at).toISOString().split("T")[0],
-        type: t.type === "sale" ? "Vente" : "Dépense",
+    // Common setup
+    const isEmployee = profile.role === "employee";
+     filterKey = isEmployee ? "userId" : "storeId";
+      filterValue = isEmployee ? (await supabase.auth.getUser()).data.user?.id || "" : profile.storeId;
+
+    let data: DashboardData;
+
+    if (navigator.onLine) {
+      // === ONLINE: Your original Supabase fetches ===
+      const today = new Date();
+      const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+
+      const [
+        salesResponse,
+        expensesResponse,
+        creditsResponse,
+        productsResponse,
+        lowStockResponse,
+        transactionsResponse,
+        topProductsResponse,
+        availableProductsResponse,
+        dailyChartResponse,
+        monthlyChartResponse,
+        quarterlyChartResponse,
+      ] = await Promise.all([
+        supabase
+          .from("transactions")
+          .select("totalPrice")
+          .eq(filterKey, filterValue)
+          .eq("type", "sale")
+          .gte("created_at", startOfDay.toISOString())
+          .lte("created_at", endOfDay.toISOString()),
+        supabase
+          .from("transactions")
+          .select("totalPrice")
+          .eq(filterKey, filterValue)
+          .eq("type", "expense")
+          .gte("created_at", startOfDay.toISOString())
+          .lte("created_at", endOfDay.toISOString()),
+        supabase
+          .from("credits")
+          .select("amount")
+          .eq(filterKey, filterValue)
+          .eq("status", "pending"),
+        supabase
+          .from("products")
+          .select("productId", { count: "exact" })
+          .eq("storeId", profile.storeId),
+        supabase
+          .from("products")
+          .select("productId, name, stock, unitPrice")
+          .eq("storeId", profile.storeId)
+          .lt("stock", 10)
+          .order("stock", { ascending: true })
+          .limit(5),
+        supabase
+          .from("transactions")
+          .select(`
+            transactionId,
+            created_at,
+            type,
+            totalPrice,
+            productName,
+            quantity
+          `)
+          .eq(filterKey, filterValue)
+          .in("type", ["sale", "expense"])
+          .order("created_at", { ascending: false })
+          .limit(6),
+        supabase
+          .from("transactions")
+          .select("productId, productName, totalPrice, quantity")
+          .eq(filterKey, filterValue)
+          .eq("type", "sale")
+          .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+        supabase
+          .from("products")
+          .select("productId, name, unitPrice, stock")
+          .eq("storeId", profile.storeId)
+          .order("name", { ascending: true }),
+        supabase
+          .from("transactions")
+          .select("created_at, type, totalPrice")
+          .eq(filterKey, filterValue)
+          .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+        supabase
+          .from("transactions")
+          .select("created_at, type, totalPrice")
+          .eq(filterKey, filterValue)
+          .gte("created_at", new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString()),
+        supabase
+          .from("transactions")
+          .select("created_at, type, totalPrice")
+          .eq(filterKey, filterValue)
+          .gte("created_at", new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString()),
+      ]);
+
+      // Your original calculations
+      const todaySales = salesResponse.data?.reduce((sum, t) => sum + (t.totalPrice || 0), 0) || 0;
+      const todayExpenses = expensesResponse.data?.reduce((sum, t) => sum + (t.totalPrice || 0), 0) || 0;
+      const todayRevenue = todaySales - todayExpenses;
+      const pendingCredits = creditsResponse.data?.reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
+      const totalProducts = productsResponse.count || 0;
+      const lowStockCount = lowStockResponse.data?.length || 0;
+
+      // Process recent transactions
+      const recentTransactions = transactionsResponse.data?.map((t, index) => ({
+        id: t.transactionId,
+        srNo: index + 1,
+        date: new Date(t.created_at).toLocaleDateString("fr-FR", { month: "short", day: "numeric" }),
+        time: new Date(t.created_at).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+        type: t.type === "sale" ? "sale" : "expense",
         amount: t.totalPrice || 0,
-        description: t.productName || "N/A",
-      }));
+        product: t.productName || "N/A",
+        quantity: t.quantity || 1,
+      })) || [];
 
-      // Recent Credits
-      const { data: credits } = await supabase
-        .from("credits")
-        .select("customerName, customerPhone, amount")
-        .eq(filterKey, filterValue)
-        .order("created_at", { ascending: false })
-        .limit(10);
-
-      const formattedCredits = (credits || []).map((c: any, i: number) => ({
-        id: i + 1,
-        name: c.customerName || "Inconnu",
-        phone: c.customerPhone || "N/A",
-        amount: c.amount || 0,
-      }));
-
-      // Last 14 days stats
-      const fourteenDaysAgo = new Date();
-      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-
-      const { data: recentTxns } = await supabase
-        .from("transactions")
-        .select("type, totalPrice")
-        .eq(filterKey, filterValue)
-        .in("type", ["sale", "expense"])
-        .gte("created_at", fourteenDaysAgo.toISOString());
-
-      const sales = (recentTxns || []).filter(t => t.type === "sale").reduce((s, t) => s + (t.totalPrice || 0), 0);
-      const expenses = (recentTxns || []).filter(t => t.type === "expense").reduce((s, t) => s + (t.totalPrice || 0), 0);
-
-      const { data: pendingCredits } = await supabase
-        .from("credits")
-        .select("amount")
-        .eq(filterKey, filterValue)
-        .eq("status", "pending")
-        .gte("created_at", fourteenDaysAgo.toISOString());
-
-      const totalPendingCredits = (pendingCredits || []).reduce((s, c) => s + (c.amount || 0), 0);
-      const revenue = sales - expenses;
-
-      // Yearly data
-      const startOfYear = new Date(new Date().getFullYear(), 0, 1);
-      const { data: yearlyTxns } = await supabase
-        .from("transactions")
-        .select("created_at, type, totalPrice")
-        .eq(filterKey, filterValue)
-        .gte("created_at", startOfYear.toISOString());
-
-      const monthly = Array.from({ length: 12 }, (_, i) => {
-        const monthStart = new Date(new Date().getFullYear(), i, 1);
-        const monthEnd = new Date(new Date().getFullYear(), i + 1, 0);
-
-        const monthTxns = (yearlyTxns || []).filter((t: any) => {
-          const d = new Date(t.created_at);
-          return d >= monthStart && d <= monthEnd;
-        });
-
-        const monthSales = monthTxns.filter(t => t.type === "sale").reduce((s, t) => s + (t.totalPrice || 0), 0);
-        const monthExpenses = monthTxns.filter(t => t.type === "expense").reduce((s, t) => s + (t.totalPrice || 0), 0);
-
-        return {
-          name: monthStart.toLocaleString("default", { month: "short" }),
-          sales: monthSales,
-          expenses: monthExpenses,
-          credits: 0,
-          revenue: monthSales - monthExpenses,
-        };
+      // Process top products
+      const productMap = new Map();
+      topProductsResponse.data?.forEach((t) => {
+        const key = t.productId || t.productName;
+        if (!productMap.has(key)) {
+          productMap.set(key, {
+            id: t.productId,
+            name: t.productName,
+            sales: 0,
+            quantity: 0,
+          });
+        }
+        const product = productMap.get(key);
+        product.sales += t.totalPrice || 0;
+        product.quantity += t.quantity || 1;
       });
 
-      setStats({ sales, expenses, credits: totalPendingCredits, revenue });
-      setYearlyData(monthly);
-      setRecentTransactions(formattedTxns);
-      setRecentCredits(formattedCredits);
-    } catch (err) {
-      console.error("Load failed:", err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+      const topProducts = Array.from(productMap.values())
+        .sort((a, b) => b.sales - a.sales)
+        .slice(0, 3);
+
+      // Process chart data (use your processChartData function)
+      const dailyData = processChartData(dailyChartResponse.data || [], "daily");
+      const monthlyData = processChartData(monthlyChartResponse.data || [], "monthly");
+      const quarterlyData = processChartData(quarterlyChartResponse.data || [], "quarterly");
+
+      data = {
+        todaySales,
+        todayRevenue,
+        pendingCredits,
+        totalProducts,
+        lowStockCount,
+        recentTransactions,
+        lowStockProducts: lowStockResponse.data || [],
+        topProducts,
+        chartData: dailyData,
+        availableProducts: availableProductsResponse.data || [],
+        dailyData,
+        monthlyData,
+        quarterlyData,
+      };
+    } else {
+      // === OFFLINE: Use IndexedDB ===
+      data = await fetchDashboardDataOffline(profile.storeId);
     }
-  }, [supabase]);
 
-  // THIS WAS THE BUG — it was outside useEffect
-  useEffect(() => {
-    loadDataRef.current = () => loadData(true);
-  }, [loadData]);
+    setData(data);
+  } catch (err) {
+    console.error("Error fetching dashboard data:", err);
+    setError("Erreur lors du chargement des données");
+  } finally {
+    setLoading(false);
+  }
+}
 
-  // Initial load
   useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // Refresh listener
-  useEffect(() => {
-    const handler = () => loadDataRef.current?.();
-    window.addEventListener("refresh-dashboard", handler);
-    return () => window.removeEventListener("refresh-dashboard", handler);
+    fetchDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const checkAndRunAnnualArchive = async () => {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Get user profile to check role
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("userId", user.id)
+          .single();
+
+        // Only run for admin or user roles (not employee)
+        if (profile && profile.role !== "employee") {
+          // Check if it's January 1st
+          const today = new Date();
+          const isJanuaryFirst =
+            today.getMonth() === 0 && today.getDate() === 1;
+
+          if (isJanuaryFirst) {
+            console.log(
+              "📅 1er janvier détecté - Vérification de l'archivage annuel..."
+            );
+
+            // Check if we already ran archive this year
+            const lastArchiveKey = `lastArchive_${today.getFullYear()}`;
+            const lastArchive = localStorage.getItem(lastArchiveKey);
+
+            if (!lastArchive) {
+              console.log("🚀 Démarrage de l'archivage annuel automatique...");
+
+              // Run the archive process
+              const result = await archiveOldTransactions();
+
+              if (result.success && result.archived) {
+                console.log("✅ Archivage annuel terminé avec succès !");
+                console.log(
+                  `📊 ${result.stats?.totalArchived} transactions archivées`
+                );
+
+                // Store in localStorage to avoid running multiple times today
+                localStorage.setItem(lastArchiveKey, today.toISOString());
+
+                // Optional: Show a success toast notification
+                console.log(`🎉 ${result.message}`);
+              } else if (result.success && !result.archived) {
+                console.log("ℹ️ " + result.message);
+              } else {
+                console.error("❌ Échec de l'archivage:", result.message);
+              }
+            } else {
+              console.log("✅ Archivage annuel déjà effectué aujourd'hui");
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Erreur lors de la vérification de l'archivage:", error);
+      }
+    };
+
+    // Run the check
+    checkAndRunAnnualArchive();
+  }, [supabase]);
+
+
+   
   if (loading) {
+    return <LoadingSkeleton />;
+  }
+
+  if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
-        <span className="ml-4 text-xl">Chargement...</span>
-      </div>
+      <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100/50 p-4 md:p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center py-12">
+            <AlertTriangle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Erreur</h1>
+            <p className="text-gray-600">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:opacity-90">
+              Réessayer
+            </button>
+          </div>
+        </div>
+      </main>
     );
   }
 
+  if (!data) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100/50 p-4 md:p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center py-12">
+            <p className="text-gray-600">Aucune donnée disponible</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  const handleTransactionSuccess = () => {
+    setShowTransactionModal(false);
+    refreshData();
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <SubNavbar />
-      {refreshing && <div className="text-center py-2 text-sm text-gray-500">Mise à jour...</div>}
+    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100/50 p-4 md:p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header with Actions Rapides button inline */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              Tableau de Bord
+            </h1>
+            <p className="mt-1 text-gray-600">
+              {new Date().toLocaleDateString("fr-FR", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <QuickActionsButton
+              onNewTransaction={() => setShowTransactionModal(true)}
+            />
+            <button
+              onClick={refreshData}
+              className="p-2 rounded-full border border-gray-300 bg-white hover:bg-gray-50 shadow-sm">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
 
-      <Dashboard
-        sales={stats.sales}
-        expenses={stats.expenses}
-        credits={stats.credits}
-        revenue={stats.revenue}
-        salesData={yearlyData.map(d => ({ name: d.name, value: d.sales }))}
-        expensesData={yearlyData.map(d => ({ name: d.name, value: d.expenses }))}
-        creditsData={yearlyData.map(d => ({ name: d.name, value: 0 }))}
-        revenueData={yearlyData.map(d => ({ name: d.name, value: d.revenue }))}
+        {/* Stats cards in one line */}
+        <StatsOverview
+          todaySales={data.todaySales}
+          todayRevenue={data.todayRevenue}
+          pendingCredits={data.pendingCredits}
+          totalProducts={data.totalProducts}
+        />
+
+        {/* Main Content Grid */}
+        <div className="grid lg:grid-cols-3 gap-6 mt-6">
+          {/* Left Column - Charts and Transactions */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Performance Chart with Tabs */}
+            <PerformanceChart
+              dailyData={data.dailyData}
+              monthlyData={data.monthlyData}
+              quarterlyData={data.quarterlyData}
+            />
+
+            {/* Recent Transactions only */}
+            <RecentTransactions transactions={data.recentTransactions} />
+          </div>
+
+          {/* Right Column - Alerts and Top Products */}
+          <div className="space-y-6">
+            <LowStockAlerts
+              products={data.lowStockProducts}
+              lowStockCount={data.lowStockCount}
+            />
+            <TopProducts products={data.topProducts} />
+          </div>
+        </div>
+      </div>
+
+      {/* Transaction Modal */}
+      <AddTransactionModal
+        isOpen={showTransactionModal}
+        onClose={() => setShowTransactionModal(false)}
+        products={data.availableProducts}
+        onSuccess={handleTransactionSuccess}
       />
+      <InstallPrompt />
+    </main>
+  );
+}
 
-      <div className="mt-8">
-        <Graph data={yearlyData} />
-      </div>
+function processChartData(
+  transactions: any[],
+  timeframe: "daily" | "monthly" | "quarterly"
+) {
+  const map = new Map();
 
-      <div className="mt-10 grid gap-8 lg:grid-cols-2">
-        <RecentTransactionTable transactions={recentTransactions} />
-        <RecentCredits credits={recentCredits} />
+  transactions.forEach((t) => {
+    const date = new Date(t.created_at);
+    let key = "";
+
+    switch (timeframe) {
+      case "daily":
+        key = date.toLocaleDateString("fr-FR", { weekday: "short" });
+        break;
+      case "monthly":
+        key = date.toLocaleDateString("fr-FR", { month: "short" });
+        break;
+      case "quarterly":
+        const month = date.getMonth();
+        const quarter = Math.floor(month / 3) + 1;
+        key = `Q${quarter}`;
+        break;
+    }
+
+    if (!map.has(key)) {
+      map.set(key, { sales: 0, expenses: 0 });
+    }
+
+    const data = map.get(key);
+    if (t.type === "sale") {
+      data.sales += t.totalPrice || 0;
+    } else if (t.type === "expense") {
+      data.expenses += t.totalPrice || 0;
+    }
+  });
+
+  return Array.from(map.entries()).map(([name, values]) => ({
+    name,
+    sales: values.sales,
+    expenses: values.expenses,
+    revenue: values.sales - values.expenses,
+  }));
+}
+
+function LoadingSkeleton() {
+  return (
+    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100/50 p-4 md:p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="animate-pulse">
+          {/* Header skeleton */}
+          <div className="flex justify-between items-center mb-8">
+            <div>
+              <div className="h-10 bg-gray-200 rounded w-48 mb-2"></div>
+              <div className="h-4 bg-gray-200 rounded w-64"></div>
+            </div>
+            <div className="h-10 bg-gray-200 rounded w-32"></div>
+          </div>
+
+          {/* Stats cards skeleton - In one line */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-32 bg-gray-200 rounded-xl"></div>
+            ))}
+          </div>
+
+          {/* Main content skeleton */}
+          <div className="grid lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-4">
+              <div className="h-64 bg-gray-200 rounded-xl"></div>
+              <div className="h-64 bg-gray-200 rounded-xl"></div>
+            </div>
+            <div className="space-y-4">
+              <div className="h-64 bg-gray-200 rounded-xl"></div>
+              <div className="h-64 bg-gray-200 rounded-xl"></div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
