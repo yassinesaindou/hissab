@@ -20,6 +20,7 @@ const CACHE_NAME = "hissab-app-v5"; // bump version when changing
 const APP_SHELL = [
   "/",
   "/offline",
+  '/dashboard',
   "/manifest.json",
   "/icons/icon-192x192.png",
   "/icons/icon-512x512.png",
