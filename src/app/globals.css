@@ -145,7 +145,7 @@ html {
 html,
 body {
   height: 100%;
-  overflow: hidden;
+   
 }
 
 /* Fix for Shadcn dialogs */

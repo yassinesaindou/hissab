@@ -65,7 +65,7 @@ export default function RootLayout({
 
         <link rel="manifest" href="/manifest.json" />
       </head>
-      <body className={`${jakartaSans.className} antialiased font-normal`}>
+      <body className={`${jakartaSans.className} overflow-y-scroll antialiased font-normal `} >
         <ServiceWorkerRegister />
         {children}
 

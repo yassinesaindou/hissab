@@ -51,10 +51,10 @@ export default async function MainLayout({
       {/* THIS LINE FIXES EVERYTHING */}
       <AuthProvider session={null} />
 
-      <div className="flex w-screen h-screen overflow-hidden">
+      <div className="flex w-screen ">
         <SideBarExample />
 
-        <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex flex-col overflow-y-scroll flex-1 min-w-0">
           <header className="flex h-16 items-center border-b px-4 shrink-0">
             <SidebarTrigger />
             <Separator orientation="vertical" className="mx-2 h-4" />
