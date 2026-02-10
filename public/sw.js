@@ -1,47 +1,64 @@
 // public/sw.js
-const CACHE_NAME = "hissab-app-v4"; // bump version when changing
+const CACHE_NAME = "hissab-app-v5"; // bump version when changing
+
+// const APP_SHELL = [
+//   "/",
+//   "/offline",
+//   "/manifest.json",
+//   "/favicon.ico",
+//   "/globals.css",
+//   // Icons
+//   "/icons/icon-72x72.png",
+//   "/icons/icon-96x96.png",
+//   "/icons/icon-128x128.png",
+//   "/icons/icon-144x144.png",
+//   "/icons/icon-152x152.png",
+//   "/icons/icon-192x192.png",
+//   "/icons/icon-512x512.png",
+// ];
 
 const APP_SHELL = [
   "/",
   "/offline",
   "/manifest.json",
-  "/favicon.ico",
-  "/globals.css",
-  // Icons
-  "/icons/icon-72x72.png",
-  "/icons/icon-96x96.png",
-  "/icons/icon-128x128.png",
-  "/icons/icon-144x144.png",
-  "/icons/icon-152x152.png",
   "/icons/icon-192x192.png",
   "/icons/icon-512x512.png",
 ];
 
 // Install
 self.addEventListener("install", (event) => {
-  console.log("[SW] Installing v4");
+  console.log("[SW] Installing v5");
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log("[SW] Caching app shell");
-      return cache.addAll(APP_SHELL);
-    })
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        console.log("[SW] Caching app shell");
+        // Cache individually to see what fails
+        return Promise.allSettled(
+          APP_SHELL.map((url) =>
+            cache.add(url)
+              .then(() => console.log(`[SW] ✅ ${url}`))
+              .catch((e) => console.error(`[SW] ❌ ${url}:`, e))
+          )
+        );
+      })
+      .then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
 // Activate — clean old caches
 self.addEventListener("activate", (event) => {
-  console.log("[SW] Activating v4");
+  console.log("[SW] Activating v5");
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
+    caches.keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => key !== CACHE_NAME)
+            .map((key) => caches.delete(key))
+        )
       )
-    )
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 // Fetch
@@ -57,22 +74,18 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          // Cache successful API responses (optional)
           if (res.ok) {
             const clone = res.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
           }
           return res;
         })
-        .catch(() => {
-          // Offline → return cached or fallback
-          return caches.match(req) || caches.match("/offline");
-        })
+        .catch(() => caches.match(req).then(c => c || caches.match("/offline")))
     );
     return;
   }
 
-  // Next.js static assets (_next/static/) — cache first
+  // Next.js static assets — cache first
   if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
       caches.match(req).then((cached) => {
@@ -86,27 +99,30 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // All other navigation requests (HTML pages) — cache first, fallback to offline
-  if (req.headers.get("accept").includes("text/html")) {
+  // Navigation requests (HTML pages) — NETWORK FIRST, then cache, then offline
+  const acceptHeader = req.headers.get("accept") || "";
+  if (req.mode === "navigate" || acceptHeader.includes("text/html")) {
     event.respondWith(
-      caches.match(req).then((cached) => {
-        return (
-          cached ||
-          fetch(req).then((res) => {
-            // Cache new pages
-            caches.open(CACHE_NAME).then((cache) => cache.put(req, res.clone()));
-            return res;
-          })
-        );
-      }).catch(() => {
-        // Completely offline → serve offline page or root
-        return caches.match("/offline") || caches.match("/");
-      })
+      fetch(req)
+        .then((res) => {
+          // Cache successful pages
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
+          }
+          return res;
+        })
+        .catch(() => {
+          // Network failed - try cache, then offline page
+          console.log("[SW] Network failed, trying cache");
+          return caches.match(req)
+            .then(cached => cached || caches.match("/offline"));
+        })
     );
     return;
   }
 
-  // Everything else (images, fonts, etc.) — cache first
+  // Everything else — cache first
   event.respondWith(
     caches.match(req).then((cached) => cached || fetch(req))
   );
