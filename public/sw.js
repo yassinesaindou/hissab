@@ -21,7 +21,7 @@ const APP_SHELL = [
   "/",
   "/offline",
   '/dashboard',
-  '/invoices',
+  
   "/manifest.json",
   "/icons/icon-192x192.png",
   "/icons/icon-512x512.png",
