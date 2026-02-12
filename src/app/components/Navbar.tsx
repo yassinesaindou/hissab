@@ -9,9 +9,10 @@ import { performFullSync } from "@/lib/offline/fullSync";
 import { getStoreInfo, getUserProfile } from "@/lib/offline/session";
 import { getPendingTransactions } from "@/lib/offline/transactions";
 import { createSupabaseClient } from "@/lib/supabase/client";
-import { AlertCircle, User } from "lucide-react";
+import { AlertCircle, Calendar, RefreshCw, User } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 
 export default function Navbar() {
   const [subscriptionDays, setSubscriptionDays] = useState<number | null>(null);
@@ -79,19 +80,23 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="shadow px-4 py-3 w-full">
-      <div className="w-full bg-white flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+    <nav className="border-b bg-white px-4 py-3 w-full">
+      <div className="w-full flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          {/* Subscription Badge */}
           {subscriptionDays !== null && (
-            <span
-              className={`text-sm px-4 py-1 ${
+            <Badge
+              variant={subscriptionDays <= 7 ? "destructive" : "default"}
+              className={`flex items-center gap-1.5 text-xs font-medium ${
                 subscriptionDays <= 7
-                  ? "bg-red-100 text-red-700"
-                  : "bg-green-100 text-green-700"
-              } hidden md:inline font-normal rounded-full`}
+                  ? "bg-red-100 text-red-700 hover:bg-red-100"
+                  : "bg-green-100 text-green-700 hover:bg-green-100"
+              }`}
             >
-              Abonnement expire dans {subscriptionDays} jours
-            </span>
+              <Calendar size={14} />
+              <span className="hidden sm:inline">{subscriptionDays}j restants</span>
+              <span className="sm:hidden">{subscriptionDays}j</span>
+            </Badge>
           )}
 
           {/* Sync Button */}
@@ -101,41 +106,30 @@ export default function Navbar() {
               disabled={isSyncing}
               variant="outline"
               size="sm"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 border-orange-300 bg-orange-50 text-orange-700 hover:bg-orange-100 hover:text-orange-800"
             >
               {isSyncing ? (
                 <>
-                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
-                  Synchronisation...
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span className="hidden sm:inline">Synchro...</span>
                 </>
               ) : (
                 <>
                   <AlertCircle className="h-4 w-4" />
-                  Synchroniser ({pendingCount})
+                  <span className="
+                  hidden sm:inline">Synchroniser</span>
+                  <span className="
+                  md:hidden sm:inline">Sync</span>
+                  <Badge className="bg-orange-600 text-white hover:bg-orange-600 h-5 min-w-5 flex items-center justify-center px-1.5">
+                    {pendingCount}
+                  </Badge>
                 </>
               )}
             </Button>
           )}
         </div>
 
-        <span className="hidden md:inline-block">
-          <UserMenu userEmail={userEmail} />
-        </span>
-      </div>
-
-      {/* Mobile subscription message */}
-      <div className="mt-2">
-        {subscriptionDays !== null && (
-          <div
-            className={`text-sm px-4 py-1 ${
-              subscriptionDays <= 7
-                ? "bg-red-100 text-red-700"
-                : "bg-green-100 text-green-700"
-            } md:hidden font-normal rounded-full max-w-fit mx-auto`}
-          >
-            Il reste {subscriptionDays} jours avant l'expiration
-          </div>
-        )}
+        <UserMenu userEmail={userEmail} />
       </div>
     </nav>
   );
@@ -147,29 +141,36 @@ function UserMenu({ userEmail }: { userEmail: string | null }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Avatar>
-          <User size={24} className="text-green-800" />
-        </Avatar>
+        <Button variant="ghost" className="h-10 w-10 rounded-full p-0">
+          <Avatar className="h-10 w-10 bg-blue-100 flex items-center justify-center">
+            <User size={20} className="text-blue-600" />
+          </Avatar>
+        </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuLabel>{userEmail || "Mon compte"}</DropdownMenuLabel>
-        <DropdownMenuItem>
-          <Link prefetch={false} href="/settings" className="flex items-center gap-2">
-            Modifier le compte
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">Mon compte</p>
+            <p className="text-xs leading-none text-muted-foreground">
+              {userEmail || "Utilisateur"}
+            </p>
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link prefetch={false} href="/settings" className="cursor-pointer">
+            Paramètres du compte
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <Button
-            onClick={() => {
-              const supabase = createSupabaseClient();
-              supabase.auth.signOut();
-            }}
-            className="flex items-center gap-2 w-full text-red-500"
-            variant="outline"
-          >
-            Se déconnecter
-          </Button>
+        <DropdownMenuItem
+          className="text-red-600 focus:text-red-600 cursor-pointer"
+          onClick={() => {
+            const supabase = createSupabaseClient();
+            supabase.auth.signOut();
+          }}
+        >
+          Se déconnecter
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

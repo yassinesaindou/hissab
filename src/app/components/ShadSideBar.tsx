@@ -13,10 +13,13 @@ import {
   FileText,
   FolderArchive,
   LayoutDashboard,
+  LogOut,
   Package,
   Settings,
   UserRoundMinus,
   Users,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 
 import {
@@ -34,12 +37,14 @@ import Image from "next/image";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { usePathname, useRouter } from "next/navigation";
 import { clearAllLocalData } from "@/lib/offline/session";
+import { Badge } from "@/components/ui/badge";
 
 export default function SideBarExample({
   ...props
 }: React.ComponentProps<typeof Sidebar>) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isPWA, setIsPWA] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
   const pathName = usePathname();
   const router = useRouter();
 
@@ -87,9 +92,36 @@ export default function SideBarExample({
     }
   }, []);
 
-  // Define navigation items based on user role and PWA mode
+  useEffect(() => {
+    // Check online/offline status
+    const updateOnlineStatus = () => {
+      setIsOnline(navigator.onLine);
+    };
+
+    // Set initial status
+    updateOnlineStatus();
+
+    // Listen for online/offline events
+    window.addEventListener("online", updateOnlineStatus);
+    window.addEventListener("offline", updateOnlineStatus);
+
+    return () => {
+      window.removeEventListener("online", updateOnlineStatus);
+      window.removeEventListener("offline", updateOnlineStatus);
+    };
+  }, []);
+
+  // Define navigation items based on user role, PWA mode, and online status
   const getNavItems = () => {
-    // If PWA mode, show simplified navigation
+    // If offline, show only essential offline-capable routes
+    if (!isOnline) {
+      return [
+        { label: "Acceuil", href: "/dashboard", icon: LayoutDashboard },
+        { label: "Factures", href: "/invoices", icon: FileText },
+      ];
+    }
+
+    // If PWA mode and online, show simplified navigation
     if (isPWA) {
       const pwaItems = [
         { label: "Acceuil", href: "/dashboard", icon: LayoutDashboard },
@@ -135,40 +167,80 @@ export default function SideBarExample({
   const navItems = getNavItems();
 
   return (
-    <Sidebar collapsible="icon" {...props} className="bg-blue-500">
+    <Sidebar collapsible="icon" {...props} className="border-r bg-white">
       {/* HEADER */}
-      <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-2">
-          <Image src="/hissab.png" alt="Logo" width={150} height={40} />
-          {isPWA && (
-            <span className="text-xs bg-white text-blue-600 px-2 py-0.5 rounded-full">
-              PWA
-            </span>
-          )}
+      <SidebarHeader className="border-b">
+        <div className="flex items-center justify-between gap-2 px-4 py-4">
+          <div className="flex items-center gap-2">
+            <Image 
+              src="/hissab.png" 
+              alt="Logo" 
+              width={120} 
+              height={32}
+              className="object-contain" 
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            {isPWA && (
+              <Badge className="text-xs bg-blue-600 text-white hover:bg-blue-700 font-semibold px-2 py-0.5">
+                PWA
+              </Badge>
+            )}
+            {!isOnline && (
+              <Badge variant="destructive" className="text-xs font-semibold px-2 py-0.5 flex items-center gap-1">
+                <WifiOff size={12} />
+                Hors ligne
+              </Badge>
+            )}
+            {isOnline && (
+              <div className="flex items-center gap-1 text-xs text-green-600">
+                <Wifi size={12} />
+              </div>
+            )}
+          </div>
         </div>
       </SidebarHeader>
 
       {/* MAIN NAVIGATION */}
-      <SidebarContent>
-        <SidebarMenu className="px-1 rounded-md">
+      <SidebarContent className="px-3 py-4">
+        <SidebarMenu className="space-y-1">
           {navItems.map(({ label, href, icon: Icon }) => (
-            <SidebarMenuItem
-              key={href}
-              className={`${
-                pathName === href
-                  ? "bg-gray-300 text-blue-600 font-medium rounded-md"
-                  : ""
-              } hover:bg-gray-300`}>
-              <SidebarMenuButton asChild tooltip={label}>
+            <SidebarMenuItem key={href}>
+              <SidebarMenuButton 
+                asChild 
+                tooltip={label}
+                className={`
+                  group relative transition-all duration-200
+                  ${
+                    pathName === href
+                      ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
+                      : "text-gray-700 hover:bg-gray-100"
+                  }
+                `}
+              >
                 <Link
                   href={href}
                   prefetch={false}
-                  className="flex items-center justify-between gap-3 px-6 py-5 ">
-                  <span className="flex gap-3 ">
-                    <Icon size={18} className="font-light" />
-                    <span>{label}</span>
+                  className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg">
+                  <span className="flex items-center gap-3">
+                    <Icon 
+                      size={20} 
+                      className={`
+                        transition-transform duration-200 group-hover:scale-110
+                        ${pathName === href ? "stroke-[2.5]" : "stroke-[2]"}
+                      `} 
+                    />
+                    <span className={`font-medium ${pathName === href ? "font-semibold" : ""}`}>
+                      {label}
+                    </span>
                   </span>
-                  <ChevronRight />
+                  <ChevronRight 
+                    size={18} 
+                    className={`
+                      transition-transform duration-200
+                      ${pathName === href ? "translate-x-1" : "group-hover:translate-x-1"}
+                    `}
+                  />
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -177,7 +249,7 @@ export default function SideBarExample({
       </SidebarContent>
 
       {/* FOOTER */}
-      <SidebarFooter>
+      <SidebarFooter className="border-t p-4">
         <form
           onSubmit={async (e) => {
             e.preventDefault();
@@ -186,7 +258,7 @@ export default function SideBarExample({
             await supabase.auth.signOut();
 
             // After server logout succeeds, clear all local data
-            await clearAllLocalData(); // ← This clears IndexedDB
+            await clearAllLocalData();
 
             // Optional: force refresh to clean state
             window.location.href = "/login";
@@ -194,8 +266,9 @@ export default function SideBarExample({
           className="w-full">
           <Button
             type="submit"
-            className="w-full justify-start bg-red-700 hover:bg-red-800 text-white">
-            Se déconnecter
+            className="w-full justify-start gap-2 bg-red-600 hover:bg-red-700 text-white transition-all duration-200 group">
+            <LogOut size={18} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+            <span className="font-medium">Se déconnecter</span>
           </Button>
         </form>
       </SidebarFooter>
