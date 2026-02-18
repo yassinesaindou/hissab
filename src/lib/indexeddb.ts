@@ -19,6 +19,7 @@ export interface LocalProduct {
 export interface LocalTransaction {
   localId?: number;
   transactionId?: string | null;
+  invoiceId?: string | null;
   userId: string;
   storeId: string;
   productId?: string | null;
@@ -32,6 +33,23 @@ export interface LocalTransaction {
   synced: 0|1;
 }
 
+export interface LocalInvoice {
+  invoiceId: string;                // local UUID or incremental
+  clientName: string;
+  clientPhone: string;
+  clientEmail?: string | null;
+  clientAddress?: string | null;
+  storeName: string;
+  storeAddress: string;
+  storePhoneNumber?: string | null;
+  notes?: string | null;
+  totalPrice: number;
+  totalQuantity: number;
+  created_at: string;
+  synced: 0 | 1;                    // 0 = pending, 1 = synced
+  transactionIds: number[];         // array of localIds from transactions store
+}
+
 export interface UserProfile {
   key: 'current';
   userId: string;
@@ -41,6 +59,7 @@ export interface UserProfile {
   storeId: string;
   isActive: boolean;
   subscriptionDaysLeft?: number | null;
+  planName?: string | null; 
 }
 
 export interface StoreInfo {
@@ -79,6 +98,9 @@ async function initDB(): Promise<IDBPDatabase> {
       if (!db.objectStoreNames.contains('userProfile')) {
         db.createObjectStore('userProfile', { keyPath: 'key' });
       }
+      if (!db.objectStoreNames.contains('invoices')) {
+  db.createObjectStore('invoices', { keyPath: 'invoiceId' });
+}
     },
   });
 }

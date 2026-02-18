@@ -16,27 +16,40 @@ export default function PWAInstallPrompt() {
   const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
-    // Check if app is already installed
+    // Already installed — never show
     if (window.matchMedia('(display-mode: standalone)').matches) {
       setIsStandalone(true);
+      return;
     }
 
-    // Check for iOS
+    // Dismissed within 7 days — don't show
+    const dismissed = localStorage.getItem('pwaPromptDismissed');
+    if (dismissed) {
+      const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+      if (Date.now() - parseInt(dismissed) < sevenDaysMs) return;
+    }
+
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
 
+    if (isIOSDevice) {
+      // iOS has no beforeinstallprompt, show manually
+      setIsVisible(true);
+      return;
+    }
+
+    // Android/Desktop: only show when browser is ready
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
-      setIsVisible(true);
+      setIsVisible(true); // ← only show when browser says it's installable
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-    // Hide prompt if user installs the app
     window.addEventListener('appinstalled', () => {
       setIsVisible(false);
       setIsStandalone(true);
+      localStorage.removeItem('pwaPromptDismissed');
     });
 
     return () => {
@@ -46,27 +59,18 @@ export default function PWAInstallPrompt() {
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
-
     deferredPrompt.prompt();
-    const choiceResult = await deferredPrompt.userChoice;
-    
-    if (choiceResult.outcome === 'accepted') {
-      console.log('User accepted the install prompt');
-    } else {
-      console.log('User dismissed the install prompt');
-    }
-    
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log('[PWA] User choice:', outcome);
     setDeferredPrompt(null);
     setIsVisible(false);
   };
 
   const handleDismiss = () => {
     setIsVisible(false);
-    // Store dismissal in localStorage to not show again for a while
     localStorage.setItem('pwaPromptDismissed', Date.now().toString());
   };
 
-  // Don't show if already installed or if dismissed recently
   if (!isVisible || isStandalone) return null;
 
   return (
@@ -82,7 +86,7 @@ export default function PWAInstallPrompt() {
               <p className="text-xs text-blue-100 mt-1">
                 Installez l&apos;application pour une meilleure expérience et un accès hors ligne
               </p>
-              
+
               {isIOS && (
                 <div className="mt-2 text-xs bg-white/10 p-2 rounded">
                   <p className="font-semibold">Sur iOS :</p>
@@ -91,16 +95,13 @@ export default function PWAInstallPrompt() {
               )}
             </div>
           </div>
-          
-          <button
-            onClick={handleDismiss}
-            className="text-white/80 hover:text-white ml-2"
-          >
+
+          <button onClick={handleDismiss} className="text-white/80 hover:text-white ml-2">
             <X className="w-4 h-4" />
           </button>
         </div>
-        
-        {!isIOS && deferredPrompt && (
+
+        {!isIOS && (
           <div className="mt-3 flex gap-2">
             <button
               onClick={handleInstallClick}
@@ -113,6 +114,17 @@ export default function PWAInstallPrompt() {
               className="px-4 py-2 text-sm font-medium text-white/90 hover:text-white transition-colors"
             >
               Plus tard
+            </button>
+          </div>
+        )}
+
+        {isIOS && (
+          <div className="mt-3">
+            <button
+              onClick={handleDismiss}
+              className="w-full py-2 text-sm font-medium text-white/90 hover:text-white transition-colors"
+            >
+              OK, compris
             </button>
           </div>
         )}

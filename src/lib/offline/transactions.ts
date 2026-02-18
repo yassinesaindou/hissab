@@ -5,24 +5,14 @@ export async function createLocalTransaction(
   transaction: Omit<LocalTransaction, 'localId' | 'synced'>
 ): Promise<number> {
   const db = await getDB();
-  const tx = db.transaction(['transactions', 'products'], 'readwrite');
+  const tx = db.transaction('transactions', 'readwrite');
   const txStore = tx.objectStore('transactions');
-  const productStore = tx.objectStore('products');
 
-  if (transaction.productId && (transaction.type === 'sale' || transaction.type === 'credit')) {
-    const product = await productStore.get(transaction.productId);
-    if (product) {
-      if (product.stock < transaction.quantity) {
-        throw new Error(`Stock insuffisant pour ${product.name}. Disponible: ${product.stock}`);
-      }
-      product.stock -= transaction.quantity;
-      await productStore.put(product);
-    }
-  }
+   
 
   const localId = await txStore.add({
     ...transaction,
-    synced: 0,
+    synced: 0,  // 0 = pending
   });
 
   await tx.done;

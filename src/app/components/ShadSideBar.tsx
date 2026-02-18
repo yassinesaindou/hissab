@@ -74,7 +74,7 @@ export default function SideBarExample({
     const checkPWA = () => {
       if (typeof window === "undefined") return;
       const isStandalone = window.matchMedia(
-        "(display-mode: standalone)"
+        "(display-mode: standalone)",
       ).matches;
       setIsPWA(isStandalone || (window as any).navigator.standalone);
     };
@@ -172,12 +172,12 @@ export default function SideBarExample({
       <SidebarHeader className="border-b">
         <div className="flex items-center justify-between gap-2 px-4 py-4">
           <div className="flex items-center gap-2">
-            <Image 
-              src="/hissab.png" 
-              alt="Logo" 
-              width={120} 
+            <Image
+              src="/hissab.png"
+              alt="Logo"
+              width={120}
               height={32}
-              className="object-contain" 
+              className="object-contain"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -187,9 +187,10 @@ export default function SideBarExample({
               </Badge>
             )}
             {!isOnline && (
-              <Badge variant="destructive" className="text-xs font-semibold px-2 py-0.5 flex items-center gap-1">
+              <Badge
+                variant="destructive"
+                className="text-xs font-semibold px-2 py-0.5 flex items-center gap-1">
                 <WifiOff size={12} />
-                Hors ligne
               </Badge>
             )}
             {isOnline && (
@@ -206,8 +207,8 @@ export default function SideBarExample({
         <SidebarMenu className="space-y-1">
           {navItems.map(({ label, href, icon: Icon }) => (
             <SidebarMenuItem key={href}>
-              <SidebarMenuButton 
-                asChild 
+              <SidebarMenuButton
+                asChild
                 tooltip={label}
                 className={`
                   group relative transition-all duration-200
@@ -216,26 +217,26 @@ export default function SideBarExample({
                       ? "bg-blue-600 text-white shadow-sm hover:bg-blue-700"
                       : "text-gray-700 hover:bg-gray-100"
                   }
-                `}
-              >
+                `}>
                 <Link
                   href={href}
                   prefetch={false}
                   className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg">
                   <span className="flex items-center gap-3">
-                    <Icon 
-                      size={20} 
+                    <Icon
+                      size={20}
                       className={`
                         transition-transform duration-200 group-hover:scale-110
                         ${pathName === href ? "stroke-[2.5]" : "stroke-[2]"}
-                      `} 
+                      `}
                     />
-                    <span className={`font-medium ${pathName === href ? "font-semibold" : ""}`}>
+                    <span
+                      className={`font-medium ${pathName === href ? "font-semibold" : ""}`}>
                       {label}
                     </span>
                   </span>
-                  <ChevronRight 
-                    size={18} 
+                  <ChevronRight
+                    size={18}
                     className={`
                       transition-transform duration-200
                       ${pathName === href ? "translate-x-1" : "group-hover:translate-x-1"}
@@ -267,7 +268,10 @@ export default function SideBarExample({
           <Button
             type="submit"
             className="w-full justify-start gap-2 bg-red-600 hover:bg-red-700 text-white transition-all duration-200 group">
-            <LogOut size={18} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+            <LogOut
+              size={18}
+              className="transition-transform duration-200 group-hover:translate-x-0.5"
+            />
             <span className="font-medium">Se déconnecter</span>
           </Button>
         </form>
