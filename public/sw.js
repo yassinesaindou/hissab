@@ -1,103 +1,130 @@
-// public/sw.js - v7 - better offline support for Next.js App Router
-const CACHE_NAME = 'hissab-app-v7';
+// public/sw.js
+const CACHE_NAME = "hissab-app-v8"; // bump version when changing
 
-// Pre-cache critical static files (shell + manifest + icons)
-const STATIC_SHELL = [
-  '/',
-  '/offline',
+// const APP_SHELL = [
+//   "/",
+//   "/offline",
+//   "/manifest.json",
+//   "/favicon.ico",
+//   "/globals.css",
+//   // Icons
+//   "/icons/icon-72x72.png",
+//   "/icons/icon-96x96.png",
+//   "/icons/icon-128x128.png",
+//   "/icons/icon-144x144.png",
+//   "/icons/icon-152x152.png",
+//   "/icons/icon-192x192.png",
+//   "/icons/icon-512x512.png",
+// ];
+
+const APP_SHELL = [
+  "/",
+  "/offline",
   '/dashboard',
   '/invoices',
-  '/manifest.json',
-  '/favicon.ico',
-  '/globals.css',
-  '/hissab.png',
-  '/heroImage.jpg',
-  // Icons
-  '/icons/icon-72x72.png',
-  '/icons/icon-96x96.png',
-  '/icons/icon-128x128.png',
-  '/icons/icon-144x144.png',
-  '/icons/icon-152x152.png',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
+  "/manifest.json",
+  "/icons/icon-192x192.png",
+  "/icons/icon-512x512.png",
 ];
 
-// Install: cache static shell
-self.addEventListener('install', (event) => {
-  console.log('[SW v7] Installing...');
+// Install
+self.addEventListener("install", (event) => {
+  console.log("[SW] Installing v5");
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW v7] Caching static shell');
-      return cache.addAll(STATIC_SHELL);
-    })
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        console.log("[SW] Caching app shell");
+        // Cache individually to see what fails
+        return Promise.allSettled(
+          APP_SHELL.map((url) =>
+            cache.add(url)
+              .then(() => console.log(`[SW] ✅ ${url}`))
+              .catch((e) => console.error(`[SW] ❌ ${url}:`, e))
+          )
+        );
+      })
+      .then(() => self.skipWaiting())
   );
-  self.skipWaiting();
 });
 
-// Activate: clean old caches
-self.addEventListener('activate', (event) => {
-  console.log('[SW v7] Activating...');
+// Activate — clean old caches
+self.addEventListener("activate", (event) => {
+  console.log("[SW] Activating v5");
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+    caches.keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => key !== CACHE_NAME)
+            .map((key) => caches.delete(key))
+        )
       )
-    )
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
-// Fetch handler
-self.addEventListener('fetch', (event) => {
+// Fetch
+self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  if (req.method !== 'GET') return;
+  // Ignore non-GET
+  if (req.method !== "GET") return;
 
-  // 1. Supabase API calls → network-first (no cache needed)
-  if (url.origin.includes('supabase.co') || url.pathname.includes('/rest/v1/')) {
+  // API calls (Supabase) — network first
+  if (url.origin.includes("supabase.co") || url.pathname.includes("/rest/v1/")) {
     event.respondWith(
-      fetch(req).catch(() => new Response('Offline - API unavailable', { status: 503 }))
+      fetch(req)
+        .then((res) => {
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
+          }
+          return res;
+        })
+        .catch(() => caches.match(req).then(c => c || caches.match("/offline")))
     );
     return;
   }
 
-  // 2. Next.js static chunks & assets → cache-first + background update
-  if (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/_next/')) {
+  // Next.js static assets — cache first
+  if (url.pathname.startsWith("/_next/static/")) {
     event.respondWith(
       caches.match(req).then((cached) => {
-        const fetchPromise = fetch(req).then((res) => {
-          if (res && res.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(req, res.clone()));
-          }
+        if (cached) return cached;
+        return fetch(req).then((res) => {
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, res.clone()));
           return res;
-        }).catch(() => cached); // fallback to cache if fetch fails
-        return cached || fetchPromise;
+        });
       })
     );
     return;
   }
 
-  // 3. HTML navigation requests → network-first, fallback to cache or /offline
-  if (req.mode === 'navigate' || req.headers.get('accept')?.includes('text/html')) {
+  // Navigation requests (HTML pages) — NETWORK FIRST, then cache, then offline
+  const acceptHeader = req.headers.get("accept") || "";
+  if (req.mode === "navigate" || acceptHeader.includes("text/html")) {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          // Cache successful navigation responses
-          if (res && res.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(req, res.clone()));
+          // Cache successful pages
+          if (res.ok) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, clone));
           }
           return res;
         })
         .catch(() => {
-          console.log('[SW v7] Navigation failed - falling back to cache/offline');
-          return caches.match(req) || caches.match('/offline') || caches.match('/');
+          // Network failed - try cache, then offline page
+          console.log("[SW] Network failed, trying cache");
+          return caches.match(req)
+            .then(cached => cached || caches.match("/offline"));
         })
     );
     return;
   }
 
-  // 4. Everything else (images, CSS, fonts, etc.) → cache-first
+  // Everything else — cache first
   event.respondWith(
     caches.match(req).then((cached) => cached || fetch(req))
   );
