@@ -1,6 +1,5 @@
 "use client";
 
-
 import { DollarSign, TrendingUp, CreditCard, Package } from "lucide-react";
 import StatCard from "./StatCard";
 
