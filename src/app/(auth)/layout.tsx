@@ -1,5 +1,5 @@
- 
- 
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { 
@@ -16,7 +16,15 @@ export default async function AuthLayout({
 }: {
   children: React.ReactNode;
 }) {
-  
+  const supabase = createSupabaseServerClient();
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (session) {
+    redirect("/dashboard");
+  }
 
   return (
     <div className="min-h-screen flex relative overflow-hidden bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">

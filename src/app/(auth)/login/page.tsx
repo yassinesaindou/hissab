@@ -32,8 +32,6 @@ import {
   AlertCircle
 } from "lucide-react";
 import Image from "next/image";
-import { getUserProfile } from "@/lib/offline/session";
-import { createSupabaseClient } from "@/lib/supabase/client";
 
 const formSchema = z.object({
   email: z
@@ -54,46 +52,9 @@ export default function LoginPage() {
   const [mounted, setMounted] = useState(false);
   const router = useRouter();
 
- 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-  const checkSession = async () => {
-    try {
-      // 1. Try online session first (fast & accurate when online)
-      if (navigator.onLine) {
-        const supabase = createSupabaseClient();
-          
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          router.replace('/dashboard');
-          return;
-        }
-      }
-
-      // 2. Offline fallback: use cached profile
-      const localProfile = await getUserProfile(); // from your lib/offline/session.ts
-
-      if (localProfile && localProfile.userId) {
-        // We have local data → user was logged in → go to dashboard
-        router.replace('/dashboard');
-      }
-      // Else: no session & no local data → stay on login (first visit or cleared)
-
-    } catch (err) {
-      console.warn('Session check failed (likely offline):', err);
-      // Fallback to local profile even on error
-      const localProfile = await getUserProfile();
-      if (localProfile && localProfile.userId) {
-        router.replace('/dashboard');
-      }
-    }
-  };
-
-  checkSession();
-}, [router]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -151,7 +112,6 @@ export default function LoginPage() {
       setIsPending(false);
     }
   }
-
 
   if (!mounted) return null;
 

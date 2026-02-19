@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
-import { useState, startTransition, useEffect } from 'react';
+import { useState, startTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { signupAction } from '@/app/actions';
 import { 
@@ -30,8 +30,6 @@ import {
   AlertCircle,
   Sparkles
 } from 'lucide-react';
-import { getUserProfile } from '@/lib/offline/session';
-import { createSupabaseClient } from '@/lib/supabase/client';
 
 const formSchema = z
   .object({
@@ -85,41 +83,7 @@ export default function SignupPage() {
     },
   });
 
-  useEffect(() => {
-  const checkSession = async () => {
-    try {
-      // 1. Fast path: if online, check real Supabase session
-      if (navigator.onLine) {
-        const supabase = createSupabaseClient(); // create fresh instance
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          router.replace('/dashboard');
-          return;
-        }
-      }
-
-      // 2. Offline fallback: check if we have a cached profile
-      const localProfile = await getUserProfile();
-
-      if (localProfile && localProfile.userId) {
-        // We have local data → user was logged in → go to dashboard
-        router.replace('/dashboard');
-      }
-
-      // Else: no session & no local data → stay on login (first visit or logged out)
-    } catch (err) {
-      console.warn('Session check failed (likely offline):', err);
-
-      // Last chance fallback: even if Supabase failed, check local
-      const localProfile = await getUserProfile();
-      if (localProfile && localProfile.userId) {
-        router.replace('/dashboard');
-      }
-    }
-  };
-
-  checkSession();
-}, [router]);
+  
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsPending(true);
