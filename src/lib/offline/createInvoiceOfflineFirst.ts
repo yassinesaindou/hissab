@@ -5,8 +5,8 @@ import { getUserProfile } from './session';
 import { createSupabaseClient } from '@/lib/supabase/client';
 
 export async function createInvoiceOfflineFirst(params: {
-  clientName: string;
-  clientPhone: string;
+  clientName: string | undefined;
+  clientPhone: string | undefined;
   clientEmail?: string;
   clientAddress?: string;
   storeName: string;
