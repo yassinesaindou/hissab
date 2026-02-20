@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertTriangle, Home, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
@@ -10,12 +10,20 @@ export default function Error({
 }: {
   error: Error & { digest?: string };
   reset: () => void;
-}) {
+  }) {
+  
+  const [isOffline, setIsOffline] = useState(false);
+
+useEffect(() => {
+  setIsOffline(!navigator.onLine);
+}, []);
+  
+  
   useEffect(() => {
     console.error(error);
   }, [error]);
 
-  const isOffline = !navigator.onLine;
+   
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4">

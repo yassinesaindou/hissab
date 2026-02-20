@@ -323,15 +323,26 @@ export default function HeroSection() {
               </div>
 
               {/* CTA Buttons */}
-              <div className="mt-6 flex gap-3 justify-center lg:justify-start flex-wrap">
+              <div className="mt-6 flex gap-3 justify-between lg:justify-start flex-wrap">
                 <Link 
                   prefetch={false} 
                   href="/signup" 
-                  className="group relative px-6 py-3 overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white font-semibold shadow-lg shadow-blue-600/30 hover:shadow-xl hover:shadow-blue-600/40 transition-all duration-500 hover:-translate-y-1 hover:scale-105"
+                  className="group relative flex-1 px-6 py-3 bg-transparent border-2 rounded-xl font-semibold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white transition-all duration-300 hover:-translate-y-1 overflow-hidden"
                 >
                   <span className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
-                  <span className="relative flex items-center gap-2 text-base">
-                    Commencer gratuitement
+                  <span className="relative flex text-center justify-around items-center gap-2 text-base">
+                    Essai gratuit
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+                  </span>
+                </Link>
+        <Link 
+                  prefetch={false} 
+                  href="/login" 
+                  className="group relative flex-1 px-6 py-3 bg-transparent border-2 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:border-blue-600 dark:hover:border-blue-600 hover:text-blue-600 dark:hover:text-blue-400 transition-all duration-300 hover:-translate-y-1 overflow-hidden"
+                >
+                  <span className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></span>
+                  <span className="relative flex items-center gap-2 text-base text-center justify-around">
+                    Se Connecter
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
                   </span>
                 </Link>

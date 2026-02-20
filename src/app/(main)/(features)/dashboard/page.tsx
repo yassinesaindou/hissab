@@ -83,7 +83,7 @@ async function fetchDashboardData() {
     setLoading(true);
     setError(null);
 
-    let profile: { storeId: string; role: string } | null = null;
+    let profile: { storeId: string; role: string, userId:string } | null = null;
     let filterKey: string;
     let filterValue: string;
 
@@ -101,7 +101,7 @@ async function fetchDashboardData() {
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
-        .select("storeId, role")
+        .select("storeId, role, userId")
         .eq("userId", user.id)
         .single();
 
@@ -122,13 +122,15 @@ async function fetchDashboardData() {
       profile = {
         storeId: localProfile.storeId,
         role: localProfile.role || "user",
+        userId: localProfile.userId
       };
     }
 
     // Common setup
     const isEmployee = profile.role === "employee";
-     filterKey = isEmployee ? "userId" : "storeId";
-      filterValue = isEmployee ? (await supabase.auth.getUser()).data.user?.id || "" : profile.storeId;
+    filterKey = isEmployee ? "userId" : "storeId";
+     
+     filterValue = isEmployee ? profile.userId : profile.storeId;
 
     let data: DashboardData;
 

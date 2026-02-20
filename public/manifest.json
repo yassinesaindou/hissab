@@ -59,7 +59,7 @@
       "name": "Nouvelle Vente",
       "short_name": "Vente",
       "description": "Créer une nouvelle transaction",
-      "url": "/dashboard?action=new-transaction"
+      "url": "/dashboard"
     },
     {
       "name": "Nouvelle Facture",
@@ -69,21 +69,8 @@
       
     }
   ],
-  "categories": ["business", "productivity", "utilities"],
-  "screenshots": [
-    {
-      "src": "/screenshots/dashboard.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Dashboard view"
-    },
-    {
-      "src": "/screenshots/invoice.png",
-      "sizes": "750x1334",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Invoice creation"
-    }
-  ]
+  "categories": ["business", "productivity", "utilities"]
+ 
 }
+
+  
