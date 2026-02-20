@@ -1,7 +1,7 @@
-// public/sw.js - v9
-const CACHE_NAME = 'hissab-app-v10';
-const STATIC_CACHE = 'hissab-static-v10';
-const DYNAMIC_CACHE = 'hissab-dynamic-v10';
+// public/sw.js - v11
+const CACHE_NAME = 'hissab-app-v11';
+const STATIC_CACHE = 'hissab-static-v11';
+const DYNAMIC_CACHE = 'hissab-dynamic-v11';
 
 const STATIC_SHELL = [
   '/',
@@ -34,7 +34,7 @@ function isCacheable(request) {
 
 // ─── Install ───────────────────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW v9] Installing...');
+  console.log('[SW v10] Installing...');
   event.waitUntil(
     caches
       .open(CACHE_NAME)
@@ -42,13 +42,17 @@ self.addEventListener('install', (event) => {
         Promise.allSettled(
           STATIC_SHELL.map((url) =>
             cache.add(url).catch((err) =>
-              console.warn(`[SW v9] Failed to cache: ${url}`, err)
+              console.warn(`[SW v10] Failed to cache: ${url}`, err)
             )
           )
         )
       )
       .then(() => {
-        console.log('[SW v9] Install complete');
+        console.log('[SW v10] Install complete');
+        // Warm up these pages so their JS chunks get fetched and cached
+        // This ensures /offline and /dashboard chunks are available offline
+        fetch('/offline').catch(() => {});
+        fetch('/dashboard').catch(() => {});
         return self.skipWaiting();
       })
   );
@@ -56,7 +60,7 @@ self.addEventListener('install', (event) => {
 
 // ─── Activate ──────────────────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW v9] Activating...');
+  console.log('[SW v10] Activating...');
   event.waitUntil(
     caches
       .keys()
@@ -65,7 +69,7 @@ self.addEventListener('activate', (event) => {
           keys
             .filter((key) => key !== CACHE_NAME && key !== STATIC_CACHE && key !== DYNAMIC_CACHE)
             .map((key) => {
-              console.log(`[SW v9] Deleting old cache: ${key}`);
+              console.log(`[SW v10] Deleting old cache: ${key}`);
               return caches.delete(key);
             })
         )
@@ -116,7 +120,7 @@ self.addEventListener('fetch', (event) => {
           }
           return networkRes;
         } catch {
-          console.warn('[SW v9] Static asset not cached and offline:', url.pathname);
+          console.warn('[SW v10] Static asset not cached and offline:', url.pathname);
           return new Response('/* offline - asset not cached */', {
             status: 503,
             headers: { 'Content-Type': 'text/css' },
@@ -161,7 +165,7 @@ self.addEventListener('fetch', (event) => {
           return res;
         })
         .catch(async () => {
-          console.log('[SW v9] Offline - serving from cache or /offline page');
+          console.log('[SW v10] Offline - serving from cache or /offline page');
           const cached = await caches.match(req);
           if (cached) return cached;
 
@@ -208,7 +212,7 @@ self.addEventListener('message', (event) => {
         Promise.allSettled(
           urls.map((url) =>
             cache.add(url).catch((err) =>
-              console.warn('[SW v9] Failed to pre-cache:', url, err)
+              console.warn('[SW v10] Failed to pre-cache:', url, err)
             )
           )
         )
