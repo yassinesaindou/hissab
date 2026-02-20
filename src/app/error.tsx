@@ -98,6 +98,15 @@ useEffect(() => {
           </div>
         )}
       </div>
+
+      <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-left">
+  <p className="text-xs font-mono text-red-800 break-all">
+    {error?.message}
+  </p>
+  <p className="text-xs font-mono text-red-600 break-all mt-1">
+    {error?.stack}
+  </p>
+</div>
     </div>
   );
 }
