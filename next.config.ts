@@ -7,7 +7,10 @@ const withPWA = require('next-pwa')({
   customWorkerDir: 'worker',
   fallback: {
     document: '/offline',
-  }
+  },
+  cacheOnFrontEndNav: true,
+  reloadOnOnline: true,
+  dynamicStartUrl: false,
 });
 
 import type { NextConfig } from "next";
