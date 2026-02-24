@@ -237,7 +237,7 @@ export default function Footer() {
 
           <div className="flex flex-col items-center justify-between gap-4 text-center md:flex-row">
             <p className="text-sm text-gray-500 dark:text-gray-500 flex items-center gap-1">
-              © 2025 Hissab Comores. 
+              © 2025 Hissab Comores. v1 
               <span className="flex items-center gap-1 mx-1">
                 Fait avec <Heart className="w-3 h-3 text-red-500 fill-red-500 animate-pulse" /> 
               </span>
