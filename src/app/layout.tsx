@@ -4,7 +4,7 @@ import "./globals.css";
 import { Metadata, Viewport } from "next";
 import OnlineStatus from "@/components/pwa/OnlineStatus";
 import PWAInstallPrompt from "@/components/pwa/PWAInstallPromt";
-import ServiceWorkerRegister from "@/components/pwa/ServiceWorkerRegister";
+ 
 import OfflineRedirect from "@/components/pwa/OfflineRedirect";
 import { SWCacheWarmer } from "@/components/pwa/SwCacheWarmer";
 
@@ -67,7 +67,7 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className={`${jakartaSans.className} overflow-y-scroll antialiased font-normal `} >
-        <ServiceWorkerRegister />
+       
         {children}
 
         <SWCacheWarmer />
