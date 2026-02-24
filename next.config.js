@@ -8,9 +8,6 @@ const withPWA = require('next-pwa')({
   fallbacks: {
     document: '/offline',
   },
-  cacheOnFrontEndNav: true,
-  reloadOnOnline: true,
-  dynamicStartUrl: false,
 });
 
 /** @type {import('next').NextConfig} */
