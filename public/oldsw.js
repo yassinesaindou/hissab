@@ -1,5 +1,7 @@
-// public/sw.js - v8
-const CACHE_NAME = 'hissab-app-v8';
+// public/sw.js - v11
+const CACHE_NAME = 'hissab-app-v11';
+const STATIC_CACHE = 'hissab-static-v11';
+const DYNAMIC_CACHE = 'hissab-dynamic-v11';
 
 const STATIC_SHELL = [
   '/',
@@ -19,41 +21,55 @@ const STATIC_SHELL = [
   '/icons/icon-512x512.png',
 ];
 
+// Only cache http/https requests.
+// chrome-extension://, data:, blob: etc. will throw on cache.put()
+function isCacheable(request) {
+  try {
+    const url = new URL(request.url || request);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 // ─── Install ───────────────────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW v8] Installing...');
+  console.log('[SW v10] Installing...');
   event.waitUntil(
     caches
       .open(CACHE_NAME)
       .then((cache) =>
-        // Cache individually so one 404 doesn't kill the whole install
         Promise.allSettled(
           STATIC_SHELL.map((url) =>
             cache.add(url).catch((err) =>
-              console.warn(`[SW v8] Failed to cache: ${url}`, err)
+              console.warn(`[SW v10] Failed to cache: ${url}`, err)
             )
           )
         )
       )
       .then(() => {
-        console.log('[SW v8] Install complete');
-        return self.skipWaiting(); // inside waitUntil ✓
+        console.log('[SW v10] Install complete');
+        // Warm up these pages so their JS chunks get fetched and cached
+        // This ensures /offline and /dashboard chunks are available offline
+        fetch('/offline').catch(() => {});
+        fetch('/dashboard').catch(() => {});
+        return self.skipWaiting();
       })
   );
 });
 
 // ─── Activate ──────────────────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW v8] Activating...');
+  console.log('[SW v10] Activating...');
   event.waitUntil(
     caches
       .keys()
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key !== CACHE_NAME)
+            .filter((key) => key !== CACHE_NAME && key !== STATIC_CACHE && key !== DYNAMIC_CACHE)
             .map((key) => {
-              console.log(`[SW v8] Deleting old cache: ${key}`);
+              console.log(`[SW v10] Deleting old cache: ${key}`);
               return caches.delete(key);
             })
         )
@@ -65,10 +81,11 @@ self.addEventListener('activate', (event) => {
 // ─── Fetch ─────────────────────────────────────────────────────────────────
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  const url = new URL(req.url);
 
-  // Ignore non-GET requests
-  if (req.method !== 'GET') return;
+  // Ignore non-GET and non-cacheable schemes (chrome-extension://, etc.)
+  if (req.method !== 'GET' || !isCacheable(req)) return;
+
+  const url = new URL(req.url);
 
   // ── 1. Supabase / external API → network only, fail gracefully ────────
   if (
@@ -87,25 +104,49 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // ── 2. Next.js static chunks → cache-first, update in background ──────
-  if (
-    url.pathname.startsWith('/_next/static/') ||
-    url.pathname.startsWith('/_next/image')
-  ) {
+  // ── 2. Next.js HASHED static chunks → cache-first, never expire ───────
+  // These files have content hashes in their name — they are immutable.
+  // Same filename always means same content, so cache-first forever is safe.
+  if (url.pathname.startsWith('/_next/static/')) {
     event.respondWith(
-      caches.match(req).then((cached) => {
-        const networkFetch = fetch(req)
-          .then((res) => {
-            if (res && res.status === 200) {
-              caches
-                .open(CACHE_NAME)
-                .then((cache) => cache.put(req, res.clone()));
-            }
-            return res;
-          })
-          .catch(() => cached); // network failed → return stale cache
+      caches.open(STATIC_CACHE).then(async (cache) => {
+        const cached = await cache.match(req);
+        if (cached) return cached;
 
-        return cached || networkFetch;
+        try {
+          const networkRes = await fetch(req);
+          if (networkRes && networkRes.status === 200 && isCacheable(req)) {
+            cache.put(req, networkRes.clone());
+          }
+          return networkRes;
+        } catch {
+          console.warn('[SW v10] Static asset not cached and offline:', url.pathname);
+          return new Response('/* offline - asset not cached */', {
+            status: 503,
+            headers: { 'Content-Type': 'text/css' },
+          });
+        }
+      })
+    );
+    return;
+  }
+
+  // ── 2b. Next.js image optimization ────────────────────────────────────
+  if (url.pathname.startsWith('/_next/image')) {
+    event.respondWith(
+      caches.open(STATIC_CACHE).then(async (cache) => {
+        const cached = await cache.match(req);
+        if (cached) return cached;
+
+        try {
+          const res = await fetch(req);
+          if (res && res.status === 200 && isCacheable(req)) {
+            cache.put(req, res.clone());
+          }
+          return res;
+        } catch {
+          return cached || new Response('', { status: 503 });
+        }
       })
     );
     return;
@@ -116,7 +157,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          if (res && res.status === 200) {
+          if (res && res.status === 200 && isCacheable(req)) {
             caches
               .open(CACHE_NAME)
               .then((cache) => cache.put(req, res.clone()));
@@ -124,30 +165,58 @@ self.addEventListener('fetch', (event) => {
           return res;
         })
         .catch(async () => {
-          console.log('[SW v8] Offline - serving from cache or /offline page');
-          return (
-            (await caches.match(req)) ??
-            (await caches.match('/offline')) ??
-            (await caches.match('/'))
-          );
+          console.log('[SW v10] Offline - serving from cache or /offline page');
+          const cached = await caches.match(req);
+          if (cached) return cached;
+
+          const offlinePage = await caches.match('/offline');
+          if (offlinePage) return offlinePage;
+
+          return caches.match('/');
         })
     );
     return;
   }
 
-  // ── 4. Everything else (images, fonts, icons) → cache-first ──────────
+  // ── 4. Everything else (images, fonts, icons) → stale-while-revalidate ──
   event.respondWith(
-    caches
-      .match(req)
-      .then((cached) => cached || fetch(req))
-      .catch(() => {
-        // If it's an image request and we have nothing, return a transparent pixel
-        if (req.destination === 'image') {
-          return new Response(
-            '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"/>',
-            { headers: { 'Content-Type': 'image/svg+xml' } }
-          );
-        }
-      })
+    caches.open(DYNAMIC_CACHE).then(async (cache) => {
+      const cached = await cache.match(req);
+
+      const networkFetch = fetch(req)
+        .then((res) => {
+          if (res && res.status === 200 && isCacheable(req)) {
+            cache.put(req, res.clone());
+          }
+          return res;
+        })
+        .catch(() => cached);
+
+      return cached || networkFetch;
+    })
   );
+});
+
+// ─── Message handler ───────────────────────────────────────────────────────
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+
+  // Pre-cache a list of URLs sent from the app (used by SWCacheWarmer)
+  if (event.data && event.data.type === 'CACHE_URLS') {
+    const urls = (event.data.urls || []).filter((url) => isCacheable(url));
+
+    event.waitUntil(
+      caches.open(STATIC_CACHE).then((cache) =>
+        Promise.allSettled(
+          urls.map((url) =>
+            cache.add(url).catch((err) =>
+              console.warn('[SW v10] Failed to pre-cache:', url, err)
+            )
+          )
+        )
+      )
+    );
+  }
 });
