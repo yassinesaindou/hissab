@@ -75,19 +75,7 @@ export default function RootLayout({
         <OnlineStatus />
         <PWAInstallPrompt />
 
-        <script
-  dangerouslySetInnerHTML={{
-    __html: `
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistration().then(function(reg) {
-          if (reg && reg.waiting) {
-            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          }
-        });
-      }
-    `,
-  }}
-/>
+      
       </body>
     </html>
   );
