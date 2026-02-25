@@ -7,6 +7,7 @@ import PWAInstallPrompt from "@/components/pwa/PWAInstallPromt";
  
 import OfflineRedirect from "@/components/pwa/OfflineRedirect";
 import { SWCacheWarmer } from "@/components/pwa/SwCacheWarmer";
+import ServiceWorkerRegister from "@/components/pwa/ServiceWorkerRegister";
 
 // const roboto = Inter({
 //   weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
@@ -74,7 +75,7 @@ export default function RootLayout({
         <OfflineRedirect />
         <OnlineStatus />
         <PWAInstallPrompt />
-
+<ServiceWorkerRegister />
       
       </body>
     </html>
