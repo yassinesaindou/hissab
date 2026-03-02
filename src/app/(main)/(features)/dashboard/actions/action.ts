@@ -73,7 +73,6 @@ export async function addTransactionAction(formData: any) {
     const { error } = await supabase.from("transactions").insert({
       storeId: profile.storeId,
       userId: user.id,
-      productId: validatedData.productId || null,
       productName: productName || null,
       unitPrice: unitPrice, // This is the user-provided price, not from products table
       totalPrice: totalPrice,

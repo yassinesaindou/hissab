@@ -76,7 +76,7 @@ export async function syncTransactionsToServer() {
         .insert({
           userId: tx.userId,
           storeId: tx.storeId,
-          productId: tx.productId || null,
+          
           productName: tx.productName || null,
           unitPrice: tx.unitPrice,
           totalPrice: tx.totalPrice,

@@ -55,6 +55,19 @@ export async function createTransactionOfflineFirst(params: {
     created_at: new Date().toISOString(),
   };
 
+  const transactionToBeAdded = {
+    userId,
+    storeId,
+     
+    productName: params.productName || null,
+    unitPrice: params.unitPrice,
+    totalPrice: params.unitPrice * params.quantity,
+    quantity: params.quantity,
+    type: params.type,
+    description: params.description || null,
+    created_at: new Date().toISOString(),
+  }
+
   // ── STOCK CHECK & UPDATE ── only when online ──────────────────────────────
   if (navigator.onLine && params.productId && (params.type === 'sale' || params.type === 'credit')) {
     const { data: product, error: fetchErr } = await supabase
@@ -85,7 +98,7 @@ export async function createTransactionOfflineFirst(params: {
   // ── SAVE TRANSACTION ── exclusive paths ───────────────────────────────────
   if (navigator.onLine) {
     // Online → only Supabase
-    const { error } = await supabase.from('transactions').insert(transaction);
+    const { error } = await supabase.from('transactions').insert(transactionToBeAdded);
     if (error) throw error;
   } else {
     // Offline → only local (no stock change here)

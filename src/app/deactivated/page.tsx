@@ -1,7 +1,7 @@
 // app/deactivated/page.tsx
 "use client";
-import { Button } from "@/components/ui/button";
-import { AlertCircle, Phone, Mail } from "lucide-react";
+ 
+import { AlertCircle } from "lucide-react";
 
 export default function DeactivatedPage() {
   return (
@@ -19,27 +19,11 @@ export default function DeactivatedPage() {
           Votre compte employé a été désactivé. Veuillez contacter votre administrateur pour le réactiver.
         </p>
 
-        <div className="space-y-4 mb-8">
-          <div className="flex items-center justify-center gap-3 text-sm text-gray-700">
-            <Phone className="w-5 h-5 text-blue-600" />
-            <span>+269 XXX XXXX</span>
-          </div>
-          <div className="flex items-center justify-center gap-3 text-sm text-gray-700">
-            <Mail className="w-5 h-5 text-blue-600" />
-            <span>admin@votremagasin.com</span>
-          </div>
-        </div>
+        
 
-        <Button
-          onClick={() => window.location.href = "mailto:admin@votremagasin.com"}
-          className="w-full bg-blue-600 hover:bg-blue-700"
-        >
-          Contacter l&apos;Admin
-        </Button>
+        
 
-        <p className="text-xs text-gray-500 mt-6">
-          Vous serez redirigé vers votre boîte mail.
-        </p>
+        
       </div>
     </div>
   );

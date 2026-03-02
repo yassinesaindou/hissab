@@ -12,6 +12,7 @@ const serwist = new Serwist({
     { url: '/dashboard', revision: '1' },
     { url: '/invoices', revision: '1' },
     { url: '/offline', revision: '1' },
+    {url : '/deactivated', revision:'1'}
   ],
   skipWaiting: true,
   clientsClaim: true,

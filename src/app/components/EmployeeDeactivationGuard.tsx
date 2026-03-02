@@ -8,6 +8,7 @@ import { getUserProfile } from "@/lib/offline/session";
 export default function EmployeeDeactivationGuard() {
   const router = useRouter();
 
+  console.log("EmployeeDeactivationGuard mounted");
   useEffect(() => {
     async function check() {
       const profile = await getUserProfile();

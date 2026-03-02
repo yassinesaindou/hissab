@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
-const APP_SHELL_PAGES = ["/", "/dashboard", "/invoices"];
+const APP_SHELL_PAGES = ["/", "/dashboard", "/invoices", '/deactivated'];
 export default function OfflineRedirect() {
   const router = useRouter();
   const pathname = usePathname();

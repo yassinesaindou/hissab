@@ -19,7 +19,7 @@ export async function syncDataFromServer() {
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("userId, name, email, role, storeId")
+      .select("userId, name, email, role, storeId, isActive")
       .eq("userId", user.id)
       .single();
 
