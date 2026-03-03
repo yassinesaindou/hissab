@@ -46,3 +46,5 @@ export async function clearProducts() {
   const db = await getDB();
   await db.clear("products");
 }
+
+ 

@@ -1,54 +1,79 @@
 // lib/offline/transactions.ts
-import { getDB, LocalTransaction } from '@/lib/indexeddb';
+import { getDB, LocalTransaction } from "@/lib/indexeddb";
 
+/**
+ * Create a local transaction in IndexedDB
+ * Returns the localId assigned by the database
+ */
 export async function createLocalTransaction(
-  transaction: Omit<LocalTransaction, 'localId' | 'synced'>
+  transaction: Omit<LocalTransaction, "localId">
 ): Promise<number> {
   const db = await getDB();
-  const tx = db.transaction('transactions', 'readwrite');
-  const txStore = tx.objectStore('transactions');
-
-   
-
-  const localId = await txStore.add({
-    ...transaction,
-    synced: 0,  // 0 = pending
-  });
-
-  await tx.done;
-  return Number(localId);
+  const localId = await db.add("transactions", transaction);
+  return localId as number;
 }
 
-export async function getAllTransactions(storeId: string): Promise<LocalTransaction[]> {
+/**
+ * Mark a transaction as synced (update synced flag to 1)
+ */
+export async function markTransactionAsSynced(
+  localId: number,
+  transactionId: string
+): Promise<void> {
   const db = await getDB();
-  return await db.getAllFromIndex('transactions', 'storeId', storeId);
-}
+  const tx = await db.get("transactions", localId);
 
-export async function getPendingTransactions(storeId: string): Promise<LocalTransaction[]> {
-  const db = await getDB();
-  const all = await db.getAllFromIndex('transactions', 'storeId', storeId);
-  return all.filter(tx => !tx.synced);
-}
-
-export async function getRecentTransactions(storeId: string, limit = 10): Promise<LocalTransaction[]> {
-  const db = await getDB();
-  const all = await db.getAllFromIndex('transactions', 'storeId', storeId);
-  return all
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, limit);
-}
-
-export async function markTransactionAsSynced(localId: number, serverId: string) {
-  const db = await getDB();
-  const tx = await db.get('transactions', localId);
-  if (tx) {
-    tx.synced =1;
-    tx.transactionId = serverId;
-    await db.put('transactions', tx);
+  if (!tx) {
+    throw new Error(`Transaction with localId ${localId} not found`);
   }
+
+  await db.put("transactions", {
+    ...tx,
+    transactionId,
+    synced: 1,
+  });
 }
 
-export async function clearTransactions() {
+/**
+ * Get all transactions for a store (optionally limit)
+ */
+export async function getRecentTransactions(
+  storeId: string,
+  limit: number = 50
+): Promise<LocalTransaction[]> {
   const db = await getDB();
-  await db.clear('transactions');
+  const allTx = await db.getAllFromIndex(
+    "transactions",
+    "storeId",
+    storeId
+  );
+
+  // Sort by created_at descending
+  allTx.sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+
+  return allTx.slice(0, limit);
+}
+
+/**
+ * Get pending transactions (synced = 0)
+ */
+export async function getPendingTransactions(): Promise<LocalTransaction[]> {
+  const db = await getDB();
+  const pending = await db.getAllFromIndex(
+    "transactions",
+    "synced",
+    IDBKeyRange.only(0)
+  );
+  return pending;
+}
+
+/**
+ * Clear all transactions (useful on logout)
+ */
+export async function clearTransactions(): Promise<void> {
+  const db = await getDB();
+  await db.clear("transactions");
 }

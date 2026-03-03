@@ -7,7 +7,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import Navbar from "@/app/components/Navbar";
 import { Separator } from "@/components/ui/separator";
 import EmployeeDeactivationGuard from "@/app/components/EmployeeDeactivationGuard";
-import SyncBadge from "@/app/components/SyncBadge";
+// import SyncBadge from "@/app/components/SyncBadge";
+import { OnlineSyncListener } from "@/components/pwa/OnlineSyncListener";
 
 export default async function MainLayout({
   children,
@@ -47,7 +48,8 @@ export default async function MainLayout({
   return (
     <SidebarProvider>
       <EmployeeDeactivationGuard />
-      <SyncBadge />
+       <OnlineSyncListener />
+     
       {/* THIS LINE FIXES EVERYTHING */}
       <AuthProvider session={null} />
 

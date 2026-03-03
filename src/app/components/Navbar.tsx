@@ -1,12 +1,12 @@
 'use client'
 /* eslint-disable react/no-unescaped-entities */
-// app/components/Navbar.tsx — add this inside the header div, next to subscription message
+// app/components/Navbar.tsx — FIXED VERSION
 
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { performFullSync } from "@/lib/offline/fullSync";
-import { getStoreInfo, getUserProfile } from "@/lib/offline/session";
+import { getUserProfile } from "@/lib/offline/session";
 import { getPendingTransactions } from "@/lib/offline/transactions";
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { AlertCircle, Calendar, RefreshCw, User } from "lucide-react";
@@ -49,12 +49,10 @@ export default function Navbar() {
         setSubscriptionDays(profile?.subscriptionDaysLeft || null);
       }
 
-      // Count pending transactions
-      const store = await getStoreInfo();
-      if (store?.storeId) {
-        const pending = await getPendingTransactions(store.storeId);
-        setPendingCount(pending.length);
-      }
+      // Count pending transactions (FIXED)
+      // getPendingTransactions() takes NO parameters - gets ALL pending
+      const pending = await getPendingTransactions();
+      setPendingCount(pending.length);
     }
 
     loadData();
@@ -74,6 +72,9 @@ export default function Navbar() {
 
     if (result.success) {
       alert("Synchronisation réussie !");
+      // Refresh pending count
+      const pending = await getPendingTransactions();
+      setPendingCount(pending.length);
     } else {
       alert("Échec de la synchronisation");
     }
@@ -116,10 +117,8 @@ export default function Navbar() {
               ) : (
                 <>
                   <AlertCircle className="h-4 w-4" />
-                  <span className="
-                  hidden sm:inline">Synchroniser</span>
-                  <span className="
-                  md:hidden sm:inline">Sync</span>
+                  <span className="hidden sm:inline">Synchroniser</span>
+                  <span className="md:hidden sm:inline">Sync</span>
                   <Badge className="bg-orange-600 text-white hover:bg-orange-600 h-5 min-w-5 flex items-center justify-center px-1.5">
                     {pendingCount}
                   </Badge>
@@ -134,8 +133,6 @@ export default function Navbar() {
     </nav>
   );
 }
-
-
 
 function UserMenu({ userEmail }: { userEmail: string | null }) {
   return (

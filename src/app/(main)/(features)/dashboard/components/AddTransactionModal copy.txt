@@ -45,8 +45,8 @@ import {
 } from "@/components/ui/dialog";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-// NEW: Import the new service
-import { createTransaction } from "@/lib/offline/transactionService";
+ 
+import { createTransactionOfflineFirst } from "@/lib/offline/createTransactionOfflineFirst";
 
 const formSchema = z
   .object({
@@ -139,39 +139,35 @@ export default function AddTransactionModal({
   }, [productNameValue, products, form]);
 
   const onSubmit = async (values: FormValues) => {
-    setError(null);
+  setError(null);
 
-    try {
-      // UPDATED: Use new createTransaction service
-      const result = await createTransaction({
-        productId: values.productId || undefined,
-        productName: values.productName,
-        unitPrice: values.unitPrice,
-        quantity: values.quantity,
-        type: values.type as "sale" | "expense" | "credit",
+  try {
+    const result = await createTransactionOfflineFirst({
+      productId: values.productId || undefined,
+      productName: values.productName,
+      unitPrice: values.unitPrice,
+      quantity: values.quantity,
+      type: values.type,
+    });
+
+    if (result.success) {
+      // Success — refresh dashboard and close modal
+      onSuccess();
+      form.reset({
+        productName: "",
+        productId: "",
+        unitPrice: 0,
+        quantity: 1,
+        type: "sale",
       });
-
-      if (result.success) {
-        // Success — refresh dashboard and close modal
-        onSuccess();
-        form.reset({
-          productName: "",
-          productId: "",
-          unitPrice: 0,
-          quantity: 1,
-          type: "sale",
-        });
-        setIsExistingProduct(false);
-        setSearchQuery("");
-        onClose();
-      } else {
-        // Error from service
-        setError(result.message);
-      }
-    } catch (err: any) {
-      setError(err.message || "Erreur lors de l'ajout de la transaction");
+      setIsExistingProduct(false);
+      setSearchQuery("");
+      onClose();
     }
-  };
+  } catch (err: any) {
+    setError(err.message || "Erreur lors de l'ajout de la transaction");
+  }
+};
 
   // Focus command input when popover opens
   useEffect(() => {
@@ -352,6 +348,7 @@ export default function AddTransactionModal({
                         onChange={(e) =>
                           field.onChange(parseFloat(e.target.value) || 0)
                         }
+                         
                         className={isExistingProduct ? 
                           "bg-gray-100 cursor-help" : ""
                         }

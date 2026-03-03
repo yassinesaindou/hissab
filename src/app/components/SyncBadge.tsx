@@ -1,10 +1,9 @@
-// app/components/SyncBadge.tsx
+// app/components/SyncBadge.tsx - FIXED
 "use client";
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { getPendingTransactions } from "@/lib/offline/transactions";
-import { getStoreInfo } from "@/lib/offline/session";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle } from "lucide-react";
 
@@ -14,10 +13,8 @@ export default function SyncBadge() {
 
   useEffect(() => {
     async function updateCount() {
-      const store = await getStoreInfo();
-      if (!store?.storeId) return;
-
-      const pending = await getPendingTransactions(store.storeId);
+      // FIXED: getPendingTransactions takes NO parameters
+      const pending = await getPendingTransactions();
       setPendingCount(pending.length);
     }
 

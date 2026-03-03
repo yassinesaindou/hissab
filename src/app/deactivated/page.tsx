@@ -1,9 +1,42 @@
-// app/deactivated/page.tsx
 "use client";
- 
+
 import { AlertCircle } from "lucide-react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { getUserProfile } from "@/lib/offline/session";
+ 
 
 export default function DeactivatedPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    let isChecking = false;
+
+    const checkActivation = async () => {
+      if (isChecking) return;
+      isChecking = true;
+
+      try {
+        const profile = await getUserProfile();
+
+        console.log("Checking activation status:", profile);
+        if (profile?.isActive) {
+          console.log("User activated locally — redirecting...");
+          router.replace("/dashboard");
+        }
+      } catch (error) {
+        console.error("Error reading profile from IndexedDB:", error);
+      }
+
+      isChecking = false;
+    };
+
+    // Check immediately
+    checkActivation();
+
+     
+  }, [router]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-6">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
@@ -18,12 +51,6 @@ export default function DeactivatedPage() {
         <p className="text-gray-600 mb-8 leading-relaxed">
           Votre compte employé a été désactivé. Veuillez contacter votre administrateur pour le réactiver.
         </p>
-
-        
-
-        
-
-        
       </div>
     </div>
   );
