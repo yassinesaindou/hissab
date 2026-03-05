@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// lib/offline/transactionService.ts
+// lib/offline/transactionService.ts - FIXED VERSION
+
 import { createSupabaseClient } from "@/lib/supabase/client";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { getDB } from "@/lib/indexeddb";
@@ -243,13 +244,32 @@ async function deductStockOnline(
 
 /**
  * OFFLINE MODE: Deduct stock from local cache
+ * FIXED: Uses the correct updateProductStock signature
  */
 async function deductStockOffline(
   productId: string,
   quantity: number
 ): Promise<boolean> {
   try {
-    await updateProductStock(productId, quantity);
+    // Get current product
+    const product = await getProductById(productId);
+    
+    if (!product) {
+      console.error(`Product ${productId} not found`);
+      return false;
+    }
+
+    // Calculate new stock
+    const currentStock = product.stock ?? 0;
+    const newStock = Math.max(0, currentStock - quantity);
+
+    // Update with the new stock value
+    // Your updateProductStock expects (productId, newStock) - the final value
+    await updateProductStock(productId, newStock);
+    
+    console.log(
+      `✓ Stock deducted for ${product.name}: ${currentStock} → ${newStock}`
+    );
     return true;
   } catch (err) {
     console.error("Failed to deduct local stock:", err);

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client'
 /* eslint-disable react/no-unescaped-entities */
 // app/components/Navbar.tsx — FIXED VERSION
@@ -100,8 +101,10 @@ export default function Navbar() {
             </Badge>
           )}
 
+
+          {/* I have diabled the sync button*/ }
           {/* Sync Button */}
-          {pendingCount > 0 && (
+          {/* {pendingCount > 0 && (
             <Button
               onClick={handleSync}
               disabled={isSyncing}
@@ -125,7 +128,7 @@ export default function Navbar() {
                 </>
               )}
             </Button>
-          )}
+          )} */}
         </div>
 
         <UserMenu userEmail={userEmail} />

@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import EmployeeDeactivationGuard from "@/app/components/EmployeeDeactivationGuard";
 // import SyncBadge from "@/app/components/SyncBadge";
 import { OnlineSyncListener } from "@/components/pwa/OnlineSyncListener";
+import SyncBadge from "@/app/components/SyncBadge";
 
 export default async function MainLayout({
   children,
@@ -48,7 +49,8 @@ export default async function MainLayout({
   return (
     <SidebarProvider>
       <EmployeeDeactivationGuard />
-       <OnlineSyncListener />
+      <OnlineSyncListener />
+      <SyncBadge />
      
       {/* THIS LINE FIXES EVERYTHING */}
       <AuthProvider session={null} />
