@@ -9,10 +9,10 @@ declare const self: ServiceWorkerGlobalScopeEventMap & {
 const serwist = new Serwist({
   precacheEntries: [
     ...self.__SW_MANIFEST, // all chunks precached automatically
-    { url: '/dashboard', revision: '1' },
-    { url: '/invoices', revision: '1' },
-    { url: '/offline', revision: '1' },
-    {url : '/deactivated', revision:'1'}
+    { url: '/dashboard', revision: '2' },
+    { url: '/invoices', revision: '2' },
+    { url: '/offline', revision: '2' },
+    {url : '/deactivated', revision:'2'}
   ],
   skipWaiting: true,
   clientsClaim: true,
