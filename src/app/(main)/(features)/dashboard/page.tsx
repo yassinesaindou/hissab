@@ -15,11 +15,12 @@ import { createSupabaseClient } from "@/lib/supabase/client";
 
 import QuickActionsButton from "./components/QuickActionsButton";
 import AddTransactionModal from "./components/AddTransactionModal";
-import { archiveOldTransactions } from "./actions/archiveOldTransactions";
+ 
 import InstallPrompt from "@/components/pwa/PWAInstallPromt";
 import { fetchDashboardDataOffline } from "@/lib/offline/dashboardOffline";
 import { getUserProfile } from "@/lib/offline/session";
- 
+ import * as XLSX from "xlsx";
+import { aggregateOldTransactions } from "./actions/aggregateOldTransactions";
  
 
 interface DashboardData {
@@ -305,72 +306,79 @@ async function fetchDashboardData() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  function downloadTransactionsAsXlsx(transactions: any[], year: number) {
+  const rows = transactions.map((t) => ({
+    "Transaction ID": t.transactionId,
+    Date: t.created_at,
+    Type: t.type,
+    "Nom produit": t.productName || "",
+    Quantité: t.quantity || 0,
+    "Prix unitaire": t.unitPrice || 0,
+    "Prix total": t.totalPrice || 0,
+    Description: t.description || "",
+  }));
+
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, `Transactions ${year}`);
+  XLSX.writeFile(workbook, `transactions_${year}.xlsx`);
+}
+
+
   useEffect(() => {
-    const checkAndRunAnnualArchive = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) return;
+  const checkAndAggregate = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
 
-        // Get user profile to check role
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("userId", user.id)
-          .single();
+      // Only run for 'user' role
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, storeId")
+        .eq("userId", user.id)
+        .single();
 
-        // Only run for admin or user roles (not employee)
-        if (profile && profile.role !== "employee") {
-          // Check if it's January 1st
-          const today = new Date();
-          const isJanuaryFirst =
-            today.getMonth() === 0 && today.getDate() === 1;
+      if (!profile || profile.role !== "user" || !profile.storeId) return;
 
-          if (isJanuaryFirst) {
-            console.log(
-              "📅 1er janvier détecté - Vérification de l'archivage annuel..."
-            );
+      // Only on January 1st
+      const today = new Date();
+      const isJanuaryFirst = today.getMonth() === 0 && today.getDate() === 1;
+      if (!isJanuaryFirst) return;
 
-            // Check if we already ran archive this year
-            const lastArchiveKey = `lastArchive_${today.getFullYear()}`;
-            const lastArchive = localStorage.getItem(lastArchiveKey);
-
-            if (!lastArchive) {
-              console.log("🚀 Démarrage de l'archivage annuel automatique...");
-
-              // Run the archive process
-              const result = await archiveOldTransactions();
-
-              if (result.success && result.archived) {
-                console.log("✅ Archivage annuel terminé avec succès !");
-                console.log(
-                  `📊 ${result.stats?.totalArchived} transactions archivées`
-                );
-
-                // Store in localStorage to avoid running multiple times today
-                localStorage.setItem(lastArchiveKey, today.toISOString());
-
-                // Optional: Show a success toast notification
-                console.log(`🎉 ${result.message}`);
-              } else if (result.success && !result.archived) {
-                console.log("ℹ️ " + result.message);
-              } else {
-                console.error("❌ Échec de l'archivage:", result.message);
-              }
-            } else {
-              console.log("✅ Archivage annuel déjà effectué aujourd'hui");
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Erreur lors de la vérification de l'archivage:", error);
+      // Guard: only once per year via localStorage
+      const lockKey = `aggregated_${today.getFullYear()}_${profile.storeId}`;
+      if (localStorage.getItem(lockKey)) {
+        console.log("✅ Agrégation déjà effectuée aujourd'hui.");
+        return;
       }
-    };
 
-    // Run the check
-    checkAndRunAnnualArchive();
-  }, [supabase]);
+      console.log("🚀 Démarrage de l'agrégation annuelle...");
+      const result = await aggregateOldTransactions(profile.storeId);
+
+      if (result.success && result.aggregated) {
+        // 1. Download XLSX first, before anything else is lost
+        const aggregateYear = today.getFullYear() - 2;
+        downloadTransactionsAsXlsx(result.data, aggregateYear);
+
+        // 2. Mark as done
+        localStorage.setItem(lockKey, today.toISOString());
+
+        console.log(`✅ ${result.message}`);
+        console.log(`📊 Ventes: ${result.stats?.totalSales} | Dépenses: ${result.stats?.totalExpenses}`);
+      } else if (result.success && !result.aggregated) {
+        console.log("ℹ️ " + result.message);
+      } else {
+        console.error("❌ Échec:", result.message);
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'agrégation:", error);
+    }
+  };
+
+  checkAndAggregate();
+}, [supabase]);
 
 
    

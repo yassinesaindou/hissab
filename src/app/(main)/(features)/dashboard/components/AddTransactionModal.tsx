@@ -186,7 +186,7 @@ export default function AddTransactionModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="text-xl">Nouvelle Transaction</DialogTitle>
+          <DialogTitle className="text-xl">Nouvelle Transaction...:)</DialogTitle>
         </DialogHeader>
         
         <Form {...form}>

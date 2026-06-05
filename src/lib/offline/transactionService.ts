@@ -65,7 +65,7 @@ interface StockCheck {
  * ONLINE MODE: Check if subscription is valid for this store
  */
 async function checkSubscriptionOnline(
-  storeId: string
+  storeId: string,
 ): Promise<SubscriptionCheck> {
   const supabase = createSupabaseClient();
 
@@ -86,8 +86,8 @@ async function checkSubscriptionOnline(
 
   const plans = subscription.plans as unknown as any;
   const planName = Array.isArray(plans)
-    ? plans[0]?.name ?? null
-    : plans?.name ?? null;
+    ? (plans[0]?.name ?? null)
+    : (plans?.name ?? null);
 
   const isActive = daysLeft > 0;
 
@@ -105,12 +105,12 @@ async function checkSubscriptionOnline(
   const startOfDay = new Date(
     now.getFullYear(),
     now.getMonth(),
-    now.getDate()
+    now.getDate(),
   ).toISOString();
   const endOfDay = new Date(
     now.getFullYear(),
     now.getMonth(),
-    now.getDate() + 1
+    now.getDate() + 1,
   ).toISOString();
 
   const { count } = await supabase
@@ -155,7 +155,7 @@ async function checkSubscriptionOffline(): Promise<SubscriptionCheck> {
 async function checkStockOnline(
   storeId: string,
   productId: string,
-  quantity: number
+  quantity: number,
 ): Promise<StockCheck> {
   const supabase = createSupabaseClient();
 
@@ -191,7 +191,7 @@ async function checkStockOnline(
  */
 async function checkStockOffline(
   productId: string,
-  quantity: number
+  quantity: number,
 ): Promise<StockCheck> {
   const product = await getProductById(productId);
 
@@ -221,7 +221,7 @@ async function checkStockOffline(
 async function deductStockOnline(
   storeId: string,
   productId: string,
-  quantity: number
+  quantity: number,
 ): Promise<boolean> {
   const supabase = createSupabaseClient();
 
@@ -248,12 +248,12 @@ async function deductStockOnline(
  */
 async function deductStockOffline(
   productId: string,
-  quantity: number
+  quantity: number,
 ): Promise<boolean> {
   try {
     // Get current product
     const product = await getProductById(productId);
-    
+
     if (!product) {
       console.error(`Product ${productId} not found`);
       return false;
@@ -266,9 +266,9 @@ async function deductStockOffline(
     // Update with the new stock value
     // Your updateProductStock expects (productId, newStock) - the final value
     await updateProductStock(productId, newStock);
-    
+
     console.log(
-      `✓ Stock deducted for ${product.name}: ${currentStock} → ${newStock}`
+      `✓ Stock deducted for ${product.name}: ${currentStock} → ${newStock}`,
     );
     return true;
   } catch (err) {
@@ -283,9 +283,7 @@ async function deductStockOffline(
  * This is the main entry point for transaction creation.
  * Handles subscription check, stock check/update, and saves to appropriate store.
  */
-export async function createTransaction(
-  payload: TransactionPayload
-): Promise<{
+export async function createTransaction(payload: TransactionPayload): Promise<{
   success: boolean;
   message: string;
   transaction?: any;
@@ -299,7 +297,9 @@ export async function createTransaction(
 
     if (isOnline) {
       const supabase = createSupabaseClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
       if (!user) {
         return { success: false, message: "Non authentifié" };
@@ -392,7 +392,6 @@ export async function createTransaction(
     const txPayload = {
       userId,
       storeId,
-      productId: payload.productId || null,
       productName: payload.productName,
       unitPrice: finalUnitPrice,
       totalPrice: finalUnitPrice * payload.quantity,
@@ -411,6 +410,7 @@ export async function createTransaction(
         .select()
         .single();
 
+      console.log("Transaction created:", data);
       if (error) {
         throw error;
       }
@@ -424,6 +424,7 @@ export async function createTransaction(
       // Offline: Save to IndexedDB
       const localTx: OfflineTransaction = {
         ...txPayload,
+        productId: payload.productId || null,
         synced: 0,
       };
 

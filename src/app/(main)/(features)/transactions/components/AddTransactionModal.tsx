@@ -204,7 +204,7 @@ export default function AddTransactionModal({
       <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-gray-900">
-            Nouvelle Transaction
+            Nouvelle Transaction...
           </DialogTitle>
         </DialogHeader>
         

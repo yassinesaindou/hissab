@@ -224,7 +224,7 @@ export default function Footer() {
               { value: "20+", label: "Commerçants", color: "blue" },
               { value: "3k+", label: "Transactions", color: "emerald" },
               { value: "98%", label: "Satisfaction", color: "purple" },
-              { value: "24/7", label: "Support", color: "amber" }
+              { value: "24/7", label: "Support", color: "blue" }
             ].map((stat, idx) => (
               <div key={idx} className="text-center group">
                 <div className={`text-xl font-bold bg-gradient-to-r from-${stat.color}-600 to-${stat.color}-400 bg-clip-text text-transparent group-hover:scale-110 transition-transform`}>
