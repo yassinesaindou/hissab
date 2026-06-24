@@ -18,7 +18,7 @@ import {
   Users,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AddCreditModal from "./components/AddCreditModal";
 import CreditsTable from "./components/CreditsTable";
 import EditCreditModal from "./components/EditCreditModal";
@@ -32,13 +32,14 @@ export default function CreditsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingCredit, setEditingCredit] = useState<Credit | null>(null);
   const router = useRouter();
-  const supabase = createSupabaseClient();
+
+  // Stable client ref — avoids the infinite re-render bug seen elsewhere
+  const supabaseRef = useRef(createSupabaseClient());
+  const supabase = supabaseRef.current;
 
   const fetchCredits = async () => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.replace("/login");
         return;
@@ -55,31 +56,22 @@ export default function CreditsPage() {
         return;
       }
 
-      // Fetch credits with product names
+      // Credits no longer need the products join for a single productId —
+      // the productName is now baked into the description summary and the
+      // detailed line items live in credit_items (loaded on demand when editing).
       const { data: creditsData } = await supabase
         .from("credits")
-        .select(
-          `
-          *,
-          products(name)
-        `
-        )
+        .select("*")
         .eq("storeId", profile.storeId)
         .order("created_at", { ascending: false });
 
-      // Format credits data
-      const formattedCredits: Credit[] = (creditsData || []).map((credit) => ({
-        ...credit,
-        productName: credit.products?.name || null,
-      }));
-
-      // Fetch products for the forms
+      // Products for the line-item pickers — include productCode for search/scan
       const { data: productsData } = await supabase
         .from("products")
-        .select("productId, name, unitPrice, stock")
+        .select("productId, name, unitPrice, stock, productCode")
         .eq("storeId", profile.storeId);
 
-      setCredits(formattedCredits);
+      setCredits((creditsData as Credit[]) || []);
       setProducts(productsData || []);
     } catch (err) {
       console.error("Failed to load credits:", err);
@@ -97,22 +89,13 @@ export default function CreditsPage() {
   const totalAmount = credits.reduce((sum, credit) => sum + credit.amount, 0);
   const pendingCredits = credits.filter((c) => c.status === "pending");
   const paidCredits = credits.filter((c) => c.status === "paid");
-  const pendingAmount = pendingCredits.reduce(
-    (sum, credit) => sum + credit.amount,
-    0
-  );
-  const paidAmount = paidCredits.reduce(
-    (sum, credit) => sum + credit.amount,
-    0
-  );
+  const pendingAmount = pendingCredits.reduce((sum, credit) => sum + credit.amount, 0);
+  const paidAmount = paidCredits.reduce((sum, credit) => sum + credit.amount, 0);
   const uniqueCustomers = new Set(credits.map((c) => c.customerPhone)).size;
-  const creditsWithProducts = credits.filter((c) => c.productId).length;
-  const averageCredit =
-    totalCredits > 0 ? Math.round(totalAmount / totalCredits) : 0;
+  const creditsWithProducts = credits.filter((c) => c.description).length;
+  const averageCredit = totalCredits > 0 ? Math.round(totalAmount / totalCredits) : 0;
   const paymentRate =
-    totalCredits > 0
-      ? Math.round((paidCredits.length / totalCredits) * 100)
-      : 0;
+    totalCredits > 0 ? Math.round((paidCredits.length / totalCredits) * 100) : 0;
   const recentCredits = credits.filter((c) => {
     const creditDate = new Date(c.created_at);
     const weekAgo = new Date();
@@ -308,17 +291,14 @@ export default function CreditsPage() {
             <div className="mt-2">
               <p className="text-xs text-gray-500">
                 {recentCredits > 0
-                  ? `${recentCredits} nouveau${
-                      recentCredits !== 1 ? "x" : ""
-                    } crédit${recentCredits !== 1 ? "s" : ""}`
+                  ? `${recentCredits} nouveau${recentCredits !== 1 ? "x" : ""} crédit${recentCredits !== 1 ? "s" : ""}`
                   : "Aucun nouveau crédit"}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Credits Table - This will now take available space */}
-
+        {/* Credits Table */}
         <CreditsTable
           credits={credits}
           onEdit={handleEdit}

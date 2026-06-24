@@ -1,61 +1,56 @@
 /* eslint-disable react/no-unescaped-entities */
-// src/app/(main)/(features)/credits/components/EditCreditModal.tsx
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// app/credits/components/EditCreditModal.tsx
 "use client";
- 
+
+import { useState, useEffect } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from "@/components/ui/command";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Plus } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { updateCreditAction } from "../actions/action";
+import { Separator } from "@/components/ui/separator";
+import { Plus, Trash2, User, Package, FileText, ArrowRightCircle } from "lucide-react";
+import { updateCreditAction, getCreditItems } from "../actions/action";
+import ProductCombobox from "../../invoices/components/ProductCombobox";
+import { Credit, Product } from "../types";
+
+const itemSchema = z.object({
+  productId: z.string().optional(),
+  productName: z.string().min(1, "Le nom de l'article est requis"),
+  unitPrice: z.coerce.number().min(0, "Le prix doit être positif ou nul"),
+  quantity: z.coerce.number().int().min(1, "La quantité doit être au moins 1"),
+});
 
 const formSchema = z.object({
   creditId: z.string(),
   customerName: z.string().min(1, "Le nom du client est requis"),
   customerPhone: z.string().min(1, "Le numéro de téléphone est requis"),
-  productId: z.string().optional(),
-  productName: z.string().optional(),
-  amount: z.number().min(1, "Le montant doit être positif"),
   status: z.enum(["pending", "paid"]),
   description: z.string().optional(),
+  items: z.array(itemSchema).min(1, "Au moins un article est requis"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -63,17 +58,8 @@ type FormValues = z.infer<typeof formSchema>;
 interface EditCreditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  credit: {
-    creditId: string;
-    customerName: string;
-    customerPhone: string;
-    amount: number;
-    status: string;
-    description: string | null;
-    productId: string | null;
-    productName?: string | null;
-  } | null; // Make credit nullable
-  products: { productId: string; name: string; unitPrice: number; stock: number }[];
+  credit: Credit | null;
+  products: Product[];
   onSuccess: () => void;
 }
 
@@ -85,10 +71,8 @@ export default function EditCreditModal({
   onSuccess,
 }: EditCreditModalProps) {
   const [error, setError] = useState<string | null>(null);
-  const [productOpen, setProductOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isExistingProduct, setIsExistingProduct] = useState(false);
-  const commandInputRef = useRef<HTMLInputElement>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingItems, setLoadingItems] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -96,235 +80,287 @@ export default function EditCreditModal({
       creditId: "",
       customerName: "",
       customerPhone: "",
-      productId: "",
-      productName: "",
-      amount: 0,
       status: "pending",
       description: "",
+      items: [{ productId: "", productName: "", unitPrice: 0, quantity: 1 }],
     },
   });
 
-  // Reset form when credit changes
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "items",
+  });
+
+  // Load credit + its line items whenever a new credit is opened
   useEffect(() => {
-    if (credit) {
-      form.reset({
-        creditId: credit.creditId,
-        customerName: credit.customerName,
-        customerPhone: credit.customerPhone,
-        productId: credit.productId || "",
-        productName: credit.productName || "",
-        amount: credit.amount,
-        status: credit.status as "pending" | "paid",
-        description: credit.description || "",
+    if (credit && isOpen) {
+      setLoadingItems(true);
+      getCreditItems(credit.creditId).then((items) => {
+        form.reset({
+          creditId: credit.creditId,
+          customerName: credit.customerName,
+          customerPhone: credit.customerPhone,
+          status: credit.status,
+          description: credit.description || "",
+          items:
+            items.length > 0
+              ? items.map((i) => ({
+                  productId: i.productId || "",
+                  productName: i.productName,
+                  unitPrice: i.unitPrice,
+                  quantity: i.quantity,
+                }))
+              : [{ productId: "", productName: "", unitPrice: credit.amount, quantity: 1 }],
+        });
+        setLoadingItems(false);
       });
-      setIsExistingProduct(!!credit.productId);
+      setError(null);
     }
-  }, [credit, form]);
+  }, [credit, isOpen, form]);
 
-  // Watch values for real-time updates
-  
-
-  // Filter products based on search query
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const watchItems = form.watch("items");
+  const watchStatus = form.watch("status");
+  const totalAmount = watchItems.reduce(
+    (sum, i) => sum + (i.unitPrice || 0) * (i.quantity || 1),
+    0
   );
 
-  const onSubmit = async (values: FormValues) => {
-    setError(null);
-    
-    const formData = new FormData();
-    formData.append("creditId", values.creditId);
-    formData.append("customerName", values.customerName);
-    formData.append("customerPhone", values.customerPhone);
-    if (values.productId) {
-      formData.append("productId", values.productId);
-    }
-    formData.append("amount", values.amount.toString());
-    formData.append("status", values.status);
-    if (values.description) {
-      formData.append("description", values.description);
-    }
+  const willConvertToSale = credit?.status !== "paid" && watchStatus === "paid";
 
-    const result = await updateCreditAction(formData);
-    if (result.success) {
-      onSuccess();
-      onClose();
-    } else {
-      setError(result.message);
+  const onSubmit = async (values: FormValues) => {
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const result = await updateCreditAction({
+        creditId: values.creditId,
+        customerName: values.customerName,
+        customerPhone: values.customerPhone,
+        status: values.status,
+        description: values.description,
+        items: values.items.map((i) => ({
+          productId: i.productId || undefined,
+          productName: i.productName,
+          unitPrice: i.unitPrice,
+          quantity: i.quantity,
+        })),
+      });
+
+      if (result.success) {
+        onSuccess();
+        onClose();
+      } else {
+        setError(result.message);
+      }
+    } catch (err) {
+      setError("Une erreur s'est produite");
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Don't render if no credit
   if (!credit) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl">Modifier le Crédit</DialogTitle>
+          <DialogTitle className="text-xl flex items-center gap-2">
+            <Package className="h-5 w-5 text-blue-600" />
+            Modifier le Crédit
+          </DialogTitle>
         </DialogHeader>
-        
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="customerName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nom du Client</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Entrez le nom" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="customerPhone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Téléphone</FormLabel>
-                    <FormControl>
-                      <Input placeholder="+261 34 00 000 00" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
 
-            <FormField
-              control={form.control}
-              name="productName"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Article (Optionnel)</FormLabel>
-                  <Popover open={productOpen} onOpenChange={setProductOpen}>
-                    <PopoverTrigger asChild>
+        {loadingItems ? (
+          <div className="py-12 text-center text-sm text-gray-400">
+            Chargement des articles...
+          </div>
+        ) : (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <User className="h-4 w-4 text-blue-600" />
+                Client
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="customerName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nom du Client</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="Rechercher un article..."
-                          {...field}
-                          onChange={(e) => {
-                            field.onChange(e.target.value);
-                            setSearchQuery(e.target.value);
-                          }}
-                          className="w-full"
-                        />
+                        <Input placeholder="Entrez le nom" {...field} />
                       </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0" align="start" style={{ width: "var(--radix-popover-trigger-width)" }}>
-                      <Command shouldFilter={false}>
-                        <CommandInput 
-                          ref={commandInputRef}
-                          placeholder="Rechercher un article..."
-                          value={searchQuery}
-                          onValueChange={setSearchQuery}
-                        />
-                        <CommandList>
-                          {searchQuery.trim() && filteredProducts.length === 0 && (
-                            <CommandGroup heading="Utiliser ce nom">
-                              <CommandItem
-                                onSelect={() => {
-                                  form.setValue("productName", searchQuery);
-                                  form.setValue("productId", "");
-                                  setIsExistingProduct(false);
-                                  setProductOpen(false);
-                                }}
-                                className="cursor-pointer"
-                              >
-                                <Plus className="mr-2 h-4 w-4 text-emerald-600" />
-                                <div>
-                                  <span className="font-medium">"{searchQuery}"</span>
-                                  <span className="text-xs text-gray-500 block">
-                                    Délier du produit
-                                  </span>
-                                </div>
-                              </CommandItem>
-                            </CommandGroup>
-                          )}
-                          
-                          {filteredProducts.length > 0 && (
-                            <CommandGroup heading="Produits existants">
-                              {filteredProducts.map((product) => (
-                                <CommandItem
-                                  key={product.productId}
-                                  value={product.name}
-                                  onSelect={() => {
-                                    form.setValue("productName", product.name);
-                                    form.setValue("productId", product.productId);
-                                    setIsExistingProduct(true);
-                                    setProductOpen(false);
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      field.value === product.name ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  <div className="flex-1">
-                                    <div className="font-medium">{product.name}</div>
-                                    <div className="text-xs text-gray-500">
-                                      Stock: {product.stock} • {product.unitPrice.toLocaleString()} Fcs
-                                    </div>
-                                  </div>
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          )}
-                          
-                          <CommandEmpty className="py-6 text-center text-sm text-gray-500">
-                            Tapez le nom d'un produit
-                          </CommandEmpty>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  
-                  {field.value && (
-                    <div className="mt-2 text-xs">
-                      {isExistingProduct ? (
-                        <div className="flex items-center gap-1 text-blue-600">
-                          <Check className="h-3 w-3" />
-                          <span>Produit lié</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 text-emerald-600">
-                          <Plus className="h-3 w-3" />
-                          <span>Crédit sans produit</span>
-                        </div>
-                      )}
-                    </div>
+                      <FormMessage />
+                    </FormItem>
                   )}
-                  
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                />
+                <FormField
+                  control={form.control}
+                  name="customerPhone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Téléphone</FormLabel>
+                      <FormControl>
+                        <Input placeholder="+261 34 00 000 00" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="amount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Montant (Fcs)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
+              <Separator />
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                  <Package className="h-4 w-4 text-emerald-600" />
+                  Articles
+                </div>
+                <span className="text-xs text-gray-400">
+                  {fields.length} article{fields.length > 1 ? "s" : ""}
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {fields.map((field, index) => {
+                  const lineTotal =
+                    (watchItems[index]?.unitPrice || 0) * (watchItems[index]?.quantity || 1);
+                  const hasProductId = !!watchItems[index]?.productId;
+
+                  return (
+                    <div
+                      key={field.id}
+                      className="rounded-lg border border-gray-200 p-3 space-y-3 bg-gray-50/50"
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1">
+                          <FormField
+                            control={form.control}
+                            name={`items.${index}.productId`}
+                            render={({ field: productIdField }) => (
+                              <FormItem>
+                                <FormLabel className="text-xs">Article</FormLabel>
+                                <FormControl>
+                                  <ProductCombobox
+                                    products={products}
+                                    value={productIdField.value || ""}
+                                    onChange={(productId:any, selectedProduct:any) => {
+                                      productIdField.onChange(productId);
+                                      if (selectedProduct) {
+                                        form.setValue(`items.${index}.productName`, selectedProduct.name);
+                                        form.setValue(`items.${index}.unitPrice`, selectedProduct.unitPrice);
+                                      } else {
+                                        form.setValue(`items.${index}.productId`, "");
+                                      }
+                                    }}
+                                    onCustomProduct={(name :any) => {
+                                      form.setValue(`items.${index}.productName`, name);
+                                      form.setValue(`items.${index}.unitPrice`, 0);
+                                      form.setValue(`items.${index}.productId`, "");
+                                    }}
+                                    placeholder="Sélectionner ou créer un article"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={form.control}
+                            name={`items.${index}.productName`}
+                            render={({ field }) => (
+                              <FormItem className="hidden">
+                                <FormControl><Input {...field} /></FormControl>
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => remove(index)}
+                          disabled={fields.length === 1}
+                          className="h-9 w-9 mt-5 text-red-500 hover:text-red-600 hover:bg-red-50 shrink-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.unitPrice`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">Prix unitaire</FormLabel>
+                              <FormControl>
+                                <div className="relative">
+                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                                    Fcs
+                                  </span>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    {...field}
+                                    className={hasProductId ? "pl-9 bg-gray-100" : "pl-9"}
+                                    readOnly={hasProductId}
+                                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                  />
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.quantity`}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">Quantité</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  {...field}
+                                  onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div>
+                          <p className="text-xs font-medium text-gray-500 mb-1.5">Total</p>
+                          <div className="h-9 flex items-center justify-center font-medium text-emerald-700 bg-emerald-50 rounded-md border border-emerald-100 text-sm">
+                            {lineTotal.toLocaleString()} Fcs
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => append({ productId: "", productName: "", unitPrice: 0, quantity: 1 })}
+                className="w-full border-dashed"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Ajouter un article
+              </Button>
+
+              <Separator />
+
               <FormField
                 control={form.control}
                 name="status"
@@ -346,50 +382,75 @@ export default function EditCreditModal({
                   </FormItem>
                 )}
               />
-            </div>
 
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description (Optionnel)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Ajoutez une description..."
-                      className="resize-none"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+              {/* Clear warning about what happens on save when marking as paid */}
+              {willConvertToSale && (
+                <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-4 py-3 flex items-start gap-2.5">
+                  <ArrowRightCircle className="h-4 w-4 text-emerald-600 mt-0.5 shrink-0" />
+                  <p className="text-xs text-emerald-700">
+                    En enregistrant, ce crédit sera <strong>retiré de la liste des crédits</strong> et
+                    enregistré comme une <strong>vente</strong> dans les transactions. Cette action est définitive.
+                  </p>
+                </div>
               )}
-            />
 
-            {error && (
-              <div className="rounded-lg bg-red-50 border border-red-200 p-3">
-                <p className="text-red-600 text-sm">{error}</p>
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5" />
+                      Note (Optionnel)
+                    </FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Ajoutez une note..."
+                        className="resize-none"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 flex items-center justify-between">
+                <span className="text-sm font-medium text-blue-700">Montant total du crédit</span>
+                <span className="text-lg font-bold text-blue-800">
+                  {totalAmount.toLocaleString()} Fcs
+                </span>
               </div>
-            )}
 
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-              >
-                Annuler
-              </Button>
-              <Button
-                type="submit"
-                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                disabled={form.formState.isSubmitting}
-              >
-                {form.formState.isSubmitting ? "Mise à jour en cours..." : "Mettre à jour"}
-              </Button>
-            </div>
-          </form>
-        </Form>
+              {error && (
+                <div className="rounded-lg bg-red-50 border border-red-200 p-3">
+                  <p className="text-red-600 text-sm">{error}</p>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
+                  Annuler
+                </Button>
+                <Button
+                  type="submit"
+                  className={
+                    willConvertToSale
+                      ? "bg-emerald-600 hover:bg-emerald-700"
+                      : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                  }
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting
+                    ? "Mise à jour en cours..."
+                    : willConvertToSale
+                    ? "Marquer payé et transférer"
+                    : "Mettre à jour"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        )}
       </DialogContent>
     </Dialog>
   );

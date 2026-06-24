@@ -3,6 +3,17 @@ import { createSupabaseClient } from "@/lib/supabase/client";
 import { getDB } from "@/lib/indexeddb";
 import { markTransactionAsSynced } from "./transactions";
 
+/**
+ * Syncs locally-queued transactions to Supabase once back online.
+ *
+ * IMPORTANT — productId usage here:
+ * `tx.productId` exists ONLY on the local IndexedDB record. It is used here
+ * purely as a lookup key to find and deduct the correct product's stock on
+ * the server. It is intentionally NOT included in the `transactions.insert()`
+ * payload below, because the Supabase `transactions` table has no productId
+ * column. Removing this lookup would silently break offline stock deduction
+ * — keep it.
+ */
 export async function syncTransactionsToServer() {
   const supabase = createSupabaseClient();
   const db = await getDB();
@@ -36,7 +47,8 @@ export async function syncTransactionsToServer() {
 
   for (const tx of pending) {
     try {
-      // ── STOCK CHECK & UPDATE (only for sale/credit with product) ─────────────
+      // ── STOCK CHECK & UPDATE (only for sale/credit with a known product) ──
+      // tx.productId is the LOCAL lookup key only — see file header comment.
       if (tx.productId && (tx.type === "sale" || tx.type === "credit")) {
         const { data: product, error: fetchErr } = await supabase
           .from("products")
@@ -82,12 +94,14 @@ export async function syncTransactionsToServer() {
         );
       }
 
-      // ── Insert the transaction into Supabase ─────────────────────────────────
+      // ── Insert the transaction into Supabase ────────────────────────────
+      // productId deliberately omitted — no such column on this table.
       const { data, error: insertErr } = await supabase
         .from("transactions")
         .insert({
           userId: tx.userId,
           storeId: tx.storeId,
+          productName: tx.productName || null,
           unitPrice: tx.unitPrice,
           totalPrice: tx.totalPrice,
           quantity: tx.quantity,
@@ -113,7 +127,7 @@ export async function syncTransactionsToServer() {
         err,
       );
       failedCount++;
-      // We continue with the next transaction — do not stop the whole sync
+      // Continue with the next transaction — do not stop the whole sync
     }
   }
 

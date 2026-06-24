@@ -56,11 +56,14 @@ export async function syncDataFromServer() {
       return { success: false, message: "Magasin non trouvé" };
     }
 
-    // Products
+    // Products — productCode added so the barcode scanner works offline too.
+    // Without this field, products synced to the device never carry their
+    // EAN-13 code, and AddTransactionModal / InvoiceScanButton would have
+    // nothing to match a scanned code against while offline.
     const { data: products, error: productsError } = await supabase
       .from("products")
       .select(
-        "productId, name, unitPrice, stock, storeId, userId, description, category, created_at"
+        "productId, name, unitPrice, stock, storeId, userId, description, category, productCode, created_at"
       )
       .eq("storeId", profile.storeId);
 
@@ -87,9 +90,8 @@ export async function syncDataFromServer() {
       const diffTime = endAt.getTime() - today.getTime();
       subscriptionDaysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      // Safely get plan name
-     const plans = subscriptionData.plans as unknown as any;
-planName = Array.isArray(plans) ? plans[0]?.name ?? null : plans?.name ?? null;
+      const plans = subscriptionData.plans as unknown as any;
+      planName = Array.isArray(plans) ? plans[0]?.name ?? null : plans?.name ?? null;
     }
 
     // Save everything to IndexedDB
@@ -123,7 +125,8 @@ planName = Array.isArray(plans) ? plans[0]?.name ?? null : plans?.name ?? null;
       storePhoneNumber: store.storePhoneNumber || null,
     });
 
-    // Save products
+    // Save products — clear() + put() means the fresh productCode field
+    // fully overwrites any stale cached rows from before this fix.
     const productStore = tx.objectStore("products");
     await productStore.clear();
     for (const product of products || []) {

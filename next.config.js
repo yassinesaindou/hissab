@@ -2,6 +2,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+   async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Feature-Policy",
+            value: "camera *",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 const withSerwist = require('@serwist/next').default;

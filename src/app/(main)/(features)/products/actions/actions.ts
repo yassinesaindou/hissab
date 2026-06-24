@@ -1,4 +1,4 @@
-// app/products/actions.ts
+// app/products/actions/actions.ts
 "use server";
 
 import { z } from "zod";
@@ -6,9 +6,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isUserSubscriptionActive } from "@/lib/utils/utils";
- 
+import { isValidEAN13 } from "@/lib/utils/ean13";
 
-// Product Interface
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 export interface Product {
   productId: string;
   name: string;
@@ -16,30 +17,28 @@ export interface Product {
   unitPrice: number;
   category: string | null;
   description: string | null;
+  productCode: string;
   created_at: string;
   updated_at?: string;
   userId?: string;
   storeId?: string;
 }
 
-// Product Schema
+// ─── Schemas ──────────────────────────────────────────────────────────────────
+
 const productFormSchema = z.object({
   name: z
     .string()
-    .min(2, { message: "Le nom du produit doit avoir au moins 2 caractères." })
-    .max(100, {
-      message: "Le nom du produit doit avoir moins de 100 caractères.",
-    }),
+    .min(2, { message: "Le nom doit avoir au moins 2 caractères." })
+    .max(100, { message: "Le nom doit avoir moins de 100 caractères." }),
   stock: z
     .number()
-    .int({ message: "Le stock doit être un nombre entier." })
+    .int({ message: "Le stock doit être un entier." })
     .min(0, { message: "Le stock doit être non-négatif." }),
   unitPrice: z
     .number()
-    .min(0, { message: "Le prix unitaire doit être non-négatif." })
-    .max(1000000, {
-      message: "Le prix unitaire doit être inférieur à 1 000 000.",
-    }),
+    .min(0, { message: "Le prix doit être non-négatif." })
+    .max(1000000, { message: "Prix trop élevé." }),
   category: z
     .string()
     .max(50, { message: "La catégorie doit avoir moins de 50 caractères." })
@@ -48,63 +47,102 @@ const productFormSchema = z.object({
     .string()
     .max(500, { message: "La description doit avoir moins de 500 caractères." })
     .optional(),
-});
-
-// Stock Adjustment Schema
-const stockAdjustmentSchema = z.object({
-  productId: z.string().uuid({ message: "L'identifiant du produit est incorrect." }),
-  quantity: z.number().int().min(1, { message: "La quantité doit être au moins 1." }),
-  type: z.enum(['increase', 'decrease']),
-  reason: z.string().max(200, { message: "La raison doit avoir moins de 200 caractères." }).optional(),
-});
-
-// Update Product Schema
-const updateProductFormSchema = productFormSchema.extend({
-  productId: z
+  // Optional manual override — must be 13 digits AND a valid EAN-13 checksum
+  productCode: z
     .string()
-    .uuid({ message: "L'identifiant du produit est incorrect." }),
+    .regex(/^\d{13}$/, { message: "Le code EAN-13 doit contenir exactement 13 chiffres." })
+    .refine((v) => isValidEAN13(v), {
+      message: "Le code EAN-13 a un checksum invalide et ne sera pas lisible par un scanner.",
+    })
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v === "" ? undefined : v)),
 });
 
-// Types
-export type ProductFormData = z.infer<typeof productFormSchema>;
-export type StockAdjustmentData = z.infer<typeof stockAdjustmentSchema>;
-export type UpdateProductFormData = z.infer<typeof updateProductFormSchema>;
+const updateProductFormSchema = productFormSchema.extend({
+  productId: z.string().uuid({ message: "Identifiant produit incorrect." }),
+});
 
-// Helper function to check store access
+const stockAdjustmentSchema = z.object({
+  productId: z.string().uuid({ message: "Identifiant produit incorrect." }),
+  quantity: z
+    .number()
+    .int()
+    .min(1, { message: "La quantité doit être au moins 1." }),
+  type: z.enum(["increase", "decrease"]),
+  reason: z
+    .string()
+    .max(200, { message: "La raison doit avoir moins de 200 caractères." })
+    .optional(),
+});
+
+export type ProductFormData = z.infer<typeof productFormSchema>;
+export type UpdateProductFormData = z.infer<typeof updateProductFormSchema>;
+export type StockAdjustmentData = z.infer<typeof stockAdjustmentSchema>;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 async function getUserStore(userId: string) {
   const supabase = createSupabaseServerClient();
-  
   const { data: profile, error } = await supabase
     .from("profiles")
     .select("storeId, role")
     .eq("userId", userId)
     .single();
-
   if (error) {
-    console.error("Error fetching user profile:", error.message);
+    console.error("Error fetching profile:", error.message);
     return null;
   }
-
   return profile;
 }
 
-// Create Product Action
+/**
+ * Ask the DB to generate a unique EAN-13 via the function we already created.
+ * Retries up to 5 times in case of a collision (extremely unlikely with EAN-13).
+ */
+async function generateEAN13(storeId: string): Promise<string> {
+  const supabase = createSupabaseServerClient();
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data, error } = await supabase.rpc("generate_ean13");
+    if (error || !data) continue;
+
+    const code = data as string;
+
+    // Check uniqueness within this store
+    const { data: conflict } = await supabase
+      .from("products")
+      .select("productId")
+      .eq("productCode", code)
+      .eq("storeId", storeId)
+      .maybeSingle();
+
+    if (!conflict) return code;
+  }
+
+  throw new Error("Impossible de générer un code EAN-13 unique. Réessayez.");
+}
+
+// ─── CREATE ───────────────────────────────────────────────────────────────────
+
 export async function createProductAction(formData: FormData) {
   try {
-    const validatedData = productFormSchema.parse({
+    const raw = {
       name: formData.get("name"),
       stock: Number(formData.get("stock")),
       unitPrice: Number(formData.get("unitPrice")),
-      category: formData.get("category") || undefined,
-      description: formData.get("description") || undefined,
-    });
+      category: (formData.get("category") as string) || undefined,
+      description: (formData.get("description") as string) || undefined,
+      productCode: (formData.get("productCode") as string) || "",
+    };
+
+    const validatedData = productFormSchema.parse(raw);
 
     const supabase = createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      redirect("/login");
-    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) redirect("/login");
 
     const profile = await getUserStore(user.id);
     if (!profile?.storeId) {
@@ -114,8 +152,9 @@ export async function createProductAction(formData: FormData) {
       };
     }
 
-    // Check subscription
-    const isSubscriptionActive = await isUserSubscriptionActive(profile.storeId);
+    const isSubscriptionActive = await isUserSubscriptionActive(
+      profile.storeId
+    );
     if (!isSubscriptionActive) {
       return {
         success: false,
@@ -123,16 +162,41 @@ export async function createProductAction(formData: FormData) {
       };
     }
 
+    // Resolve product code
+    let productCode: string;
+
+    if (validatedData.productCode) {
+      // User supplied a custom EAN-13 — check uniqueness in this store
+      const { data: conflict } = await supabase
+        .from("products")
+        .select("productId")
+        .eq("productCode", validatedData.productCode)
+        .eq("storeId", profile.storeId)
+        .maybeSingle();
+
+      if (conflict) {
+        return {
+          success: false,
+          message: `Le code EAN-13 "${validatedData.productCode}" est déjà utilisé par un autre article.`,
+        };
+      }
+      productCode = validatedData.productCode;
+    } else {
+      // Generate one from the DB function
+      productCode = await generateEAN13(profile.storeId);
+    }
+
     const { data: product, error } = await supabase
       .from("products")
       .insert({
         userId: user.id,
+        storeId: profile.storeId,
         name: validatedData.name,
         stock: validatedData.stock,
         unitPrice: validatedData.unitPrice,
-        storeId: profile.storeId,
         category: validatedData.category,
         description: validatedData.description,
+        productCode,
         created_at: new Date().toISOString(),
       })
       .select()
@@ -140,42 +204,49 @@ export async function createProductAction(formData: FormData) {
 
     if (error) {
       console.error("Error creating product:", error.message);
-      return { success: false, message: "Échec lors de la création du produit." };
+      return {
+        success: false,
+        message: "Échec lors de la création du produit.",
+      };
     }
 
     revalidatePath("/products");
-    return { 
-      success: true, 
+    return {
+      success: true,
       message: "Produit ajouté avec succès.",
-      product: product as Product
+      product: product as Product,
     };
   } catch (error) {
-    console.error("Unexpected error during product creation:", error);
-    if (error instanceof z.ZodError) {
+    console.error("Unexpected error:", error);
+    if (error instanceof z.ZodError)
       return { success: false, message: error.errors[0].message };
-    }
+    if (error instanceof Error)
+      return { success: false, message: error.message };
     return { success: false, message: "Une erreur s'est produite." };
   }
 }
 
-// Update Product Action
+// ─── UPDATE ───────────────────────────────────────────────────────────────────
+
 export async function updateProductAction(formData: FormData) {
   try {
-    const validatedData = updateProductFormSchema.parse({
+    const raw = {
       productId: formData.get("productId"),
       name: formData.get("name"),
       stock: Number(formData.get("stock")),
       unitPrice: Number(formData.get("unitPrice")),
-      category: formData.get("category") || undefined,
-      description: formData.get("description") || undefined,
-    });
+      category: (formData.get("category") as string) || undefined,
+      description: (formData.get("description") as string) || undefined,
+      productCode: (formData.get("productCode") as string) || "",
+    };
+
+    const validatedData = updateProductFormSchema.parse(raw);
 
     const supabase = createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      redirect("/login");
-    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) redirect("/login");
 
     const profile = await getUserStore(user.id);
     if (!profile?.storeId) {
@@ -184,17 +255,16 @@ export async function updateProductAction(formData: FormData) {
         message: "Aucun magasin n'est associé à votre compte.",
       };
     }
-
-    // Check employee permissions
-    if (profile?.role === "employee") {
+    if (profile.role === "employee") {
       return {
         success: false,
         message: "Vous n'avez pas les droits pour modifier ce produit.",
       };
     }
 
-    // Check subscription
-    const isSubscriptionActive = await isUserSubscriptionActive(profile.storeId);
+    const isSubscriptionActive = await isUserSubscriptionActive(
+      profile.storeId
+    );
     if (!isSubscriptionActive) {
       return {
         success: false,
@@ -202,26 +272,44 @@ export async function updateProductAction(formData: FormData) {
       };
     }
 
-    // Verify product ownership
-    const { data: product, error: fetchError } = await supabase
+    const { data: existingProduct, error: fetchError } = await supabase
       .from("products")
       .select("*")
       .eq("productId", validatedData.productId)
       .single();
 
-    if (fetchError || !product) {
-      console.error("Product not found:", fetchError?.message);
+    if (fetchError || !existingProduct) {
       return { success: false, message: "Produit introuvable." };
     }
-
-    if (product.storeId !== profile.storeId) {
+    if (existingProduct.storeId !== profile.storeId) {
       return {
         success: false,
         message: "Vous n'êtes pas autorisé à modifier ce produit.",
       };
     }
 
-    // Update product
+    // Resolve code: keep existing unless user explicitly changed it
+    let productCode: string = existingProduct.productCode;
+    const incomingCode = validatedData.productCode;
+
+    if (incomingCode && incomingCode !== productCode) {
+      const { data: conflict } = await supabase
+        .from("products")
+        .select("productId")
+        .eq("productCode", incomingCode)
+        .eq("storeId", profile.storeId)
+        .neq("productId", validatedData.productId)
+        .maybeSingle();
+
+      if (conflict) {
+        return {
+          success: false,
+          message: `Le code EAN-13 "${incomingCode}" est déjà utilisé par un autre article.`,
+        };
+      }
+      productCode = incomingCode;
+    }
+
     const { error } = await supabase
       .from("products")
       .update({
@@ -230,6 +318,7 @@ export async function updateProductAction(formData: FormData) {
         unitPrice: validatedData.unitPrice,
         category: validatedData.category,
         description: validatedData.description,
+        productCode,
         updated_at: new Date().toISOString(),
       })
       .eq("productId", validatedData.productId);
@@ -243,36 +332,39 @@ export async function updateProductAction(formData: FormData) {
     }
 
     revalidatePath("/products");
-    return { 
-      success: true, 
+    return {
+      success: true,
       message: "Produit mis à jour avec succès.",
-      product: { ...product, ...validatedData } as Product
+      product: {
+        ...existingProduct,
+        ...validatedData,
+        productCode,
+      } as Product,
     };
   } catch (error) {
-    console.error("Unexpected error during product update:", error);
-    if (error instanceof z.ZodError) {
+    console.error("Unexpected error:", error);
+    if (error instanceof z.ZodError)
       return { success: false, message: error.errors[0].message };
-    }
     return { success: false, message: "Une erreur s'est produite." };
   }
 }
 
-// Adjust Stock Action
+// ─── ADJUST STOCK ─────────────────────────────────────────────────────────────
+
 export async function adjustStockAction(formData: FormData) {
   try {
     const validatedData = stockAdjustmentSchema.parse({
       productId: formData.get("productId"),
       quantity: Number(formData.get("quantity")),
-      type: formData.get("type") as 'increase' | 'decrease',
-      reason: formData.get("reason") || undefined,
+      type: formData.get("type") as "increase" | "decrease",
+      reason: (formData.get("reason") as string) || undefined,
     });
 
     const supabase = createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      redirect("/login");
-    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) redirect("/login");
 
     const profile = await getUserStore(user.id);
     if (!profile?.storeId) {
@@ -282,8 +374,9 @@ export async function adjustStockAction(formData: FormData) {
       };
     }
 
-    // Check subscription
-    const isSubscriptionActive = await isUserSubscriptionActive(profile.storeId);
+    const isSubscriptionActive = await isUserSubscriptionActive(
+      profile.storeId
+    );
     if (!isSubscriptionActive) {
       return {
         success: false,
@@ -291,7 +384,6 @@ export async function adjustStockAction(formData: FormData) {
       };
     }
 
-    // Get current product
     const { data: product, error: fetchError } = await supabase
       .from("products")
       .select("*")
@@ -299,91 +391,81 @@ export async function adjustStockAction(formData: FormData) {
       .single();
 
     if (fetchError || !product) {
-      console.error("Product not found:", fetchError?.message);
       return { success: false, message: "Produit introuvable." };
     }
-
     if (product.storeId !== profile.storeId) {
       return {
         success: false,
         message: "Vous n'êtes pas autorisé à modifier ce produit.",
       };
     }
-
-    // Validate stock for decrease
-    if (validatedData.type === 'decrease' && validatedData.quantity > product.stock) {
+    if (
+      validatedData.type === "decrease" &&
+      validatedData.quantity > product.stock
+    ) {
       return {
         success: false,
-        message: `Quantité insuffisante. Stock disponible: ${product.stock}`,
+        message: `Stock insuffisant. Disponible : ${product.stock}`,
       };
     }
 
-    // Calculate new stock
-    const newStock = validatedData.type === 'increase' 
-      ? product.stock + validatedData.quantity 
-      : product.stock - validatedData.quantity;
+    const newStock =
+      validatedData.type === "increase"
+        ? product.stock + validatedData.quantity
+        : product.stock - validatedData.quantity;
 
-    // Update product stock
     const { error: updateError } = await supabase
       .from("products")
-      .update({ 
-        stock: newStock,
-        updated_at: new Date().toISOString()
-      })
+      .update({ stock: newStock, updated_at: new Date().toISOString() })
       .eq("productId", validatedData.productId);
 
     if (updateError) {
-      console.error("Error updating stock:", updateError.message);
       return {
         success: false,
         message: "Échec lors de la mise à jour du stock.",
       };
     }
 
-    // Create transaction record
-    const { error: transactionError } = await supabase
-      .from("transactions")
-      .insert({
-        userId: user.id,
-        productId: validatedData.productId,
-        productName: product.name,
-        unitPrice: product.unitPrice,
-        quantity: validatedData.quantity,
-        type: validatedData.type === 'increase' ? 'stock_in' : 'stock_out',
-        storeId: profile.storeId,
-        description: validatedData.reason || `Ajustement de stock: ${validatedData.type === 'increase' ? 'Ajout' : 'Retrait'}`,
-        created_at: new Date().toISOString(),
-      });
-
-    if (transactionError) {
-      console.error("Error creating transaction:", transactionError.message);
-      // Don't fail the whole operation if transaction logging fails
-    }
+    // Log as a transaction (no productId column in transactions table)
+    await supabase.from("transactions").insert({
+      userId: user.id,
+      storeId: profile.storeId,
+      productName: product.name,
+      unitPrice: product.unitPrice,
+      quantity: validatedData.quantity,
+      totalPrice: product.unitPrice * validatedData.quantity,
+      type: validatedData.type === "increase" ? "expense" : "sale",
+      description:
+        validatedData.reason ||
+        `Ajustement stock : ${validatedData.type === "increase" ? "entrée" : "sortie"}`,
+      created_at: new Date().toISOString(),
+    });
 
     revalidatePath("/products");
     return {
       success: true,
-      message: `Stock ${validatedData.type === 'increase' ? 'ajouté' : 'réduit'} avec succès.`,
-      newStock
+      message: `Stock ${
+        validatedData.type === "increase" ? "augmenté" : "réduit"
+      } avec succès.`,
+      newStock,
     };
   } catch (error) {
-    console.error("Unexpected error during stock adjustment:", error);
-    if (error instanceof z.ZodError) {
+    console.error("Unexpected error:", error);
+    if (error instanceof z.ZodError)
       return { success: false, message: error.errors[0].message };
-    }
     return { success: false, message: "Une erreur s'est produite." };
   }
 }
 
-// Delete Product Action
+// ─── DELETE ───────────────────────────────────────────────────────────────────
+
 export async function deleteProductAction(productId: string) {
   try {
     const supabase = createSupabaseServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      redirect("/login");
-    }
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) redirect("/login");
 
     const profile = await getUserStore(user.id);
     if (!profile?.storeId) {
@@ -392,16 +474,13 @@ export async function deleteProductAction(productId: string) {
         message: "Aucun magasin n'est associé à votre compte.",
       };
     }
-
-    // Check employee permissions
-    if (profile?.role === "employee") {
+    if (profile.role === "employee") {
       return {
         success: false,
         message: "Vous n'avez pas les droits pour supprimer ce produit.",
       };
     }
 
-    // Verify product ownership
     const { data: product, error: fetchError } = await supabase
       .from("products")
       .select("storeId")
@@ -409,10 +488,8 @@ export async function deleteProductAction(productId: string) {
       .single();
 
     if (fetchError || !product) {
-      console.error("Product not found:", fetchError?.message);
       return { success: false, message: "Produit introuvable." };
     }
-
     if (product.storeId !== profile.storeId) {
       return {
         success: false,
@@ -420,14 +497,12 @@ export async function deleteProductAction(productId: string) {
       };
     }
 
-    // Delete product
     const { error } = await supabase
       .from("products")
       .delete()
       .eq("productId", productId);
 
     if (error) {
-      console.error("Error deleting product:", error.message);
       return {
         success: false,
         message: "Échec lors de la suppression du produit.",
@@ -437,7 +512,7 @@ export async function deleteProductAction(productId: string) {
     revalidatePath("/products");
     return { success: true, message: "Produit supprimé avec succès." };
   } catch (error) {
-    console.error("Unexpected error during product deletion:", error);
+    console.error("Unexpected error:", error);
     return { success: false, message: "Une erreur s'est produite." };
   }
 }

@@ -6,64 +6,63 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
-    DropdownMenu,
-    DropdownMenuCheckboxItem,
-    DropdownMenuContent,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
- 
 import {
-    ColumnDef,
-    ColumnFiltersState,
-    SortingState,
-    VisibilityState,
-    flexRender,
-    getCoreRowModel,
-    getFilteredRowModel,
-    getPaginationRowModel,
-    getSortedRowModel,
-    useReactTable,
+  ColumnDef,
+  ColumnFiltersState,
+  SortingState,
+  VisibilityState,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
 } from "@tanstack/react-table";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import {
-    ArrowUpDown,
-    Calendar,
-    ChevronLeft,
-    ChevronRight,
-    CreditCard,
-    DollarSign,
-    Edit,
-    Eye,
-    Filter,
-    PlusCircle,
-    Search,
-    ShoppingCart,
-    Trash2,
-    TrendingDown,
-    TrendingUp,
-    User
+  ArrowUpDown,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  CreditCard,
+  DollarSign,
+  Edit,
+  Eye,
+  Filter,
+  PlusCircle,
+  Search,
+  ShoppingCart,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  User,
 } from "lucide-react";
 import { useEffect, useState } from "react";
- 
 import { Product, Profile, TransactionWithUser } from "@/lib/types/index";
 import EditTransactionModal from "./EditTransactionModal";
+import TransactionDetailSheet from "./TransactionDetailSheet";
 
 interface TransactionsTableProps {
   transactions: TransactionWithUser[];
@@ -73,12 +72,12 @@ interface TransactionsTableProps {
   onDelete: (transactionId: string) => void;
 }
 
-export default function TransactionsTable({ 
-  transactions, 
-  products, 
+export default function TransactionsTable({
+  transactions,
+  products,
   userProfile,
-  onEdit, 
-  onDelete 
+  onEdit,
+  onDelete,
 }: TransactionsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "created_at", desc: true }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -88,7 +87,17 @@ export default function TransactionsTable({
   const [globalFilter, setGlobalFilter] = useState("");
   const [editingTransaction, setEditingTransaction] = useState<TransactionWithUser | null>(null);
 
-  // Define columns
+  // ── Detail sheet state ─────────────────────────────────────────────────────
+  const [detailTransaction, setDetailTransaction] = useState<TransactionWithUser | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  const isOwner = userProfile?.role === "user" || userProfile?.role === "admin";
+
+  const openDetail = (t: TransactionWithUser) => {
+    setDetailTransaction(t);
+    setIsDetailOpen(true);
+  };
+
   const columns: ColumnDef<TransactionWithUser>[] = [
     {
       id: "select",
@@ -105,6 +114,8 @@ export default function TransactionsTable({
         <input
           type="checkbox"
           checked={row.getIsSelected()}
+          // Stop propagation so clicking the checkbox doesn't also open the detail sheet
+          onClick={(e) => e.stopPropagation()}
           onChange={row.getToggleSelectedHandler()}
           className="h-4 w-4 rounded border-gray-300"
           aria-label="Sélectionner cette ligne"
@@ -128,22 +139,19 @@ export default function TransactionsTable({
       cell: ({ row }) => {
         const transaction = row.original;
         return (
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             <div className="flex items-center gap-2">
-              {transaction.type === 'sale' ? (
-                <ShoppingCart className="h-4 w-4 text-emerald-500" />
-              ) : transaction.type === 'credit' ? (
-                <CreditCard className="h-4 w-4 text-amber-500" />
+              {transaction.type === "sale" ? (
+                <ShoppingCart className="h-4 w-4 text-emerald-500 shrink-0" />
+              ) : transaction.type === "credit" ? (
+                <CreditCard className="h-4 w-4 text-amber-500 shrink-0" />
               ) : (
-                <TrendingDown className="h-4 w-4 text-rose-500" />
+                <TrendingDown className="h-4 w-4 text-rose-500 shrink-0" />
               )}
-              <p className="font-medium">{transaction.productName || "Dépense diverse"}</p>
+              <p className="font-medium truncate max-w-[160px]">
+                {transaction.productName || "Dépense diverse"}
+              </p>
             </div>
-            {transaction.productId && (
-              <div className="text-xs text-gray-500">
-                ID: {transaction.productId.substring(0, 8)}...
-              </div>
-            )}
           </div>
         );
       },
@@ -164,24 +172,19 @@ export default function TransactionsTable({
         const type = row.getValue("type") as string;
         const getTypeConfig = (type: string) => {
           switch (type) {
-            case 'sale':
-              return { label: 'Vente', color: 'bg-emerald-100 text-emerald-700', icon: <TrendingUp className="h-3 w-3 mr-1" /> };
-            case 'credit':
-              return { label: 'Crédit', color: 'bg-amber-100 text-amber-700', icon: <CreditCard className="h-3 w-3 mr-1" /> };
-            case 'expense':
-              return { label: 'Dépense', color: 'bg-rose-100 text-rose-700', icon: <TrendingDown className="h-3 w-3 mr-1" /> };
+            case "sale":
+              return { label: "Vente", color: "bg-emerald-100 text-emerald-700", icon: <TrendingUp className="h-3 w-3 mr-1" /> };
+            case "credit":
+              return { label: "Crédit", color: "bg-amber-100 text-amber-700", icon: <CreditCard className="h-3 w-3 mr-1" /> };
+            case "expense":
+              return { label: "Dépense", color: "bg-rose-100 text-rose-700", icon: <TrendingDown className="h-3 w-3 mr-1" /> };
             default:
-              return { label: type, color: 'bg-gray-100 text-gray-700', icon: null };
+              return { label: type, color: "bg-gray-100 text-gray-700", icon: null };
           }
         };
-        
         const config = getTypeConfig(type);
-        
         return (
-          <Badge
-            variant="outline"
-            className={`capitalize font-medium border-none ${config.color}`}
-          >
+          <Badge variant="outline" className={`capitalize font-medium border-none ${config.color}`}>
             {config.icon}
             {config.label}
           </Badge>
@@ -200,18 +203,13 @@ export default function TransactionsTable({
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="font-semibold hover:bg-transparent p-0"
         >
-          Quantité
+          Qté
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => {
-        const quantity = row.getValue("quantity") as number;
-        return (
-          <div className="font-medium text-center">
-            {quantity}
-          </div>
-        );
-      },
+      cell: ({ row }) => (
+        <div className="font-medium text-center">{row.getValue("quantity")}</div>
+      ),
     },
     {
       accessorKey: "unitPrice",
@@ -221,19 +219,13 @@ export default function TransactionsTable({
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           className="font-semibold hover:bg-transparent p-0"
         >
-          Prix Unitaire
+          P.U.
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
       cell: ({ row }) => {
         const price = parseFloat(row.getValue("unitPrice"));
-        return (
-          <div className="flex items-center gap-1">
-            <span className="font-medium">
-              {price.toLocaleString()} Fcs
-            </span>
-          </div>
-        );
+        return <span className="font-medium">{price.toLocaleString()} Fcs</span>;
       },
     },
     {
@@ -251,7 +243,7 @@ export default function TransactionsTable({
       cell: ({ row }) => {
         const total = parseFloat(row.getValue("totalPrice"));
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <DollarSign className="h-4 w-4 text-emerald-500" />
             <span className="font-semibold text-emerald-600">
               {total.toLocaleString()} Fcs
@@ -260,28 +252,29 @@ export default function TransactionsTable({
         );
       },
     },
-    ...(userProfile?.role === 'admin' ? [{
-      accessorKey: "userName",
-      header: ({ column } : { column: any } ) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="font-semibold hover:bg-transparent p-0"
-        >
-          Ajouté par
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      cell: ({ row } : {row : any}) => {
-        const userName = row.getValue("userName") as string;
-        return (
-          <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-gray-400" />
-            <span>{userName}</span>
-          </div>
-        );
-      },
-    }] : []),
+    ...(isOwner
+      ? [
+          {
+            accessorKey: "userName",
+            header: ({ column }: { column: any }) => (
+              <Button
+                variant="ghost"
+                onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                className="font-semibold hover:bg-transparent p-0"
+              >
+                Ajouté par
+                <ArrowUpDown className="ml-2 h-4 w-4" />
+              </Button>
+            ),
+            cell: ({ row }: { row: any }) => (
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-gray-400" />
+                <span>{row.getValue("userName")}</span>
+              </div>
+            ),
+          },
+        ]
+      : []),
     {
       accessorKey: "created_at",
       header: ({ column }) => (
@@ -315,34 +308,38 @@ export default function TransactionsTable({
       id: "actions",
       cell: ({ row }) => {
         const transaction = row.original;
-        
-        const handleEdit = () => setEditingTransaction(transaction);
-        const handleDelete = () => {
-          if (confirm("Êtes-vous sûr de vouloir supprimer cette transaction ?")) {
-            onDelete(transaction.transactionId);
-          }
-        };
-
         return (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleEdit}
-              className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-              title="Modifier"
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleDelete}
-              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-              title="Supprimer"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+          <div
+            className="flex items-center gap-1"
+            // Prevent row click from firing when clicking action buttons
+            onClick={(e) => e.stopPropagation()}
+          >
+            {isOwner && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setEditingTransaction(transaction)}
+                  className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  title="Modifier"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    if (confirm("Supprimer cette transaction ?")) {
+                      onDelete(transaction.transactionId);
+                    }
+                  }}
+                  className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  title="Supprimer"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </>
+            )}
           </div>
         );
       },
@@ -360,22 +357,11 @@ export default function TransactionsTable({
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    state: {
-      sorting,
-      columnFilters,
-      columnVisibility,
-      rowSelection,
-      globalFilter,
-    },
-    initialState: {
-      pagination: {
-        pageSize: 10,
-      },
-    },
+    state: { sorting, columnFilters, columnVisibility, rowSelection, globalFilter },
+    initialState: { pagination: { pageSize: 10 } },
     onGlobalFilterChange: setGlobalFilter,
   });
 
-  // Apply type filter
   useEffect(() => {
     if (typeFilter === "all") {
       table.getColumn("type")?.setFilterValue(undefined);
@@ -384,19 +370,13 @@ export default function TransactionsTable({
     }
   }, [typeFilter, table]);
 
-  // Handle bulk delete
   const handleDeleteSelected = async () => {
     const selectedRows = table.getFilteredSelectedRowModel().rows;
     if (selectedRows.length === 0) return;
-
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedRows.length} transaction(s) ?`)) {
-      return;
-    }
-
+    if (!confirm(`Supprimer ${selectedRows.length} transaction(s) ?`)) return;
     for (const row of selectedRows) {
       await onDelete(row.original.transactionId);
     }
-    
     table.resetRowSelection();
   };
 
@@ -420,7 +400,7 @@ export default function TransactionsTable({
 
   const selectedRowsCount = table.getFilteredSelectedRowModel().rows.length;
   const totalRevenue = transactions
-    .filter(t => t.type === 'sale')
+    .filter((t) => t.type === "sale")
     .reduce((sum, t) => sum + t.totalPrice, 0);
 
   return (
@@ -465,32 +445,27 @@ export default function TransactionsTable({
                 <DropdownMenuContent align="end" className="w-48">
                   {table
                     .getAllColumns()
-                    .filter((column) => column.getCanHide())
-                    .map((column) => {
-                      return (
-                        <DropdownMenuCheckboxItem
-                          key={column.id}
-                          className="capitalize"
-                          checked={column.getIsVisible()}
-                          onCheckedChange={(value) =>
-                            column.toggleVisibility(!!value)
-                          }
-                        >
-                          {column.id === "productName" ? "Article" : 
-                           column.id === "userName" ? "Ajouté par" :
-                           column.id === "type" ? "Type" :
-                           column.id === "created_at" ? "Date" : column.id}
-                        </DropdownMenuCheckboxItem>
-                      );
-                    })}
+                    .filter((col) => col.getCanHide())
+                    .map((col) => (
+                      <DropdownMenuCheckboxItem
+                        key={col.id}
+                        className="capitalize"
+                        checked={col.getIsVisible()}
+                        onCheckedChange={(v) => col.toggleVisibility(!!v)}
+                      >
+                        {col.id === "productName" ? "Article" :
+                         col.id === "userName" ? "Ajouté par" :
+                         col.id === "type" ? "Type" :
+                         col.id === "created_at" ? "Date" : col.id}
+                      </DropdownMenuCheckboxItem>
+                    ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
 
-            {/* Stats */}
             <div className="text-sm text-gray-600 whitespace-nowrap">
-              {transactions.length} transaction{transactions.length > 1 ? 's' : ''} • 
-              <span className="text-emerald-600 font-medium ml-1">
+              {transactions.length} transaction{transactions.length > 1 ? "s" : ""} •{" "}
+              <span className="text-emerald-600 font-medium">
                 {totalRevenue.toLocaleString()} KMF
               </span>
             </div>
@@ -498,76 +473,66 @@ export default function TransactionsTable({
         </CardHeader>
 
         <CardContent className="px-6">
-          {/* Selected Rows Actions */}
+          {/* Bulk actions */}
           {selectedRowsCount > 0 && (
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <span className="text-sm text-blue-800 font-medium">
-                {selectedRowsCount} transaction{selectedRowsCount > 1 ? 's' : ''} sélectionné{selectedRowsCount > 1 ? 'es' : 'e'}
+                {selectedRowsCount} transaction{selectedRowsCount > 1 ? "s" : ""} sélectionnée{selectedRowsCount > 1 ? "s" : ""}
               </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDeleteSelected}
-                  className="text-red-600 border-red-200 hover:bg-red-50"
-                  disabled={selectedRowsCount === 0}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Supprimer
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDeleteSelected}
+                className="text-red-600 border-red-200 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Supprimer
+              </Button>
             </div>
           )}
 
+          {/* Hint for clickable rows */}
+          <p className="text-xs text-gray-400 mb-3 flex items-center gap-1">
+            <Eye className="h-3 w-3" />
+            Cliquez sur une ligne pour voir les détails
+          </p>
+
           {/* Table */}
-          <div className="rounded-md border   ">
+          <div className="rounded-md border">
             <Table>
               <TableHeader className="bg-gray-50">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      return (
-                        <TableHead key={header.id} className="font-semibold text-gray-700">
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
-                        </TableHead>
-                      );
-                    })}
+                    {headerGroup.headers.map((header) => (
+                      <TableHead key={header.id} className="font-semibold text-gray-700">
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
+                    ))}
                   </TableRow>
                 ))}
               </TableHeader>
               <TableBody>
                 {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => {
-                     
-                    
-                    return (
-                      <TableRow
-                        key={row.id}
-                        data-state={row.getIsSelected() && "selected"}
-                        className="hover:bg-gray-50/50 transition-colors"
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell key={cell.id} className="py-3">
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext()
-                            )}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    );
-                  })
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      data-state={row.getIsSelected() && "selected"}
+                      // ── Clickable row ──────────────────────────────────
+                      onClick={() => openDetail(row.original)}
+                      className="hover:bg-blue-50/40 transition-colors cursor-pointer group"
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id} className="py-3">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
                 ) : (
                   <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 text-center"
-                    >
+                    <TableCell colSpan={columns.length} className="h-24 text-center">
                       <div className="space-y-2">
                         <Search className="h-8 w-8 text-gray-400 mx-auto" />
                         <p className="text-gray-500">Aucun résultat trouvé</p>
@@ -585,35 +550,28 @@ export default function TransactionsTable({
           {/* Pagination */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4">
             <div className="text-sm text-gray-600">
-              Page {table.getState().pagination.pageIndex + 1} sur{" "}
-              {table.getPageCount()} •{" "}
-              {table.getFilteredRowModel().rows.length} résultat{table.getFilteredRowModel().rows.length > 1 ? 's' : ''}
+              Page {table.getState().pagination.pageIndex + 1} sur {table.getPageCount()} •{" "}
+              {table.getFilteredRowModel().rows.length} résultat{table.getFilteredRowModel().rows.length > 1 ? "s" : ""}
             </div>
-            
+
             <div className="flex items-center space-x-4">
-              {/* Rows per page */}
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-700">Lignes:</span>
                 <Select
                   value={`${table.getState().pagination.pageSize}`}
-                  onValueChange={(value) => {
-                    table.setPageSize(Number(value));
-                  }}
+                  onValueChange={(v) => table.setPageSize(Number(v))}
                 >
                   <SelectTrigger className="h-8 w-20">
-                    <SelectValue placeholder={table.getState().pagination.pageSize} />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {[5, 10, 20, 30, 50].map((pageSize) => (
-                      <SelectItem key={pageSize} value={`${pageSize}`}>
-                        {pageSize}
-                      </SelectItem>
+                    {[5, 10, 20, 30, 50].map((ps) => (
+                      <SelectItem key={ps} value={`${ps}`}>{ps}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Page navigation */}
               <div className="flex items-center space-x-2">
                 <Button
                   variant="outline"
@@ -622,25 +580,18 @@ export default function TransactionsTable({
                   disabled={!table.getCanPreviousPage()}
                   className="h-8 w-8 p-0"
                 >
-                  <span className="sr-only">Page précédente</span>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                
+
                 <div className="flex items-center gap-1">
                   {Array.from({ length: Math.min(5, table.getPageCount()) }, (_, i) => {
                     const pageIndex = table.getState().pagination.pageIndex;
                     const maxPages = table.getPageCount();
-                    
                     let startPage = Math.max(0, pageIndex - 2);
                     const endPage = Math.min(maxPages, startPage + 5);
-                    
-                    if (endPage - startPage < 5) {
-                      startPage = Math.max(0, endPage - 5);
-                    }
-
+                    if (endPage - startPage < 5) startPage = Math.max(0, endPage - 5);
                     const pageNumber = startPage + i;
                     if (pageNumber >= maxPages) return null;
-
                     return (
                       <Button
                         key={pageNumber}
@@ -650,7 +601,7 @@ export default function TransactionsTable({
                         onClick={() => table.setPageIndex(pageNumber)}
                       >
                         {pageNumber + 1}
-                    </Button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -662,7 +613,6 @@ export default function TransactionsTable({
                   disabled={!table.getCanNextPage()}
                   className="h-8 w-8 p-0"
                 >
-                  <span className="sr-only">Page suivante</span>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -671,7 +621,19 @@ export default function TransactionsTable({
         </CardContent>
       </Card>
 
-      {/* Edit Modal */}
+      {/* ── Detail sheet ─────────────────────────────────────────────────────── */}
+      <TransactionDetailSheet
+        transaction={detailTransaction}
+        isOpen={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        onEdit={(t) => {
+          setEditingTransaction(t);
+        }}
+        onDelete={onDelete}
+        canMutate={isOwner}
+      />
+
+      {/* ── Edit modal ───────────────────────────────────────────────────────── */}
       {editingTransaction && (
         <EditTransactionModal
           isOpen={!!editingTransaction}

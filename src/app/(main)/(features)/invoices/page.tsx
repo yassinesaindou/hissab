@@ -3,12 +3,18 @@
 
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ModernInvoiceForm from "./components/ModernInvoiceForm";
 import { getAllProducts } from '@/lib/offline/products';
 import { getStoreInfo } from '@/lib/offline/session';
 
-type Product = { productId: string; name: string; unitPrice: number; stock: number };
+type Product = {
+  productId: string;
+  name: string;
+  unitPrice: number;
+  stock: number;
+  productCode?: string;
+};
 type Store = { storeName: string; storeAddress: string; storePhoneNumber: string };
 
 export default function InvoicePage() {
@@ -17,7 +23,9 @@ export default function InvoicePage() {
   const [loading, setLoading] = useState(true);
 
   const router = useRouter();
-  const supabase = createSupabaseClient();
+  // Stable client ref — avoids the infinite re-render loop seen elsewhere in the app
+  const supabaseRef = useRef(createSupabaseClient());
+  const supabase = supabaseRef.current;
 
   useEffect(() => {
     async function loadData() {
@@ -48,7 +56,9 @@ export default function InvoicePage() {
           ] = await Promise.all([
             supabase
               .from("products")
-              .select("productId, name, unitPrice, stock")
+              // productCode added — without it, neither search nor scan-matching
+              // can work because the field simply isn't in the data.
+              .select("productId, name, unitPrice, stock, productCode")
               .eq("storeId", profile.storeId)
               .order("name", { ascending: true }),
 

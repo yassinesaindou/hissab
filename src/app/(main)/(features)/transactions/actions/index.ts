@@ -2,31 +2,34 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
- 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { redirect } from "next/navigation";
 import { isUserSubscriptionActive } from "@/lib/utils/utils";
 
+// ─── Shared schema ────────────────────────────────────────────────────────────
+
 const baseTransactionFormSchema = z.object({
   productId: z
     .string()
     .uuid({ message: "L'identifiant du produit est incorrect." })
-    .optional(),
+    .optional()
+    .or(z.literal(""))
+    .transform((v) => (v === "" || v === "none") ? undefined : v),
   productName: z
     .string()
-    .max(100, { message: "Product name must be at most 100 characters." })
+    .max(100, { message: "Le nom du produit ne doit pas dépasser 100 caractères." })
     .optional(),
   unitPrice: z.coerce
     .number()
-    .min(0, { message: "Unit price must be non-negative" })
-    .max(1000000, { message: "Unit price too high" }),
+    .min(0, { message: "Le prix unitaire doit être non-négatif." })
+    .max(1000000, { message: "Prix unitaire trop élevé." }),
   quantity: z.coerce
     .number()
-    .int({ message: "Quantity must be an integer" })
-    .min(1, { message: "La quantité doit etre superieur à 0" }),
+    .int({ message: "La quantité doit être un entier." })
+    .min(1, { message: "La quantité doit être supérieure à 0." }),
   type: z.enum(["sale", "credit", "expense"], {
-    message: "Le type de transaction doit etre 'sale', 'credit' ou 'expense'.",
+    message: "Le type doit être 'sale', 'credit' ou 'expense'.",
   }),
 });
 
@@ -37,19 +40,23 @@ const transactionFormSchema = baseTransactionFormSchema.refine(
     data.productName,
   {
     message:
-      "Un produit doit être sélectionné ou un nom de produit doit être fourni pour les transactions de vente ou de crédit.",
+      "Un produit doit être sélectionné ou un nom fourni pour les ventes et crédits.",
     path: ["productId"],
   }
 );
 
 type TransactionFormData = z.infer<typeof transactionFormSchema>;
 
+// ─── ADD ──────────────────────────────────────────────────────────────────────
+
 export async function addTransactionAction(formData: TransactionFormData) {
   try {
     const validatedData = transactionFormSchema.parse(formData);
     const supabase = createSupabaseServerClient();
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) redirect("/login");
 
     const { data: profile } = await supabase
@@ -60,16 +67,22 @@ export async function addTransactionAction(formData: TransactionFormData) {
 
     const storeId = profile?.storeId;
     if (!storeId) {
-      return { success: false, message: "Aucun magasin n'est associé à votre compte." };
+      return {
+        success: false,
+        message: "Aucun magasin n'est associé à votre compte.",
+      };
     }
 
-    // Check subscription
+    // Subscription check
     const isSubscriptionActive = await isUserSubscriptionActive(storeId);
     if (!isSubscriptionActive) {
-      return { success: false, message: "Votre abonnement a expiré. Veuillez le renouveler." };
+      return {
+        success: false,
+        message: "Votre abonnement a expiré. Veuillez le renouveler.",
+      };
     }
 
-    // Check daily transaction limit
+    // Daily limit check
     const { data: subscription } = await supabase
       .from("subscriptions")
       .select("planId")
@@ -88,13 +101,23 @@ export async function addTransactionAction(formData: TransactionFormData) {
 
     const dailyLimit = plan?.transactionsPerDay ?? 0;
     if (dailyLimit <= 0) {
-      return { success: false, message: "Ce plan n'autorise pas de transactions." };
+      return {
+        success: false,
+        message: "Ce plan n'autorise pas de transactions.",
+      };
     }
 
-    // Count today's transactions
     const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+    const startOfDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    ).toISOString();
+    const endOfDay = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() + 1
+    ).toISOString();
 
     const { count, error: countError } = await supabase
       .from("transactions")
@@ -104,8 +127,10 @@ export async function addTransactionAction(formData: TransactionFormData) {
       .lt("created_at", endOfDay);
 
     if (countError) {
-      console.error("Error counting transactions:", countError);
-      return { success: false, message: "Erreur lors du comptage des transactions." };
+      return {
+        success: false,
+        message: "Erreur lors du comptage des transactions.",
+      };
     }
 
     if ((count ?? 0) >= dailyLimit) {
@@ -115,7 +140,7 @@ export async function addTransactionAction(formData: TransactionFormData) {
       };
     }
 
-    // Process transaction
+    // If a known product is referenced, validate it and adjust stock
     let unitPrice = validatedData.unitPrice;
     let totalPrice = validatedData.unitPrice * validatedData.quantity;
 
@@ -129,40 +154,49 @@ export async function addTransactionAction(formData: TransactionFormData) {
       if (productError || !product) {
         return { success: false, message: "Produit introuvable." };
       }
-
       if (product.storeId !== storeId) {
         return { success: false, message: "Accès refusé au produit." };
       }
-
-      if ((validatedData.type === "sale" || validatedData.type === "credit") && product.stock < validatedData.quantity) {
-        return { success: false, message: `Stock insuffisant : ${product.stock} disponible.` };
+      if (
+        (validatedData.type === "sale" || validatedData.type === "credit") &&
+        product.stock < validatedData.quantity
+      ) {
+        return {
+          success: false,
+          message: `Stock insuffisant : ${product.stock} disponible(s).`,
+        };
       }
 
       unitPrice = product.unitPrice;
       totalPrice = unitPrice * validatedData.quantity;
-      validatedData.productName = validatedData.productName || product.name;
+      validatedData.productName =
+        validatedData.productName || product.name;
 
-      if (validatedData.type === "sale" || validatedData.type === "credit") {
+      if (
+        validatedData.type === "sale" ||
+        validatedData.type === "credit"
+      ) {
         const { error: stockError } = await supabase
           .from("products")
           .update({ stock: product.stock - validatedData.quantity })
           .eq("productId", validatedData.productId);
 
         if (stockError) {
-          console.error("Stock update error:", stockError);
-          return { success: false, message: "Échec mise à jour stock." };
+          return { success: false, message: "Échec de la mise à jour du stock." };
         }
       }
     }
 
-    // Insert transaction
+    // Insert — no productId column in transactions table
     const { data: newTransaction, error: insertError } = await supabase
       .from("transactions")
       .insert({
         storeId,
         userId: user.id,
-        productId: validatedData.productId === "none" ? null : validatedData.productId,
-        productName: validatedData.productName === "none" ? null : validatedData.productName,
+        productName:
+          validatedData.productName === "none"
+            ? null
+            : validatedData.productName,
         unitPrice,
         totalPrice,
         quantity: validatedData.quantity,
@@ -174,10 +208,9 @@ export async function addTransactionAction(formData: TransactionFormData) {
 
     if (insertError) {
       console.error("Insert error:", insertError);
-      return { success: false, message: "Échec création transaction." };
+      return { success: false, message: "Échec de la création de la transaction." };
     }
 
-    // Get user name for the transaction
     const { data: userProfile } = await supabase
       .from("profiles")
       .select("name")
@@ -185,14 +218,15 @@ export async function addTransactionAction(formData: TransactionFormData) {
       .single();
 
     revalidatePath("/transactions");
-    
-    return { 
-      success: true, 
+
+    return {
+      success: true,
       message: "Transaction ajoutée avec succès.",
       transaction: {
         ...newTransaction,
-        userName: userProfile?.name || user.email || "Utilisateur inconnu"
-      }
+        userName:
+          userProfile?.name || user.email || "Utilisateur inconnu",
+      },
     };
   } catch (error) {
     console.error("Unexpected error:", error);
@@ -202,6 +236,8 @@ export async function addTransactionAction(formData: TransactionFormData) {
     return { success: false, message: "Erreur inattendue." };
   }
 }
+
+// ─── UPDATE ───────────────────────────────────────────────────────────────────
 
 const updateTransactionFormSchema = baseTransactionFormSchema
   .extend({
@@ -216,7 +252,7 @@ const updateTransactionFormSchema = baseTransactionFormSchema
       data.productName,
     {
       message:
-        "Un produit doit être sélectionné ou un nom de produit doit être renseigné pour les transactions de vente ou de crédit.",
+        "Un produit doit être sélectionné ou un nom fourni pour les ventes et crédits.",
       path: ["productId"],
     }
   );
@@ -229,27 +265,26 @@ export async function updateTransactionAction(
   try {
     const validatedData = updateTransactionFormSchema.parse(formData);
     const supabase = createSupabaseServerClient();
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
+    if (!user) redirect("/login");
 
-    if (!user) {
-      redirect("/login");
-    }
-
-    const { data } = await supabase
+    const { data: profile } = await supabase
       .from("profiles")
       .select("storeId, role")
       .eq("userId", user.id)
       .single();
-    const storeId = data?.storeId;
 
-    if (data?.role === "employee")
+    if (profile?.role === "employee") {
       return {
         success: false,
         message: "Vous n'êtes pas autorisé à modifier une transaction.",
       };
-    
+    }
+
+    const storeId = profile?.storeId;
     if (!storeId) {
       return {
         success: false,
@@ -261,55 +296,61 @@ export async function updateTransactionAction(
     if (!isSubscriptionActive) {
       return {
         success: false,
-        message: "Ta souscription a expiré, veuillez la renouveler.",
+        message: "Votre abonnement a expiré. Veuillez le renouveler.",
       };
     }
 
-    const { data: transaction, error: fetchError } = await supabase
+    // Fetch the existing transaction — only columns that actually exist
+    const { data: existingTx, error: fetchError } = await supabase
       .from("transactions")
-      .select(" productId, quantity, type, storeId")
+      .select("quantity, type, storeId")   // ← productId removed (not in schema)
       .eq("transactionId", validatedData.transactionId)
       .single();
 
-    if (fetchError || !transaction) {
-      console.error("Error fetching transaction:", fetchError?.message);
-      return { success: false, message: "La transaction n'existe pas" };
-    }
-
-    if (transaction.storeId !== storeId) {
+    if (fetchError || !existingTx) {
+      console.error("Fetch transaction error:", fetchError?.message);
       return {
         success: false,
-        message: "Vous n'êtes pas autorisé de modifier cette transaction",
+        message: "Transaction introuvable.",
       };
     }
 
+    if (existingTx.storeId !== storeId) {
+      return {
+        success: false,
+        message: "Vous n'êtes pas autorisé à modifier cette transaction.",
+      };
+    }
+
+    // Price resolution — if the submitted form references a catalogue product,
+    // use its price; otherwise use whatever the user typed.
     let unitPrice = validatedData.unitPrice;
     let totalPrice = validatedData.unitPrice * validatedData.quantity;
 
     if (validatedData.productId && validatedData.productId !== "none") {
       const { data: product, error: productError } = await supabase
         .from("products")
-        .select("userId, storeId,unitPrice, stock, name")
+        .select("storeId, unitPrice, stock, name")
         .eq("productId", validatedData.productId)
         .single();
 
       if (productError || !product) {
-        console.error("Error fetching product:", productError?.message);
         return {
           success: false,
-          message: "L'identifiant du produit est incorrect",
+          message: "Produit introuvable.",
         };
       }
 
       if (product.storeId !== storeId) {
         return {
           success: false,
-          message: "Vous n'êtes pas autorisé de modifier ce produit",
+          message: "Vous n'êtes pas autorisé à modifier ce produit.",
         };
       }
 
-      const stockAdjustment = transaction.quantity - validatedData.quantity;
-      const newStock = product.stock + stockAdjustment;
+      // Adjust stock: restore old quantity then deduct new quantity
+      const stockDelta = existingTx.quantity - validatedData.quantity;
+      const newStock = product.stock + stockDelta;
 
       if (
         (validatedData.type === "sale" || validatedData.type === "credit") &&
@@ -317,66 +358,37 @@ export async function updateTransactionAction(
       ) {
         return {
           success: false,
-          message: `Stock insuffisant Disponible: ${product.stock}, Requis: ${validatedData.quantity}`,
+          message: `Stock insuffisant. Disponible : ${product.stock}, requis : ${validatedData.quantity}.`,
         };
       }
 
       unitPrice = product.unitPrice;
       totalPrice = unitPrice * validatedData.quantity;
-      validatedData.productName = validatedData.productName || product.name;
+      validatedData.productName =
+        validatedData.productName || product.name;
 
-      if (validatedData.type === "sale" || validatedData.type === "credit") {
+      if (
+        validatedData.type === "sale" ||
+        validatedData.type === "credit"
+      ) {
         const { error: stockError } = await supabase
           .from("products")
           .update({ stock: newStock })
           .eq("productId", validatedData.productId);
 
         if (stockError) {
-          console.error("Error updating product stock:", stockError.message);
           return {
             success: false,
-            message: "Echec durant la mise à jour du stock",
+            message: "Échec de la mise à jour du stock.",
           };
         }
       }
-    } else if (
-      transaction.productId &&
-      (transaction.type === "sale" || transaction.type === "credit")
-    ) {
-      // Restore stock if productId is removed
-      const { data: oldProduct, error: oldProductError } = await supabase
-        .from("products")
-        .select("userId, stock")
-        .eq("productId", transaction.productId)
-        .single();
-
-      if (oldProductError || !oldProduct) {
-        console.error("Error fetching old product:", oldProductError?.message);
-        return {
-          success: false,
-          message: "L'identifiant de l'ancien produit  est incorrect",
-        };
-      }
-
-      const { error: stockError } = await supabase
-        .from("products")
-        .update({ stock: oldProduct.stock + transaction.quantity })
-        .eq("productId", transaction.productId);
-
-      if (stockError) {
-        console.error("Error restoring product stock:", stockError.message);
-        return {
-          success: false,
-          message: "Echec durant la restauration du stock",
-        };
-      }
     }
 
-    const { error } = await supabase
+    // Persist — no productId column in transactions
+    const { error: updateError } = await supabase
       .from("transactions")
       .update({
-        productId:
-          validatedData.productId === "none" ? null : validatedData.productId,
         productName:
           validatedData.productName === "none"
             ? null
@@ -388,21 +400,21 @@ export async function updateTransactionAction(
       })
       .eq("transactionId", validatedData.transactionId);
 
-    if (error) {
-      console.error("Error updating transaction:", error.message);
+    if (updateError) {
+      console.error("Update error:", updateError.message);
       return {
         success: false,
-        message: "Echec durant la mise à jour de la transaction",
+        message: "Échec de la mise à jour de la transaction.",
       };
     }
 
     revalidatePath("/transactions");
-    return { success: true, message: "La transaction a bien été mise à jour" };
+    return { success: true, message: "Transaction mise à jour avec succès." };
   } catch (error) {
-    console.error("Unexpected error during transaction update:", error);
+    console.error("Unexpected error during update:", error);
     if (error instanceof z.ZodError) {
       return { success: false, message: error.errors[0].message };
     }
-    return { success: false, message: "Une erreur s'est produite" };
+    return { success: false, message: "Une erreur s'est produite." };
   }
 }

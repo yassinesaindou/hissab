@@ -1,62 +1,56 @@
 /* eslint-disable react/no-unescaped-entities */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/credits/components/AddCreditModal.tsx
 "use client";
 
- 
+import { useState } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-} from "@/components/ui/command";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Plus } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { Separator } from "@/components/ui/separator";
+import { Plus, Trash2, User, Package, FileText } from "lucide-react";
 import { addCreditAction } from "../actions/action";
+ 
+import { Product } from "../types";
+import ProductCombobox from "../../invoices/components/ProductCombobox";
+
+const itemSchema = z.object({
+  productId: z.string().optional(),
+  productName: z.string().min(1, "Le nom de l'article est requis"),
+  unitPrice: z.coerce.number().min(0, "Le prix doit être positif ou nul"),
+  quantity: z.coerce.number().int().min(1, "La quantité doit être au moins 1"),
+});
 
 const formSchema = z.object({
   customerName: z.string().min(1, "Le nom du client est requis"),
   customerPhone: z.string().min(1, "Le numéro de téléphone est requis"),
-  productId: z.string().optional(),
-  productName: z.string().optional(),
-  amount: z.number().min(1, "Le montant doit être positif"),
-  quantity: z.number().min(1, "La quantité doit être au moins 1"),
   status: z.enum(["pending", "paid"]).default("pending"),
   description: z.string().optional(),
+  items: z.array(itemSchema).min(1, "Au moins un article est requis"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -64,7 +58,7 @@ type FormValues = z.infer<typeof formSchema>;
 interface AddCreditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  products: { productId: string; name: string; unitPrice: number; stock: number }[];
+  products: Product[];
   onSuccess: () => void;
 }
 
@@ -75,88 +69,91 @@ export default function AddCreditModal({
   onSuccess,
 }: AddCreditModalProps) {
   const [error, setError] = useState<string | null>(null);
-  const [productOpen, setProductOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isExistingProduct, setIsExistingProduct] = useState(false);
-  const commandInputRef = useRef<HTMLInputElement>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       customerName: "",
       customerPhone: "",
-      productId: "",
-      productName: "",
-      amount: 0,
-      quantity: 1,
       status: "pending",
       description: "",
+      items: [{ productId: "", productName: "", unitPrice: 0, quantity: 1 }],
     },
   });
 
-  // Watch values for real-time updates
-  const productNameValue = form.watch("productName");
-  const quantityValue = form.watch("quantity");
-  
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "items",
+  });
 
-  // Filter products based on search query
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase())
+  const watchItems = form.watch("items");
+  const totalAmount = watchItems.reduce(
+    (sum, i) => sum + (i.unitPrice || 0) * (i.quantity || 1),
+    0
   );
 
-  // Check if current input matches any existing product
-  useEffect(() => {
-    const exactMatch = products.find(p => 
-      p.name.toLowerCase() === productNameValue?.toLowerCase().trim()
-    );
-    
-    if (exactMatch) {
-      form.setValue("productId", exactMatch.productId);
-      form.setValue("amount", exactMatch.unitPrice * quantityValue);
-      setIsExistingProduct(true);
-    } else {
-      form.setValue("productId", "");
-      setIsExistingProduct(false);
-    }
-  }, [productNameValue, products, form, quantityValue]);
+  const handleClose = () => {
+    form.reset({
+      customerName: "",
+      customerPhone: "",
+      status: "pending",
+      description: "",
+      items: [{ productId: "", productName: "", unitPrice: 0, quantity: 1 }],
+    });
+    setError(null);
+    onClose();
+  };
 
   const onSubmit = async (values: FormValues) => {
+    setIsSubmitting(true);
     setError(null);
-    
-    const formData = new FormData();
-    formData.append("customerName", values.customerName);
-    formData.append("customerPhone", values.customerPhone);
-    if (values.productId) {
-      formData.append("productId", values.productId);
-      formData.append("numberOfProductsTaken", values.quantity.toString());
-    }
-    formData.append("amount", values.amount.toString());
-    formData.append("status", values.status);
-    if (values.description) {
-      formData.append("description", values.description);
-    }
 
-    const result = await addCreditAction(formData);
-    if (result.success) {
-      onSuccess();
-      form.reset();
-      setIsExistingProduct(false);
-      setSearchQuery("");
-      onClose();
-    } else {
-      setError(result.message);
+    try {
+      const result = await addCreditAction({
+        customerName: values.customerName,
+        customerPhone: values.customerPhone,
+        status: values.status,
+        description: values.description,
+        items: values.items.map((i) => ({
+          productId: i.productId || undefined,
+          productName: i.productName,
+          unitPrice: i.unitPrice,
+          quantity: i.quantity,
+        })),
+      });
+
+      if (result.success) {
+        onSuccess();
+        handleClose();
+      } else {
+        setError(result.message);
+      }
+    } catch (err) {
+      setError("Une erreur s'est produite");
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
+      <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl">Nouveau Crédit</DialogTitle>
+          <DialogTitle className="text-xl flex items-center gap-2">
+            <Package className="h-5 w-5 text-blue-600" />
+            Nouveau Crédit
+          </DialogTitle>
         </DialogHeader>
-        
+
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+            {/* Customer */}
+            <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+              <User className="h-4 w-4 text-blue-600" />
+              Client
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -171,7 +168,7 @@ export default function AddCreditModal({
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="customerPhone"
@@ -187,165 +184,157 @@ export default function AddCreditModal({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="productName"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Article (Optionnel)</FormLabel>
-                  <Popover open={productOpen} onOpenChange={setProductOpen}>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Input
-                          placeholder="Rechercher un article..."
-                          {...field}
-                          onChange={(e) => {
-                            field.onChange(e.target.value);
-                            setSearchQuery(e.target.value);
-                          }}
-                          className="w-full"
-                        />
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0" align="start" style={{ width: "var(--radix-popover-trigger-width)" }}>
-                      <Command shouldFilter={false}>
-                        <CommandInput 
-                          ref={commandInputRef}
-                          placeholder="Rechercher un article..."
-                          value={searchQuery}
-                          onValueChange={setSearchQuery}
-                        />
-                        <CommandList>
-                          {searchQuery.trim() && filteredProducts.length === 0 && (
-                            <CommandGroup heading="Utiliser ce nom">
-                              <CommandItem
-                                onSelect={() => {
-                                  form.setValue("productName", searchQuery);
-                                  form.setValue("productId", "");
-                                  setProductOpen(false);
-                                }}
-                                className="cursor-pointer"
-                              >
-                                <Plus className="mr-2 h-4 w-4 text-emerald-600" />
-                                <div>
-                                  <span className="font-medium">"{searchQuery}"</span>
-                                  <span className="text-xs text-gray-500 block">
-                                    Créer sans lier à un produit
-                                  </span>
-                                </div>
-                              </CommandItem>
-                            </CommandGroup>
-                          )}
-                          
-                          {filteredProducts.length > 0 && (
-                            <CommandGroup heading="Produits existants">
-                              {filteredProducts.map((product) => (
-                                <CommandItem
-                                  key={product.productId}
-                                  value={product.name}
-                                  onSelect={() => {
-                                    form.setValue("productName", product.name);
-                                    form.setValue("productId", product.productId);
-                                    form.setValue("amount", product.unitPrice * quantityValue);
-                                    setProductOpen(false);
-                                  }}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      field.value === product.name ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  <div className="flex-1">
-                                    <div className="font-medium">{product.name}</div>
-                                    <div className="text-xs text-gray-500">
-                                      Stock: {product.stock} • {product.unitPrice.toLocaleString()} Fcs
-                                    </div>
-                                  </div>
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          )}
-                          
-                          <CommandEmpty className="py-6 text-center text-sm text-gray-500">
-                            Tapez le nom d'un produit
-                          </CommandEmpty>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  
-                  {field.value && (
-                    <div className="mt-2 text-xs">
-                      {isExistingProduct ? (
-                        <div className="flex items-center gap-1 text-blue-600">
-                          <Check className="h-3 w-3" />
-                          <span>Produit existant - Prix automatiquement calculé</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 text-emerald-600">
-                          <Plus className="h-3 w-3" />
-                          <span>Crédit sans produit - Entrez le montant manuellement</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <Separator />
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="quantity"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Quantité</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        onChange={(e) => {
-                          const value = parseInt(e.target.value) || 1;
-                          field.onChange(value);
-                          if (isExistingProduct && productNameValue) {
-                            const product = products.find(p => p.name === productNameValue);
-                            if (product) {
-                              form.setValue("amount", product.unitPrice * value);
-                            }
-                          }
-                        }}
-                        disabled={!!(isExistingProduct && productNameValue)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="amount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Montant (Fcs)</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                        disabled={!!(isExistingProduct && productNameValue)}
-                        className={isExistingProduct ? "bg-gray-100 cursor-help" : ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            {/* Line items */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <Package className="h-4 w-4 text-emerald-600" />
+                Articles
+              </div>
+              <span className="text-xs text-gray-400">
+                {fields.length} article{fields.length > 1 ? "s" : ""}
+              </span>
             </div>
 
+            <div className="space-y-3">
+              {fields.map((field, index) => {
+                const lineTotal =
+                  (watchItems[index]?.unitPrice || 0) * (watchItems[index]?.quantity || 1);
+                const hasProductId = !!watchItems[index]?.productId;
+
+                return (
+                  <div
+                    key={field.id}
+                    className="rounded-lg border border-gray-200 p-3 space-y-3 bg-gray-50/50"
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.productId`}
+                          render={({ field: productIdField }) => (
+                            <FormItem>
+                              <FormLabel className="text-xs">Article</FormLabel>
+                              <FormControl>
+                                <ProductCombobox
+                                  products={products}
+                                  value={productIdField.value || ""}
+                                  onChange={(productId :any, selectedProduct :any) => {
+                                    productIdField.onChange(productId);
+                                    if (selectedProduct) {
+                                      form.setValue(`items.${index}.productName`, selectedProduct.name);
+                                      form.setValue(`items.${index}.unitPrice`, selectedProduct.unitPrice);
+                                    } else {
+                                      form.setValue(`items.${index}.productId`, "");
+                                    }
+                                  }}
+                                  onCustomProduct={(name :any) => {
+                                    form.setValue(`items.${index}.productName`, name);
+                                    form.setValue(`items.${index}.unitPrice`, 0);
+                                    form.setValue(`items.${index}.productId`, "");
+                                  }}
+                                  placeholder="Sélectionner ou créer un article"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name={`items.${index}.productName`}
+                          render={({ field }) => (
+                            <FormItem className="hidden">
+                              <FormControl><Input {...field} /></FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => remove(index)}
+                        disabled={fields.length === 1}
+                        className="h-9 w-9 mt-5 text-red-500 hover:text-red-600 hover:bg-red-50 shrink-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.unitPrice`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">Prix unitaire</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                                  Fcs
+                                </span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  {...field}
+                                  className={hasProductId ? "pl-9 bg-gray-100" : "pl-9"}
+                                  readOnly={hasProductId}
+                                  onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.quantity`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">Quantité</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                min={1}
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 mb-1.5">Total</p>
+                        <div className="h-9 flex items-center justify-center font-medium text-emerald-700 bg-emerald-50 rounded-md border border-emerald-100 text-sm">
+                          {lineTotal.toLocaleString()} Fcs
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => append({ productId: "", productName: "", unitPrice: 0, quantity: 1 })}
+              className="w-full border-dashed"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Ajouter un article
+            </Button>
+
+            <Separator />
+
+            {/* Status + description */}
             <FormField
               control={form.control}
               name="status"
@@ -373,10 +362,13 @@ export default function AddCreditModal({
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description (Optionnel)</FormLabel>
+                  <FormLabel className="flex items-center gap-1.5">
+                    <FileText className="h-3.5 w-3.5" />
+                    Note (Optionnel)
+                  </FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Ajoutez une description..."
+                      placeholder="Ajoutez une note..."
                       className="resize-none"
                       {...field}
                     />
@@ -386,26 +378,30 @@ export default function AddCreditModal({
               )}
             />
 
+            {/* Total summary */}
+            <div className="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 flex items-center justify-between">
+              <span className="text-sm font-medium text-blue-700">Montant total du crédit</span>
+              <span className="text-lg font-bold text-blue-800">
+                {totalAmount.toLocaleString()} Fcs
+              </span>
+            </div>
+
             {error && (
               <div className="rounded-lg bg-red-50 border border-red-200 p-3">
                 <p className="text-red-600 text-sm">{error}</p>
               </div>
             )}
 
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-              >
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
                 Annuler
               </Button>
               <Button
                 type="submit"
                 className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                disabled={form.formState.isSubmitting}
+                disabled={isSubmitting}
               >
-                {form.formState.isSubmitting ? "Ajout en cours..." : "Ajouter le crédit"}
+                {isSubmitting ? "Ajout en cours..." : "Ajouter le crédit"}
               </Button>
             </div>
           </form>

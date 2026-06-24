@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // lib/indexeddb.ts
 import { openDB, IDBPDatabase } from "idb";
 
 const DB_NAME = "pos-offline-db";
-const DB_VERSION = 4; // Bumped version
+const DB_VERSION = 5; // Bumped: LocalProduct now carries productCode for offline scanning
 
 export interface LocalProduct {
   productId: string;
@@ -13,6 +14,7 @@ export interface LocalProduct {
   userId?: string | null;
   description?: string | null;
   category?: string | null;
+  productCode?: string;          // EAN-13 barcode — needed so the scanner works offline
   created_at?: string;
 }
 
@@ -22,6 +24,9 @@ export interface LocalTransaction {
   invoiceId?: string | null;
   userId: string;
   storeId: string;
+  // productId is LOCAL bookkeeping only — it lets the sync functions know which
+  // product's stock to deduct once the device is back online. It is NEVER sent
+  // to the Supabase `transactions` table (that table has no productId column).
   productId?: string | null;
   productName?: string | null;
   unitPrice?: number | null;
@@ -44,6 +49,8 @@ export interface LocalInvoice {
   storePhoneNumber?: string | null;
   notes?: string | null;
   products: Array<{
+    // Same rule as LocalTransaction.productId — local lookup key only,
+    // used purely to find & deduct stock for this product on sync.
     productId?: string | null;
     name: string;
     unitPrice: number;
@@ -79,7 +86,7 @@ let dbPromise: Promise<IDBPDatabase> | null = null;
 
 async function initDB(): Promise<IDBPDatabase> {
   return openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
+    upgrade(db, oldVersion) {
       // Products store
       if (!db.objectStoreNames.contains("products")) {
         const productStore = db.createObjectStore("products", {
@@ -87,6 +94,11 @@ async function initDB(): Promise<IDBPDatabase> {
         });
         productStore.createIndex("storeId", "storeId");
       }
+      // Note: productCode is a new field on existing records (added in v5).
+      // IndexedDB object stores are schemaless for non-indexed fields, so
+      // existing product rows just won't have productCode until the next
+      // full sync overwrites them via productStore.clear() + re-put()
+      // inside syncDataFromServer() — no separate migration needed here.
 
       // Transactions store
       if (!db.objectStoreNames.contains("transactions")) {
@@ -97,10 +109,10 @@ async function initDB(): Promise<IDBPDatabase> {
         txStore.createIndex("synced", "synced");
         txStore.createIndex("storeId", "storeId");
         txStore.createIndex("created_at", "created_at");
-        txStore.createIndex("invoiceId", "invoiceId"); // NEW: track which invoice each tx belongs to
+        txStore.createIndex("invoiceId", "invoiceId");
       }
 
-      // Invoices store (NEW)
+      // Invoices store
       if (!db.objectStoreNames.contains("invoices")) {
         const invoiceStore = db.createObjectStore("invoices", {
           keyPath: "invoiceId",

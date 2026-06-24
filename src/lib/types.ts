@@ -15,7 +15,9 @@ export type Transaction = {
   transactionId: string;
   created_at: string;
   userId: string;
-  productId: string | null;
+  // Legacy field — no productId column on the transactions table itself.
+  // Kept optional for backward compatibility with old fetched objects only.
+  productId?: string | null;
   productName: string | null;
   unitPrice: number;
   totalPrice: number;
@@ -28,6 +30,5 @@ export type Product = {
   name: string;
   unitPrice: number;
   stock: number;
+  productCode?: string;   // EAN-13 barcode — needed for scan-to-search
 };
-
-

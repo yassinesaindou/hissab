@@ -3,7 +3,7 @@
 
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ModernProductsPage from "./components/ModernProductsPage";
 
 type Product = {
@@ -13,6 +13,7 @@ type Product = {
   unitPrice: number;
   category: string | null;
   description: string | null;
+  productCode: string;
   created_at: string;
 };
 
@@ -22,14 +23,16 @@ export default function ProductsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const router = useRouter();
-  const supabase = createSupabaseClient();
+  // Stable client ref — avoids infinite re-render loop (same fix as transactions page)
+  const supabaseRef = useRef(createSupabaseClient());
+  const supabase = supabaseRef.current;
 
   useEffect(() => {
     async function loadProducts() {
       try {
         setError(null);
         const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
+
         if (authError || !user) {
           router.replace("/login");
           return;
@@ -42,7 +45,6 @@ export default function ProductsPage() {
           .single();
 
         if (profileError) {
-          console.error("Failed to fetch profile:", profileError);
           setError("Erreur lors du chargement du profil");
           return;
         }
@@ -55,19 +57,18 @@ export default function ProductsPage() {
 
         const { data: productsData, error: productsError } = await supabase
           .from("products")
-          .select("productId, name, stock, unitPrice, category, description, created_at")
+          .select("productId, name, stock, unitPrice, category, description, productCode, created_at")
           .eq("storeId", profile.storeId)
           .order("created_at", { ascending: false });
 
         if (productsError) {
-          console.error("Failed to fetch products:", productsError);
           setError("Erreur lors du chargement des produits");
           return;
         }
 
         setProducts(productsData || []);
       } catch (err) {
-        console.error("Unexpected error loading products:", err);
+        console.error("Unexpected error:", err);
         setError("Une erreur inattendue s'est produite");
       } finally {
         setLoading(false);
@@ -82,8 +83,8 @@ export default function ProductsPage() {
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
         <div className="flex flex-col items-center gap-6">
           <div className="relative">
-            <div className="h-16 w-16 rounded-full border-4 border-blue-200"></div>
-            <div className="absolute inset-0 h-16 w-16 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
+            <div className="h-16 w-16 rounded-full border-4 border-blue-200" />
+            <div className="absolute inset-0 h-16 w-16 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
           </div>
           <div className="text-center">
             <h3 className="text-lg font-semibold text-gray-900">Chargement des produits</h3>
@@ -94,14 +95,14 @@ export default function ProductsPage() {
     );
   }
 
-
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-50 mb-4">
             <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">Erreur</h3>

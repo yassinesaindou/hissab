@@ -12,13 +12,17 @@ export interface Product {
   unitPrice: number;
   stock: number;
   category?: string | null;
+  productCode?: string;   // EAN-13 barcode — needed for scan-to-search
 }
 
 export interface Transaction {
   transactionId: string;
   created_at: string;
   userId: string;
-  productId: string | null;
+  // productId does NOT exist on the Supabase `transactions` table — kept
+  // here only as optional for any legacy code paths that might still read
+  // it from old already-fetched objects. Never write it on insert/update.
+  productId?: string | null;
   productName: string | null;
   unitPrice: number;
   totalPrice: number;

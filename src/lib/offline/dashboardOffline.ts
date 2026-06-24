@@ -1,11 +1,11 @@
 // lib/offline/dashboardOffline.ts
- 
+
 import { getAllProducts } from './products';
 import { getRecentTransactions } from './transactions';
 
 export async function fetchDashboardDataOffline(storeId: string) {
   const products = await getAllProducts(storeId);
-  const allTransactions = await getRecentTransactions(storeId, 200); // Get enough for calculations
+  const allTransactions = await getRecentTransactions(storeId, 200); // enough for calculations
 
   // Today's date filtering
   const today = new Date();
@@ -34,7 +34,7 @@ export async function fetchDashboardDataOffline(storeId: string) {
 
   const lowStockCount = lowStockProducts.length;
 
-  // Recent transactions (last 6)
+  // Recent transactions (last 6) — uses productName directly, no productId involved
   const recentTransactions = allTransactions.slice(0, 6).map((tx, index) => ({
     id: tx.localId || index,
     srNo: index + 1,
@@ -42,30 +42,42 @@ export async function fetchDashboardDataOffline(storeId: string) {
     time: new Date(tx.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
     type: tx.type,
     amount: tx.totalPrice,
-    product: tx.productName || 'N/A',
+    unitPrice: tx.unitPrice || undefined,
+    product: tx.productName || 'Article sans nom',
     quantity: tx.quantity,
   }));
 
-  // Top products (last 7 days)
+  // ── Category breakdown (replaces the old productId-based "top products") ──
+  // tx.productId only exists locally for stock-sync bookkeeping; it's never
+  // reliable as a long-term grouping key (and doesn't exist server-side at
+  // all). Instead, build a name -> category map from the local product
+  // catalogue and fold the last 7 days of sales into category totals —
+  // exactly mirroring the online dashboard's CategoryBreakdown widget.
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const recentSales = allTransactions.filter(
     tx => tx.type === 'sale' && tx.created_at >= sevenDaysAgo
   );
 
-  const productMap = new Map();
-  recentSales.forEach(tx => {
-    const key = tx.productId || tx.productName || 'unknown';
-    if (!productMap.has(key)) {
-      productMap.set(key, { name: tx.productName || 'Inconnu', sales: 0, quantity: 0 });
-    }
-    const item = productMap.get(key);
-    item.sales += tx.totalPrice;
-    item.quantity += tx.quantity;
+  const categoryByName = new Map<string, string>();
+  products.forEach(p => {
+    categoryByName.set(p.name, p.category || 'Général');
   });
 
-  const topProducts = Array.from(productMap.values())
+  const categoryMap = new Map<string, { sales: number; quantity: number }>();
+  recentSales.forEach(tx => {
+    const category = categoryByName.get(tx.productName || '') || 'Autre';
+    if (!categoryMap.has(category)) {
+      categoryMap.set(category, { sales: 0, quantity: 0 });
+    }
+    const entry = categoryMap.get(category)!;
+    entry.sales += tx.totalPrice;
+    entry.quantity += tx.quantity;
+  });
+
+  const categoryBreakdown = Array.from(categoryMap.entries())
+    .map(([name, v]) => ({ name, sales: v.sales, quantity: v.quantity }))
     .sort((a, b) => b.sales - a.sales)
-    .slice(0, 3);
+    .slice(0, 5);
 
   // Chart data - daily for last 7 days
   const dailyData = [];
@@ -87,7 +99,9 @@ export async function fetchDashboardDataOffline(storeId: string) {
     });
   }
 
-  // Return FULL DashboardData shape (including required chartData)
+  // Return shape matches the online DashboardData contract
+  // (categoryBreakdown replaces topProducts; availableProducts now carries productCode
+  // automatically since LocalProduct includes it and getAllProducts() returns full rows)
   return {
     todaySales,
     todayRevenue,
@@ -101,9 +115,9 @@ export async function fetchDashboardDataOffline(storeId: string) {
       stock: p.stock,
       unitPrice: p.unitPrice,
     })),
-    topProducts,
-    chartData: dailyData, // ← This was missing — now fixed
-    availableProducts: products,
+    categoryBreakdown,
+    chartData: dailyData,
+    availableProducts: products, // includes productCode — scanner works offline now
     dailyData,
     monthlyData: dailyData, // Simplified offline version
     quarterlyData: dailyData, // Simplified offline version

@@ -1,17 +1,22 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
- 
 // lib/offline/syncInvoicesToServer.ts
 import { createSupabaseClient } from "@/lib/supabase/client";
 import { getDB } from "@/lib/indexeddb";
 import type { LocalInvoice } from "@/lib/indexeddb";
 
 /**
- * Sync all pending invoices from IndexedDB to Supabase
+ * Sync all pending invoices from IndexedDB to Supabase.
+ *
+ * IMPORTANT — productId usage here:
+ * `product.productId` on each invoice line exists ONLY locally. It's used
+ * purely to look up and deduct the correct product's stock on the server.
+ * It is intentionally never written to the `transactions` table insert below
+ * (no such column there) — only used for the products.update() stock call.
  *
  * For each pending invoice:
  * 1. Check subscription (in case it expired offline)
- * 2. For each product in invoice, check & deduct stock
+ * 2. For each product in invoice, check & deduct stock (via productId lookup)
  * 3. Create ONE transaction for the entire invoice
  * 4. Mark invoice as synced
  */
@@ -25,7 +30,6 @@ export async function syncInvoicesToServer() {
     return { success: false, message: "Non authentifié" };
   }
 
-  // Get user's store
   const { data: profile } = await supabase
     .from("profiles")
     .select("storeId")
@@ -38,7 +42,6 @@ export async function syncInvoicesToServer() {
 
   const storeId = profile.storeId;
 
-  // Get all pending invoices
   const pendingInvoices = await db.getAllFromIndex(
     "invoices",
     "synced",
@@ -59,7 +62,6 @@ export async function syncInvoicesToServer() {
 
   for (const invoice of pendingInvoices) {
     try {
-      // Check subscription (might have expired while offline)
       const { data: subscription } = await supabase
         .from("subscriptions")
         .select("endAt")
@@ -67,26 +69,23 @@ export async function syncInvoicesToServer() {
         .single();
 
       if (!subscription) {
-        console.warn(
-          `Abonnement introuvable pour la facture ${invoice.invoiceId}`
-        );
+        console.warn(`Abonnement introuvable pour la facture ${invoice.invoiceId}`);
         failedCount++;
         continue;
       }
 
       const endAt = new Date(subscription.endAt);
       if (endAt < new Date()) {
-        console.warn(
-          `Abonnement expiré lors de la synchro de la facture ${invoice.invoiceId}`
-        );
+        console.warn(`Abonnement expiré lors de la synchro de la facture ${invoice.invoiceId}`);
         failedCount++;
         continue;
       }
 
-      // For each product in the invoice, check & deduct stock
+      // For each product line, check & deduct stock using the LOCAL productId
+      // as the lookup key — see file header note.
       for (const product of invoice.products) {
         if (!product.productId) {
-          // Unregistered product — no stock to deduct
+          // Unregistered/custom product — no stock to deduct
           continue;
         }
 
@@ -115,7 +114,6 @@ export async function syncInvoicesToServer() {
           continue;
         }
 
-        // Deduct stock
         const newStock = currentStock - product.quantity;
         const { error: updateErr } = await supabase
           .from("products")
@@ -136,9 +134,10 @@ export async function syncInvoicesToServer() {
         );
       }
 
-      // Create ONE transaction for the entire invoice
+      // Create ONE transaction for the entire invoice — no productId column,
+      // so the line items are summarised into the description field instead.
       const description = invoice.products
-        .map((p :any) => `${p.name} (x${p.quantity})`)
+        .map((p: any) => `${p.name} (x${p.quantity})`)
         .join(", ");
 
       const { error: txError } = await supabase
@@ -156,10 +155,7 @@ export async function syncInvoicesToServer() {
         });
 
       if (txError) {
-        console.error(
-          `Échec création transaction (facture ${invoice.invoiceId})`,
-          txError
-        );
+        console.error(`Échec création transaction (facture ${invoice.invoiceId})`, txError);
         failedCount++;
         continue;
       }
@@ -174,10 +170,7 @@ export async function syncInvoicesToServer() {
       syncedCount++;
       console.log(`Facture ${invoice.invoiceId} synchronisée avec succès`);
     } catch (err) {
-      console.error(
-        `Échec de la synchronisation de la facture ${invoice.invoiceId}`,
-        err
-      );
+      console.error(`Échec de la synchronisation de la facture ${invoice.invoiceId}`, err);
       failedCount++;
     }
   }

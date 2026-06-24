@@ -1,12 +1,12 @@
 /* eslint-disable react/no-unescaped-entities */
-// components/ProductCombobox.tsx - DEBUGGED VERSION
+// components/ProductCombobox.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, Barcode } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Product {
@@ -14,6 +14,7 @@ interface Product {
   name: string;
   unitPrice: number;
   stock: number;
+  productCode?: string;
 }
 
 interface ProductComboboxProps {
@@ -22,6 +23,8 @@ interface ProductComboboxProps {
   onChange: (productId: string, product?: Product) => void;
   onCustomProduct: (name: string) => void;
   placeholder?: string;
+  /** Imperative handle so a parent (e.g. a scan button) can push a scanned code in directly */
+  externalSearchQuery?: string;
 }
 
 export default function ProductCombobox({
@@ -29,22 +32,18 @@ export default function ProductCombobox({
   value,
   onChange,
   onCustomProduct,
-  placeholder = "Sélectionner un produit"
+  placeholder = "Sélectionner un produit",
+  externalSearchQuery,
 }: ProductComboboxProps) {
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [displayValue, setDisplayValue] = useState("");
   const commandInputRef = useRef<HTMLInputElement>(null);
 
-  // Debug log
-  console.log("ProductCombobox - Products:", products);
-  console.log("ProductCombobox - Current value:", value);
-
   // Initialize display value based on current value
   useEffect(() => {
     if (value && products.length > 0) {
-      const product = products.find(p => p.productId === value);
-      console.log("ProductCombobox - Found product:", product);
+      const product = products.find((p) => p.productId === value);
       if (product) {
         setDisplayValue(product.name);
       }
@@ -53,17 +52,27 @@ export default function ProductCombobox({
     }
   }, [value, products]);
 
-  // Filter products based on search query
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Allow a parent component (scan button) to push a search term in directly
+  useEffect(() => {
+    if (externalSearchQuery !== undefined && externalSearchQuery !== "") {
+      setSearchQuery(externalSearchQuery);
+      setOpen(true);
+    }
+  }, [externalSearchQuery]);
+
+  // Filter products — matches on name OR productCode
+  const filteredProducts = products.filter((product) => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return true;
+    const matchesName = product.name.toLowerCase().includes(query);
+    const matchesCode = product.productCode
+      ? product.productCode.toLowerCase().includes(query)
+      : false;
+    return matchesName || matchesCode;
+  });
 
   const handleProductSelect = (product: Product) => {
-    console.log("ProductCombobox - Product selected:", product);
-    console.log("ProductCombobox - Product price:", product.unitPrice);
-    
     setDisplayValue(product.name);
-    // PASS THE PRODUCT DATA HERE
     onChange(product.productId, product);
     setOpen(false);
     setSearchQuery("");
@@ -71,7 +80,6 @@ export default function ProductCombobox({
 
   const handleCustomProduct = () => {
     if (searchQuery.trim()) {
-      console.log("ProductCombobox - Custom product:", searchQuery);
       setDisplayValue(searchQuery);
       onChange("", undefined);
       onCustomProduct(searchQuery);
@@ -88,6 +96,19 @@ export default function ProductCombobox({
       }, 0);
     }
   }, [open]);
+
+  // Exact productCode match → auto-select immediately (used after a camera scan)
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!query) return;
+    const exactCodeMatch = products.find(
+      (p) => p.productCode?.toLowerCase() === query.toLowerCase()
+    );
+    if (exactCodeMatch) {
+      handleProductSelect(exactCodeMatch);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, products]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -106,39 +127,41 @@ export default function ProductCombobox({
           </Button>
         </PopoverTrigger>
       </div>
-      
-      <PopoverContent 
-        className="w-full p-0" 
-        align="start" 
+
+      <PopoverContent
+        className="w-full p-0"
+        align="start"
         style={{ width: "var(--radix-popover-trigger-width)" }}
       >
         <Command shouldFilter={false}>
-          <CommandInput 
+          <CommandInput
             ref={commandInputRef}
-            placeholder="Rechercher un produit..."
+            placeholder="Rechercher par nom ou code-barres..."
             value={searchQuery}
             onValueChange={setSearchQuery}
             className="h-11"
           />
           <CommandList>
-            {/* Custom product option - only show if search doesn't match exactly */}
-            {searchQuery.trim() && !products.some(p => p.name.toLowerCase() === searchQuery.toLowerCase().trim()) && (
-              <CommandGroup heading="Créer nouveau produit">
-                <CommandItem
-                  onSelect={handleCustomProduct}
-                  className="cursor-pointer"
-                >
-                  <Plus className="mr-2 h-4 w-4 text-emerald-600" />
-                  <div>
-                    <span className="font-medium">"{searchQuery}"</span>
-                    <span className="text-xs text-gray-500 block">
-                      Utiliser comme nouveau produit
-                    </span>
-                  </div>
-                </CommandItem>
-              </CommandGroup>
-            )}
-            
+            {/* Custom product option — only show if search doesn't match exactly */}
+            {searchQuery.trim() &&
+              !products.some(
+                (p) =>
+                  p.name.toLowerCase() === searchQuery.toLowerCase().trim() ||
+                  p.productCode?.toLowerCase() === searchQuery.toLowerCase().trim()
+              ) && (
+                <CommandGroup heading="Créer nouveau produit">
+                  <CommandItem onSelect={handleCustomProduct} className="cursor-pointer">
+                    <Plus className="mr-2 h-4 w-4 text-emerald-600" />
+                    <div>
+                      <span className="font-medium">"{searchQuery}"</span>
+                      <span className="text-xs text-gray-500 block">
+                        Utiliser comme nouveau produit
+                      </span>
+                    </div>
+                  </CommandItem>
+                </CommandGroup>
+              )}
+
             {/* Existing products */}
             {filteredProducts.length > 0 && (
               <CommandGroup heading="Produits existants">
@@ -156,19 +179,30 @@ export default function ProductCombobox({
                     />
                     <div className="flex-1">
                       <div className="font-medium">{product.name}</div>
-                      <div className="text-xs text-gray-500">
-                        Stock: {product.stock} • {product.unitPrice.toLocaleString()} Fcs
+                      <div className="text-xs text-gray-500 flex items-center gap-1.5">
+                        <span>Stock: {product.stock}</span>
+                        <span>•</span>
+                        <span>{product.unitPrice.toLocaleString()} Fcs</span>
+                        {product.productCode && (
+                          <>
+                            <span>•</span>
+                            <span className="inline-flex items-center gap-0.5 font-mono">
+                              <Barcode className="h-3 w-3" />
+                              {product.productCode}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </CommandItem>
                 ))}
               </CommandGroup>
             )}
-            
+
             <CommandEmpty className="py-6 text-center text-sm text-gray-500">
-              {products.length === 0 
+              {products.length === 0
                 ? "Aucun produit disponible. Tapez pour créer un nouveau."
-                : "Tapez le nom d'un produit (nouveau ou existant)"}
+                : "Tapez un nom ou un code-barres (nouveau ou existant)"}
             </CommandEmpty>
           </CommandList>
         </Command>

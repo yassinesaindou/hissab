@@ -211,3 +211,71 @@ body {
   user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
+
+@keyframes scan {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(76px); }
+}
+
+.animate-scan {
+  animation: scan 1.8s linear infinite;
+}
+
+@layer utilities {
+  /* Shimmer – moves the gradient across the text */
+  @keyframes shimmer {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+  .animate-shimmer {
+    animation: shimmer 3s linear infinite;
+  }
+
+  /* Gentle floating – like the text is breathing */
+  @keyframes float-slow {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+  .animate-float-slow {
+    animation: float-slow 4s ease-in-out infinite;
+  }
+
+  /* Slow pulse (more subtle than Tailwind's default) */
+  @keyframes pulse-slow {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+  .animate-pulse-slow {
+    animation: pulse-slow 2.5s ease-in-out infinite;
+  }
+}
+
+
+
+
+
+@layer utilities {
+  @keyframes shimmer {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+  }
+  .animate-shimmer {
+    animation: shimmer 3s linear infinite;
+  }
+
+  @keyframes float-slow {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+  .animate-float-slow {
+    animation: float-slow 4s ease-in-out infinite;
+  }
+
+  @keyframes pulse-slow {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+  .animate-pulse-slow {
+    animation: pulse-slow 2.5s ease-in-out infinite;
+  }
+}

@@ -20,8 +20,8 @@ import {
   Receipt,
   TrendingUp,
   TrendingDown,
-  Eye,
   ArrowUpDown,
+  ShoppingBag,
 } from "lucide-react";
 
 interface Transaction {
@@ -31,7 +31,7 @@ interface Transaction {
   time: string;
   type: "sale" | "expense" | "credit";
   amount: number;
-  product: string;
+  product: string;     // this IS the transaction's productName — no productId involved
   quantity: number;
   unitPrice?: number;
 }
@@ -40,69 +40,71 @@ interface RecentTransactionsProps {
   transactions: Transaction[];
 }
 
+const TYPE_STYLES = {
+  sale: {
+    bg: "bg-emerald-50",
+    text: "text-emerald-600",
+    border: "border-emerald-200",
+    ring: "ring-emerald-100",
+    icon: ArrowUpRight,
+    label: "Vente",
+    sign: "+",
+  },
+  credit: {
+    bg: "bg-blue-50",
+    text: "text-blue-600",
+    border: "border-blue-200",
+    ring: "ring-blue-100",
+    icon: Receipt,
+    label: "Crédit",
+    sign: "→",
+  },
+  expense: {
+    bg: "bg-rose-50",
+    text: "text-rose-600",
+    border: "border-rose-200",
+    ring: "ring-rose-100",
+    icon: ArrowDownRight,
+    label: "Dépense",
+    sign: "-",
+  },
+} as const;
+
 export default function RecentTransactions({ transactions }: RecentTransactionsProps) {
   const router = useRouter();
   const [sorting, setSorting] = useState<SortingState>([{ id: "date", desc: true }]);
 
-  // Calculate totals
-  const totalSales = transactions
-    .filter(tx => tx.type === "sale")
-    .reduce((sum, tx) => sum + tx.amount, 0);
+  const totalSales = transactions.filter((t) => t.type === "sale").reduce((s, t) => s + t.amount, 0);
+  const totalExpenses = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
 
-  const totalExpenses = transactions
-    .filter(tx => tx.type === "expense")
-    .reduce((sum, tx) => sum + tx.amount, 0);
-
-  // Helper functions
-  const getTypeColor = (type: Transaction["type"]) => {
-    switch (type) {
-      case "sale":
-        return { bg: "bg-emerald-50", text: "text-emerald-600", border: "border-emerald-200", icon: ArrowUpRight };
-      case "credit":
-        return { bg: "bg-blue-50", text: "text-blue-600", border: "border-blue-200", icon: Receipt };
-      case "expense":
-        return { bg: "bg-rose-50", text: "text-rose-600", border: "border-rose-200", icon: ArrowDownRight };
-    }
-  };
-
-  const getTypeLabel = (type: Transaction["type"]) => {
-    switch (type) {
-      case "sale": return "Vente";
-      case "credit": return "Crédit";
-      case "expense": return "Dépense";
-    }
-  };
-
-  // Define columns
   const columns: ColumnDef<Transaction>[] = [
     {
       accessorKey: "product",
       header: ({ column }) => (
-        <div className="flex items-center text-gray-600 font-medium">
-          Produit
+        <div className="flex items-center text-gray-500 font-medium text-xs uppercase tracking-wide">
+          Article
           <Button
             variant="ghost"
             size="sm"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="ml-1 h-6 w-6 p-0 hover:bg-gray-100"
+            className="ml-1 h-5 w-5 p-0 hover:bg-gray-100"
           >
             <ArrowUpDown className="h-3 w-3" />
           </Button>
         </div>
       ),
       cell: ({ row }) => {
-        const transaction = row.original;
-        const colors = getTypeColor(transaction.type);
-        const Icon = colors.icon;
-        
+        const t = row.original;
+        const style = TYPE_STYLES[t.type];
+        const Icon = style.icon;
         return (
-          <div className="flex items-center gap-2">
-            <div className={`rounded-md p-1.5 ${colors.bg} ${colors.text}`}>
-              <Icon className="h-3.5 w-3.5" />
+          <div className="flex items-center gap-2.5">
+            <div className={`rounded-lg p-2 ${style.bg} ring-1 ${style.ring}`}>
+              <Icon className={`h-3.5 w-3.5 ${style.text}`} />
             </div>
             <div className="min-w-0">
-              <p className="text-gray-900 truncate text-sm">{transaction.product}</p>
-              <p className="text-xs text-gray-500">{transaction.date}</p>
+              <p className="text-gray-900 truncate text-sm font-medium">{t.product}</p>
+              <p className="text-xs text-gray-400">{t.date} · {t.time}</p>
             </div>
           </div>
         );
@@ -110,56 +112,41 @@ export default function RecentTransactions({ transactions }: RecentTransactionsP
     },
     {
       accessorKey: "type",
-      header: "Type",
+      header: () => <span className="text-gray-500 font-medium text-xs uppercase tracking-wide">Type</span>,
       cell: ({ row }) => {
         const type = row.getValue("type") as Transaction["type"];
-        const colors = getTypeColor(type);
-        
+        const style = TYPE_STYLES[type];
         return (
-          <Badge 
-            variant="outline"
-            className={`${colors.bg} ${colors.text} ${colors.border} text-xs font-normal px-2 py-0.5`}
-          >
-            {getTypeLabel(type)}
+          <Badge variant="outline" className={`${style.bg} ${style.text} ${style.border} text-xs font-medium px-2 py-0.5 rounded-full`}>
+            {style.label}
           </Badge>
         );
       },
     },
     {
       accessorKey: "quantity",
-      header: "Qté",
-      cell: ({ row }) => {
-        const quantity = row.getValue("quantity") as number;
-        return (
-          <div className="text-gray-700 text-sm">
-            x{quantity}
-          </div>
-        );
-      },
+      header: () => <span className="text-gray-500 font-medium text-xs uppercase tracking-wide">Qté</span>,
+      cell: ({ row }) => <span className="text-gray-600 text-sm tabular-nums">×{row.getValue("quantity") as number}</span>,
     },
     {
       accessorKey: "unitPrice",
-      header: "Prix Unitaire",
+      header: () => <span className="text-gray-500 font-medium text-xs uppercase tracking-wide">P. Unitaire</span>,
       cell: ({ row }) => {
-        const transaction = row.original;
-        const unitPrice = transaction.unitPrice || Math.round(transaction.amount / transaction.quantity);
-        return (
-          <div className="text-gray-700 text-sm">
-            {unitPrice.toLocaleString()} Fcs
-          </div>
-        );
+        const t = row.original;
+        const unitPrice = t.unitPrice || Math.round(t.amount / t.quantity);
+        return <span className="text-gray-600 text-sm tabular-nums">{unitPrice.toLocaleString()} Fcs</span>;
       },
     },
     {
       accessorKey: "amount",
       header: ({ column }) => (
-        <div className="flex items-center text-gray-600 font-medium">
+        <div className="flex items-center text-gray-500 font-medium text-xs uppercase tracking-wide">
           Montant
           <Button
             variant="ghost"
             size="sm"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-            className="ml-1 h-6 w-6 p-0 hover:bg-gray-100"
+            className="ml-1 h-5 w-5 p-0 hover:bg-gray-100"
           >
             <ArrowUpDown className="h-3 w-3" />
           </Button>
@@ -168,29 +155,11 @@ export default function RecentTransactions({ transactions }: RecentTransactionsP
       cell: ({ row }) => {
         const amount = row.getValue("amount") as number;
         const type = row.original.type;
-        const colors = getTypeColor(type);
-        
+        const style = TYPE_STYLES[type];
         return (
-          <div className={`${colors.text} text-sm`}>
-            {type === "sale" ? "+" : type === "credit" ? "→" : "-"}
-            {" "}{amount.toLocaleString()} Fcs
-          </div>
-        );
-      },
-    },
-    {
-      id: "actions",
-      cell: ({ row }) => {
-        const transaction = row.original;
-        return (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => router.push(`/transactions/${transaction.id}`)}
-            className="h-7 w-7 p-0 hover:bg-gray-100"
-          >
-            <Eye className="h-3.5 w-3.5 text-gray-400" />
-          </Button>
+          <span className={`${style.text} text-sm font-semibold tabular-nums`}>
+            {style.sign} {amount.toLocaleString()} Fcs
+          </span>
         );
       },
     },
@@ -202,39 +171,34 @@ export default function RecentTransactions({ transactions }: RecentTransactionsP
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
-    state: {
-      sorting,
-    },
+    state: { sorting },
   });
 
   if (transactions.length === 0) {
     return (
-      <Card className="border border-gray-200 shadow-sm rounded-lg">
+      <Card className="border-0 shadow-xl bg-gradient-to-br from-white to-gray-50">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-blue-50 p-2">
+            <div className="rounded-lg bg-blue-100 p-2">
               <Receipt className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <CardTitle className="text-lg text-gray-800">Transactions Récentes</CardTitle>
+              <CardTitle className="text-xl">Transactions Récentes</CardTitle>
               <CardDescription>Aucune transaction aujourd'hui</CardDescription>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-3">
-              <Receipt className="w-8 h-8 text-gray-400" />
+          <div className="text-center py-10">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gray-100 mb-3">
+              <ShoppingBag className="w-7 h-7 text-gray-400" />
             </div>
-            <h3 className="text-base font-medium text-gray-700 mb-2">Aucune transaction</h3>
-            <p className="text-gray-500 text-sm mb-4 max-w-xs mx-auto">
-              Ajoutez votre première vente ou dépense.
+            <h3 className="text-base font-medium text-gray-700 mb-1">Aucune transaction</h3>
+            <p className="text-gray-500 text-sm mb-5 max-w-xs mx-auto">
+              Ajoutez votre première vente ou dépense pour commencer.
             </p>
-            <Button
-              onClick={() => router.push("/transactions/new")}
-              className="bg-blue-600 hover:bg-blue-700 text-sm"
-            >
-              + Créer Transaction
+            <Button onClick={() => router.push("/transactions")} className="bg-blue-600 hover:bg-blue-700 text-sm">
+              + Créer une transaction
             </Button>
           </div>
         </CardContent>
@@ -243,78 +207,60 @@ export default function RecentTransactions({ transactions }: RecentTransactionsP
   }
 
   return (
-    <Card className="border border-gray-200 shadow-sm rounded-lg">
+    <Card className="border-0 shadow-xl bg-gradient-to-br from-white to-gray-50 overflow-hidden">
       <CardHeader className="pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-blue-50 p-2">
+            <div className="rounded-lg bg-blue-100 p-2">
               <Receipt className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <CardTitle className="text-lg text-gray-800">Transactions Récentes</CardTitle>
-              <CardDescription className="text-gray-600 text-sm">
-                {transactions.length} transaction{transactions.length > 1 ? 's' : ''} aujourd'hui
+              <CardTitle className="text-xl">Transactions Récentes</CardTitle>
+              <CardDescription className="text-gray-500 text-sm">
+                {transactions.length} transaction{transactions.length > 1 ? "s" : ""} aujourd'hui
               </CardDescription>
             </div>
           </div>
-          
-          {/* Summary Stats */}
+
           <div className="flex gap-2">
-            <div className="flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-100">
+            <div className="flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-full ring-1 ring-emerald-100">
               <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
-              <span className="text-xs font-medium text-emerald-700">
+              <span className="text-xs font-semibold text-emerald-700">
                 +{totalSales.toLocaleString()} Fcs
               </span>
             </div>
-            <div className="flex items-center gap-1.5 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-100">
+            <div className="flex items-center gap-1.5 bg-rose-50 px-3 py-1.5 rounded-full ring-1 ring-rose-100">
               <TrendingDown className="h-3.5 w-3.5 text-rose-600" />
-              <span className="text-xs font-medium text-rose-700">
+              <span className="text-xs font-semibold text-rose-700">
                 -{totalExpenses.toLocaleString()} Fcs
               </span>
             </div>
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent className="p-0">
-        {/* Desktop Table View */}
+        {/* Desktop table */}
         <div className="hidden md:block">
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-y border-gray-200">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <th
-                        key={header.id}
-                        className="px-4 py-2.5 text-left text-xs font-medium text-gray-600"
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
+              <thead className="border-y border-gray-100">
+                {table.getHeaderGroups().map((hg) => (
+                  <tr key={hg.id}>
+                    {hg.headers.map((h) => (
+                      <th key={h.id} className="px-5 py-3 text-left">
+                        {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
                       </th>
                     ))}
                   </tr>
                 ))}
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-50">
                 {table.getRowModel().rows.map((row) => (
-                  <tr 
-                    key={row.id}
-                    className="hover:bg-gray-50/50 transition-colors"
-                  >
+                  <tr key={row.id} className="hover:bg-gray-50/70 transition-colors">
                     {row.getVisibleCells().map((cell) => (
-                      <td
-                        key={cell.id}
-                        className="px-4 py-3 whitespace-nowrap"
-                      >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
+                      <td key={cell.id} className="px-5 py-3.5 whitespace-nowrap">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
                   </tr>
@@ -324,63 +270,47 @@ export default function RecentTransactions({ transactions }: RecentTransactionsP
           </div>
         </div>
 
-        {/* Mobile Card View */}
+        {/* Mobile cards */}
         <div className="md:hidden space-y-2 p-3">
-          {transactions.slice(0, 5).map((tx) => {
-            const colors = getTypeColor(tx.type);
-            const Icon = colors.icon;
-            const unitPrice = tx.unitPrice || Math.round(tx.amount / tx.quantity);
-            
+          {transactions.slice(0, 5).map((t) => {
+            const style = TYPE_STYLES[t.type];
+            const Icon = style.icon;
+            const unitPrice = t.unitPrice || Math.round(t.amount / t.quantity);
+
             return (
-              <div
-                key={tx.id}
-                className="rounded-lg border border-gray-200 bg-white p-3 hover:border-gray-300 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex items-start gap-2 flex-1">
-                    <div className={`rounded-md p-1.5 mt-0.5 ${colors.bg} ${colors.text}`}>
-                      <Icon className="h-3.5 w-3.5" />
+              <div key={t.id} className="rounded-xl border border-gray-100 bg-white p-3.5 shadow-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                    <div className={`rounded-lg p-2 mt-0.5 ${style.bg} ring-1 ${style.ring}`}>
+                      <Icon className={`h-3.5 w-3.5 ${style.text}`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="text-gray-900 text-sm truncate">{tx.product}</h4>
+                      <h4 className="text-gray-900 text-sm font-medium truncate">{t.product}</h4>
                       <div className="flex items-center gap-1.5 mt-1">
-                        <Badge 
-                          variant="outline"
-                          className={`${colors.bg} ${colors.text} ${colors.border} text-xs font-normal px-1.5 py-0`}
-                        >
-                          {getTypeLabel(tx.type)}
+                        <Badge variant="outline" className={`${style.bg} ${style.text} ${style.border} text-xs px-1.5 py-0 rounded-full`}>
+                          {style.label}
                         </Badge>
-                        <span className="text-xs text-gray-500">x{tx.quantity}</span>
+                        <span className="text-xs text-gray-400">×{t.quantity}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className={`${colors.text} text-sm`}>
-                      {tx.type === "sale" ? "+" : tx.type === "credit" ? "→" : "-"}
-                      {" "}{tx.amount.toLocaleString()} Fcs
+                  <div className="text-right shrink-0">
+                    <div className={`${style.text} text-sm font-semibold tabular-nums`}>
+                      {style.sign} {t.amount.toLocaleString()} Fcs
                     </div>
-                    <p className="text-xs text-gray-500 mt-0.5">{tx.date}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{t.date}</p>
                   </div>
                 </div>
-                
-                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                  <div className="text-xs text-gray-600">
-                    Prix: {unitPrice.toLocaleString()} Fcs/unité
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => router.push(`/transactions/${tx.id}`)}
-                    className="h-6 px-2 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                  >
-                    <Eye className="h-3 w-3 mr-1" />
-                    Voir
-                  </Button>
+
+                <div className="flex items-center justify-between pt-2.5 mt-2.5 border-t border-gray-50">
+                  <span className="text-xs text-gray-500">
+                    {unitPrice.toLocaleString()} Fcs / unité
+                  </span>
                 </div>
               </div>
             );
           })}
-          
+
           {transactions.length > 5 && (
             <div className="text-center pt-2">
               <Button
@@ -396,20 +326,19 @@ export default function RecentTransactions({ transactions }: RecentTransactionsP
         </div>
       </CardContent>
 
-      {/* Footer with View All Button */}
       {transactions.length > 0 && (
-        <div className="border-t border-gray-200 p-3">
+        <div className="border-t border-gray-100 px-5 py-3.5">
           <div className="flex items-center justify-between">
-            <div className="text-xs text-gray-500">
-              Affichage de {Math.min(transactions.length, 5)} sur {transactions.length}
-            </div>
+            <span className="text-xs text-gray-400">
+              {Math.min(transactions.length, 5)} sur {transactions.length} affichées
+            </span>
             <Button
               variant="outline"
               size="sm"
               onClick={() => router.push("/transactions")}
-              className="text-xs border-gray-300 hover:bg-gray-50 h-8"
+              className="text-xs border-gray-200 hover:bg-gray-50 h-8 rounded-full"
             >
-              Voir Tout
+              Voir tout
               <ArrowUpRight className="ml-1.5 h-3 w-3" />
             </Button>
           </div>

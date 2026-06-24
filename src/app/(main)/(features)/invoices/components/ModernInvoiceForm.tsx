@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-// components/ModernInvoiceForm.tsx - UPDATED WITH NEW SERVICE
+// components/ModernInvoiceForm.tsx - UPDATED WITH PRODUCT CODE SEARCH + SCAN BUTTON
 "use client";
 
 import { useState } from "react";
@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import ProductCombobox from "./ProductCombobox";
+import InvoiceScanButton from "./InvoiceScanButton";
 import { PDFDownloadLink, Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 // UPDATED: Import new createInvoice service instead of action
 import { createInvoice } from "@/lib/offline/invoiceservice";
@@ -42,11 +43,12 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-interface Product { 
-  productId: string; 
-  name: string; 
-  unitPrice: number; 
-  stock: number; 
+interface Product {
+  productId: string;
+  name: string;
+  unitPrice: number;
+  stock: number;
+  productCode?: string;
 }
 
 interface ModernInvoiceFormProps {
@@ -154,12 +156,12 @@ const styles = StyleSheet.create({
 // Helper function to convert numbers to words (French)
 const convertToWords = (num: number): string => {
   if (num === 0) return 'zéro';
-  
+
   const units = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf'];
   const teens = ['dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize', 'dix-sept', 'dix-huit', 'dix-neuf'];
   const tens = ['', 'dix', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante-dix', 'quatre-vingt', 'quatre-vingt-dix'];
   const thousands = ['', 'mille', 'million', 'milliard'];
-  
+
   const convertChunk = (n: number): string => {
     if (n === 0) return '';
     if (n < 10) return units[n];
@@ -167,8 +169,7 @@ const convertToWords = (num: number): string => {
     if (n < 100) {
       const ten = Math.floor(n / 10);
       const unit = n % 10;
-      
-      // Special cases for French
+
       if (ten === 7 || ten === 9) {
         const base = tens[ten - 1];
         if (unit === 0) return base + '-dix';
@@ -176,7 +177,7 @@ const convertToWords = (num: number): string => {
         if (unit === 1 && ten === 9) return base + '-onze';
         return base + '-' + (unit < 10 ? teens[unit] : units[unit]);
       }
-      
+
       if (unit === 0) return tens[ten];
       if (unit === 1 && ten === 1) return 'onze';
       if (unit === 1 && (ten === 2 || ten === 3 || ten === 4 || ten === 5 || ten === 6)) {
@@ -184,7 +185,7 @@ const convertToWords = (num: number): string => {
       }
       return tens[ten] + '-' + units[unit];
     }
-    
+
     const hundred = Math.floor(n / 100);
     const rest = n % 100;
     let result = hundred === 1 ? 'cent' : units[hundred] + ' cent';
@@ -192,24 +193,22 @@ const convertToWords = (num: number): string => {
     if (rest > 0) result += ' ' + convertChunk(rest);
     return result;
   };
-  
-  // Handle decimal numbers
+
   const integerPart = Math.floor(num);
-  
+
   if (integerPart < 1000) {
     return convertChunk(integerPart);
   }
-  
-  // For numbers >= 1000
+
   let result = '';
   let chunkIndex = 0;
   let remaining = integerPart;
-  
+
   while (remaining > 0) {
     const chunk = remaining % 1000;
     if (chunk > 0) {
       const chunkWords = convertChunk(chunk);
-      if (chunkIndex === 1) { // thousands
+      if (chunkIndex === 1) {
         result = (chunk === 1 ? 'mille' : chunkWords + ' mille') + (result ? ' ' + result : '');
       } else if (chunkIndex > 1) {
         result = chunkWords + ' ' + thousands[chunkIndex] + (chunk > 1 ? 's' : '') + (result ? ' ' + result : '');
@@ -220,7 +219,7 @@ const convertToWords = (num: number): string => {
     remaining = Math.floor(remaining / 1000);
     chunkIndex++;
   }
-  
+
   return result.trim();
 };
 
@@ -233,23 +232,20 @@ const InvoicePDF = ({ data, storePhoneNumber }: { data: FormValues; storePhoneNu
     month: 'long',
     day: 'numeric',
   });
-  
+
   const total = data.products.reduce((sum, product) => sum + (product.unitPrice * product.quantity), 0);
-  
-  // Check if client info is provided
+
   const hasClientInfo = data.clientName || data.clientPhone || data.clientEmail || data.clientAddress;
-  
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>FACTURE</Text>
           <Text style={styles.invoiceNumber}>N° {invoiceNumber}</Text>
           <Text style={styles.invoiceNumber}>Date: {invoiceDate}</Text>
         </View>
 
-        {/* Store and Client Info */}
         <View style={{ flexDirection: 'row', justifyContent: hasClientInfo ? 'space-between' : 'flex-start', marginBottom: 25 }}>
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Émetteur</Text>
@@ -257,7 +253,7 @@ const InvoicePDF = ({ data, storePhoneNumber }: { data: FormValues; storePhoneNu
             <Text style={styles.text}>{data.storeAddress}</Text>
             {storePhoneNumber && <Text style={styles.text}>{storePhoneNumber}</Text>}
           </View>
-          
+
           {hasClientInfo && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Client</Text>
@@ -269,19 +265,16 @@ const InvoicePDF = ({ data, storePhoneNumber }: { data: FormValues; storePhoneNu
           )}
         </View>
 
-        {/* Products Table */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Détails de la Facture</Text>
           <View style={styles.table}>
-            {/* Table Header */}
             <View style={styles.tableHeader}>
               <Text style={[styles.tableCell, { flex: 3 }]}>Description</Text>
               <Text style={styles.tableCell}>Prix Unitaire</Text>
               <Text style={styles.tableCell}>Quantité</Text>
               <Text style={[styles.tableCell, styles.tableCellLast]}>Total</Text>
             </View>
-            
-            {/* Table Rows */}
+
             {data.products.map((product, index) => (
               <View key={index} style={styles.tableRow}>
                 <Text style={[styles.tableCell, { flex: 3 }]}>{product.name}</Text>
@@ -295,7 +288,6 @@ const InvoicePDF = ({ data, storePhoneNumber }: { data: FormValues; storePhoneNu
           </View>
         </View>
 
-        {/* Notes */}
         {data.notes && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Notes</Text>
@@ -303,7 +295,6 @@ const InvoicePDF = ({ data, storePhoneNumber }: { data: FormValues; storePhoneNu
           </View>
         )}
 
-        {/* Total */}
         <View style={styles.totalSection}>
           <Text style={styles.totalLabel}>Total à payer</Text>
           <Text style={styles.totalValue}>{total.toFixed(2)} Fcs</Text>
@@ -312,7 +303,6 @@ const InvoicePDF = ({ data, storePhoneNumber }: { data: FormValues; storePhoneNu
           </Text>
         </View>
 
-        {/* Footer */}
         <View style={styles.footer}>
           <Text>Merci de votre confiance !</Text>
           <Text>Ce document a une valeur légale et doit être conservé.</Text>
@@ -323,16 +313,17 @@ const InvoicePDF = ({ data, storePhoneNumber }: { data: FormValues; storePhoneNu
   );
 };
 
-export default function ModernInvoiceForm({ 
-  products = [], 
-  storeAddress = "", 
-  storeName = "", 
-  storePhoneNumber = "" 
+export default function ModernInvoiceForm({
+  products = [],
+  storeAddress = "",
+  storeName = "",
+  storePhoneNumber = ""
 }: ModernInvoiceFormProps) {
   const [submitMessage, setSubmitMessage] = useState<string>("");
   const [invoiceData, setInvoiceData] = useState<FormValues | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invoiceCreated, setInvoiceCreated] = useState(false);
+  const [scanNotice, setScanNotice] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -349,9 +340,9 @@ export default function ModernInvoiceForm({
     },
   });
 
-  const { fields, append, remove } = useFieldArray({ 
-    control: form.control, 
-    name: "products" 
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "products"
   });
 
   const watchProducts = form.watch("products");
@@ -359,6 +350,44 @@ export default function ModernInvoiceForm({
   const taxRate = 0;
   const taxAmount = totalPrice * taxRate;
   const grandTotal = totalPrice + taxAmount;
+
+  // ── Scan handling ──────────────────────────────────────────────────────────
+  // When a scanned barcode matches a known product:
+  //  - if the FIRST row is still empty, fill it in directly
+  //  - otherwise append a new row with that product pre-filled
+  const handleScanFound = (product: Product) => {
+    const firstRow = watchProducts[0];
+    const firstRowEmpty = !firstRow?.name && !firstRow?.productId;
+
+    if (firstRowEmpty && fields.length === 1) {
+      form.setValue("products.0.productId", product.productId);
+      form.setValue("products.0.name", product.name);
+      form.setValue("products.0.unitPrice", product.unitPrice);
+      form.setValue("products.0.quantity", 1);
+    } else {
+      // If this exact product is already a line, bump its quantity instead of duplicating
+      const existingIndex = watchProducts.findIndex((p) => p.productId === product.productId);
+      if (existingIndex !== -1) {
+        const currentQty = watchProducts[existingIndex]?.quantity || 1;
+        form.setValue(`products.${existingIndex}.quantity`, currentQty + 1);
+      } else {
+        append({
+          productId: product.productId,
+          name: product.name,
+          unitPrice: product.unitPrice,
+          quantity: 1,
+        });
+      }
+    }
+
+    setScanNotice(`✓ "${product.name}" ajouté à la facture`);
+    setTimeout(() => setScanNotice(null), 2500);
+  };
+
+  const handleScanNotFound = (code: string) => {
+    setScanNotice(`⚠ Aucun produit avec le code "${code}"`);
+    setTimeout(() => setScanNotice(null), 3000);
+  };
 
   // UPDATED: Use new createInvoice service
   const onSubmit = async (data: FormValues) => {
@@ -387,9 +416,7 @@ export default function ModernInvoiceForm({
         setSubmitMessage("Facture créée avec succès !");
         setInvoiceData(data);
         setInvoiceCreated(true);
-        // Don't auto-reset - let user manually start new transaction
       } else {
-        // Error from service
         setSubmitMessage(result.message || "Erreur lors de la création de la facture");
       }
     } catch (error: any) {
@@ -423,11 +450,11 @@ export default function ModernInvoiceForm({
               <User className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
               <h3 className="text-base sm:text-lg font-semibold text-gray-900">Informations Client</h3>
             </div>
-            
+
             <div className="space-y-4">
-              <FormField 
-                control={form.control} 
-                name="clientName" 
+              <FormField
+                control={form.control}
+                name="clientName"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-medium">Nom du Client</FormLabel>
@@ -436,12 +463,12 @@ export default function ModernInvoiceForm({
                     </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} 
+                )}
               />
 
-              <FormField 
-                control={form.control} 
-                name="clientPhone" 
+              <FormField
+                control={form.control}
+                name="clientPhone"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-medium">Téléphone</FormLabel>
@@ -450,13 +477,13 @@ export default function ModernInvoiceForm({
                     </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} 
+                )}
               />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField 
-                  control={form.control} 
-                  name="clientEmail" 
+                <FormField
+                  control={form.control}
+                  name="clientEmail"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-sm font-medium">Email</FormLabel>
@@ -465,12 +492,12 @@ export default function ModernInvoiceForm({
                       </FormControl>
                       <FormMessage />
                     </FormItem>
-                  )} 
+                  )}
                 />
 
-                <FormField 
-                  control={form.control} 
-                  name="clientAddress" 
+                <FormField
+                  control={form.control}
+                  name="clientAddress"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-sm font-medium">Adresse</FormLabel>
@@ -479,7 +506,7 @@ export default function ModernInvoiceForm({
                       </FormControl>
                       <FormMessage />
                     </FormItem>
-                  )} 
+                  )}
                 />
               </div>
             </div>
@@ -491,11 +518,11 @@ export default function ModernInvoiceForm({
               <Store className="h-4 w-4 sm:h-5 sm:w-5 text-indigo-600" />
               <h3 className="text-base sm:text-lg font-semibold text-gray-900">Informations Magasin</h3>
             </div>
-            
+
             <div className="space-y-4">
-              <FormField 
-                control={form.control} 
-                name="storeName" 
+              <FormField
+                control={form.control}
+                name="storeName"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-medium">Nom du Magasin *</FormLabel>
@@ -504,12 +531,12 @@ export default function ModernInvoiceForm({
                     </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} 
+                )}
               />
 
-              <FormField 
-                control={form.control} 
-                name="storeAddress" 
+              <FormField
+                control={form.control}
+                name="storeAddress"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-medium">Adresse *</FormLabel>
@@ -518,12 +545,12 @@ export default function ModernInvoiceForm({
                     </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} 
+                )}
               />
 
-              <FormField 
-                control={form.control} 
-                name="storePhoneNumber" 
+              <FormField
+                control={form.control}
+                name="storePhoneNumber"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel className="text-sm font-medium">Téléphone</FormLabel>
@@ -532,7 +559,7 @@ export default function ModernInvoiceForm({
                     </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} 
+                )}
               />
             </div>
           </div>
@@ -552,6 +579,26 @@ export default function ModernInvoiceForm({
             </Badge>
           </div>
 
+          {/* ── Scan button — sits above the article rows ─────────────────── */}
+          <InvoiceScanButton
+            products={products}
+            onProductFound={handleScanFound}
+            onProductNotFound={handleScanNotFound}
+          />
+
+          {scanNotice && (
+            <div
+              className={cn(
+                "text-sm rounded-lg px-3 py-2 -mt-2",
+                scanNotice.startsWith("✓")
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : "bg-amber-50 text-amber-700 border border-amber-200"
+              )}
+            >
+              {scanNotice}
+            </div>
+          )}
+
           {/* Products - Desktop Table View (hidden on mobile) */}
           <div className="hidden lg:block border border-gray-200 rounded-lg overflow-hidden">
             <div className="bg-gray-50 p-4 grid grid-cols-12 gap-4 text-sm font-medium text-gray-700">
@@ -565,7 +612,7 @@ export default function ModernInvoiceForm({
             <div className="divide-y divide-gray-100">
               {fields.map((field, index) => {
                 const lineTotal = (watchProducts[index]?.unitPrice || 0) * (watchProducts[index]?.quantity || 1);
-                
+
                 return (
                   <div key={field.id} className="p-4 grid grid-cols-12 gap-4 items-center hover:bg-gray-50/50 transition-colors">
                     {/* Product Selection */}
@@ -601,7 +648,7 @@ export default function ModernInvoiceForm({
                           </FormItem>
                         )}
                       />
-                      
+
                       <FormField
                         control={form.control}
                         name={`products.${index}.name`}
@@ -624,7 +671,7 @@ export default function ModernInvoiceForm({
                         render={({ field }) => {
                           const productId = form.watch(`products.${index}.productId`);
                           const isExistingProduct = !!productId;
-                          
+
                           return (
                             <FormItem>
                               <FormLabel className="sr-only">Prix Unitaire</FormLabel>
@@ -711,7 +758,7 @@ export default function ModernInvoiceForm({
           <div className="lg:hidden space-y-4">
             {fields.map((field, index) => {
               const lineTotal = (watchProducts[index]?.unitPrice || 0) * (watchProducts[index]?.quantity || 1);
-              
+
               return (
                 <div key={field.id} className="border border-gray-200 rounded-lg p-4 space-y-4 bg-white shadow-sm">
                   <div className="flex items-center justify-between">
@@ -760,7 +807,7 @@ export default function ModernInvoiceForm({
                       </FormItem>
                     )}
                   />
-                  
+
                   <FormField
                     control={form.control}
                     name={`products.${index}.name`}
@@ -782,7 +829,7 @@ export default function ModernInvoiceForm({
                       render={({ field }) => {
                         const productId = form.watch(`products.${index}.productId`);
                         const isExistingProduct = !!productId;
-                        
+
                         return (
                           <FormItem>
                             <FormLabel className="text-sm font-medium">Prix Unitaire</FormLabel>
@@ -866,9 +913,9 @@ export default function ModernInvoiceForm({
         {/* Notes Section */}
         <div className="space-y-4">
           <h3 className="text-base sm:text-lg font-semibold text-gray-900">Notes (Optionnel)</h3>
-          <FormField 
-            control={form.control} 
-            name="notes" 
+          <FormField
+            control={form.control}
+            name="notes"
             render={({ field }) => (
               <FormItem>
                 <FormControl>
@@ -880,7 +927,7 @@ export default function ModernInvoiceForm({
                 </FormControl>
                 <FormMessage />
               </FormItem>
-            )} 
+            )}
           />
         </div>
 
@@ -890,7 +937,7 @@ export default function ModernInvoiceForm({
             <span className="text-sm sm:text-base text-gray-600">Sous-total:</span>
             <span className="text-sm sm:text-base font-semibold">{totalPrice.toLocaleString()} Fcs</span>
           </div>
-          
+
           {taxRate > 0 && (
             <div className="flex justify-between items-center">
               <span className="text-sm sm:text-base text-gray-600">Taxe ({taxRate * 100}%):</span>
@@ -911,7 +958,7 @@ export default function ModernInvoiceForm({
           {submitMessage && (
             <div className={cn(
               "p-3 rounded-lg text-sm",
-              submitMessage.includes("succès") 
+              submitMessage.includes("succès")
                 ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                 : "bg-red-50 text-red-700 border border-red-200"
             )}>
@@ -955,7 +1002,7 @@ export default function ModernInvoiceForm({
                     )}
                   </PDFDownloadLink>
                 )}
-                
+
                 {/* New Transaction Button */}
                 <Button
                   type="button"

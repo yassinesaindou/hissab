@@ -6,14 +6,16 @@ declare const self: ServiceWorkerGlobalScopeEventMap & {
   __SW_MANIFEST: (PrecacheEntry | string)[];
 };
 
+const buildId = Date.now().toString();
+
 const serwist = new Serwist({
   precacheEntries: [
     ...self.__SW_MANIFEST, // all chunks precached automatically
-    { url: "/dashboard", revision: "1" },
-    { url: "/invoices", revision: "1" },
-    { url: "/offline", revision: "1" },
-    { url: "/deactivated", revision: "1" },
-    { url: "/", revision: "1" },
+    { url: "/dashboard", revision: buildId },
+    { url: "/invoices", revision: buildId },
+    { url: "/offline", revision: buildId },
+    { url: "/deactivated", revision: buildId },
+    { url: "/", revision: buildId },
   ],
   skipWaiting: true,
   clientsClaim: true,
