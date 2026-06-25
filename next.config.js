@@ -1,26 +1,24 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  reactStrictMode: true,
-   async headers() {
-    return [
-      {
-        source: "/(.*)",
-        headers: [
-          {
-            key: "Feature-Policy",
-            value: "camera *",
-          },
-        ],
-      },
-    ];
-  },
-};
+// next.config.js
+import withSerwist from '@serwist/next';
 
-const withSerwist = require('@serwist/next').default;
-
-module.exports = withSerwist({
+export default withSerwist({
   swSrc: 'src/app/sw.ts',
   swDest: 'public/sw.js',
   disable: process.env.NODE_ENV === 'development',
-})(nextConfig);
+})({
+  reactStrictMode: true,
+  env: {
+    // Generated once per build, stable for the lifetime of that deployment —
+    // unlike Date.now() inside sw.ts, this is fixed at BUILD time, not at
+    // service-worker-execution time in the visitor's browser.
+    SW_BUILD_ID: process.env.VERCEL_GIT_COMMIT_SHA || Date.now().toString(),
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [{ key: "Feature-Policy", value: "camera *" }],
+      },
+    ];
+  },
+});
